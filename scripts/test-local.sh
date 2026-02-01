@@ -12,14 +12,18 @@ mkdir -p sandbox
 
 # Initialize and test
 echo ""
-echo "Running: pm init sandbox"
-./bin/pm init sandbox
+echo "Running: pm init --prefix test sandbox"
+./bin/pm init --prefix test sandbox
 
 cd sandbox
 
 echo ""
 echo "Running: pm new 'Test ticket'"
 ../bin/pm new "Test ticket"
+
+echo ""
+echo "Running: pm new 'Second ticket'"
+../bin/pm new "Second ticket"
 
 echo ""
 echo "Running: pm list"

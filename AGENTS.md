@@ -781,32 +781,32 @@ This stage focuses on the essential functionality for a single user to manage ti
 
 This stage refines the MVP based on initial usage feedback, focusing on making the tool more user-friendly and predictable.
 
-- [ ] **`pm init` improvements**:
-    - [ ] Make `--prefix` flag required (no default)
-    - [ ] Convert prefix to uppercase automatically (e.g., `ticket` → `TICKET`)
-    - [ ] Verify SQLite database is actually created and accessible after migration
-    - [ ] Update error messages to guide users on prefix requirements
-- [ ] **Ticket ID format change**:
-    - [ ] Replace KSUID-based IDs with sequential integers (`PREFIX-1`, `PREFIX-2`, etc.)
-    - [ ] Implement filesystem-based ID generation: scan `.pm/tickets/` to find highest number
-    - [ ] Handle gaps in sequence gracefully (e.g., 1,2,4,5 → next is 6)
-    - [ ] Do NOT rely on SQLite cache for ID generation (support manual ticket creation)
-    - [ ] Update ID validation regex to accept `{PREFIX}-\d+` format
-- [ ] **Update `pm new` command**:
-    - [ ] Read prefix from `.pm/config/project.yaml` (created during init)
-    - [ ] Generate next sequential ID by scanning existing tickets
-    - [ ] Update templates to work with new ID format
-- [ ] **Configuration file**:
-    - [ ] Create `.pm/config/project.yaml` during init with structure:
+- [x] **`pm init` improvements**:
+    - [x] Make `--prefix` flag required (no default)
+    - [x] Convert prefix to uppercase automatically (e.g., `ticket` → `TICKET`)
+    - [x] Verify SQLite database is actually created and accessible after migration
+    - [x] Update error messages to guide users on prefix requirements
+- [x] **Ticket ID format change**:
+    - [x] Replace KSUID-based IDs with sequential integers (`PREFIX-1`, `PREFIX-2`, etc.)
+    - [x] Implement filesystem-based ID generation: scan `.pm/tickets/` to find highest number
+    - [x] Handle gaps in sequence gracefully (e.g., 1,2,4,5 → next is 6)
+    - [x] Do NOT rely on SQLite cache for ID generation (support manual ticket creation)
+    - [x] Update ID validation regex to accept `{PREFIX}-\d+` format
+- [x] **Update `pm new` command**:
+    - [x] Read prefix from `.pm/config/project.yaml` (created during init)
+    - [x] Generate next sequential ID by scanning existing tickets
+    - [x] Update templates to work with new ID format
+- [x] **Configuration file**:
+    - [x] Create `.pm/config/project.yaml` during init with structure:
       ```yaml
       prefix: TICKET  # User-specified, uppercased
       ```
-    - [ ] Add config loading utility in `internal/config/project.go`
-- [ ] **Tests**:
-    - [ ] Unit tests for sequential ID generation with gaps
-    - [ ] Integration test: init with custom prefix, create multiple tickets
-    - [ ] Test uppercase conversion of prefix
-    - [ ] Verify database initialization completes successfully
+    - [x] Add config loading utility in `internal/config/project.go`
+- [x] **Tests**:
+    - [x] Unit tests for sequential ID generation with gaps
+    - [x] Integration test: init with custom prefix, create multiple tickets
+    - [x] Test uppercase conversion of prefix
+    - [x] Verify database initialization completes successfully
 
 **Rationale:**
 - **Required prefix**: Forces intentional naming, prevents accidental defaults

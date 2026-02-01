@@ -1,11 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/cache"
+	"github.com/ditsara/git-product-manager/internal/config"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +19,16 @@ var initCmd = &cobra.Command{
 	Long:  `Initializes a new Git Product Manager repository by creating the .pm directory and default configuration files.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// Get and validate prefix
+		prefix, _ := cmd.Flags().GetString("prefix")
+		if prefix == "" {
+			fmt.Println("Error: --prefix is required. Please specify a ticket prefix (e.g., --prefix MYPROJECT)")
+			fmt.Println("Example: pm init --prefix myproject")
+			os.Exit(1)
+		}
+		// Convert to uppercase
+		prefix = strings.ToUpper(prefix)
+
 		var root string
 		if len(args) > 0 {
 			root = args[0]
@@ -47,13 +61,25 @@ var initCmd = &cobra.Command{
 		createDefaultLabels(pmPath)
 		createDefaultTemplates(pmPath)
 		createGitignore(pmPath)
+		createProjectConfig(pmPath, prefix)
 
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")
-		// For Stage 1, we assume migrations are in a "migrations" folder relative to the execution path.
-		// A more robust solution might be needed for different execution contexts.
 		if err := cache.RunMigrations(dbPath, "migrations"); err != nil {
 			fmt.Printf("Error initializing database: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Verify database is accessible
+		db, err := sql.Open("sqlite3", dbPath)
+		if err != nil {
+			fmt.Printf("Error opening database: %v\n", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+
+		if err := db.Ping(); err != nil {
+			fmt.Printf("Error verifying database: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -61,6 +87,7 @@ var initCmd = &cobra.Command{
 		fmt.Println("✓ Created default workflow with 4 states")
 		fmt.Println("✓ Created default labels")
 		fmt.Println("✓ Created 4 ticket templates")
+		fmt.Printf("✓ Project prefix set to: %s\n", prefix)
 		fmt.Println("\nNext steps:")
 		fmt.Println("  pm new \"Your first ticket\"")
 		fmt.Println("  pm list")
@@ -212,6 +239,18 @@ func createGitignore(pmPath string) {
 	}
 }
 
+func createProjectConfig(pmPath string, prefix string) {
+	project := &config.Project{
+		Prefix: prefix,
+	}
+	if err := config.SaveProject(pmPath, project); err != nil {
+		fmt.Printf("Error creating project.yaml: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func init() {
+	initCmd.Flags().StringP("prefix", "p", "", "Ticket prefix (required, will be uppercased)")
+	initCmd.MarkFlagRequired("prefix")
 	rootCmd.AddCommand(initCmd)
 }

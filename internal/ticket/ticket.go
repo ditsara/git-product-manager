@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -25,9 +26,14 @@ type Ticket struct {
 	Body      string   `yaml:"-"`
 }
 
+var ticketIDPattern = regexp.MustCompile(`^[A-Z][A-Z0-9]*-\d+$`)
+
 func (t *Ticket) Validate() error {
 	if t.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	if !ticketIDPattern.MatchString(t.ID) {
+		return fmt.Errorf("invalid id format: %s (expected PREFIX-123)", t.ID)
 	}
 	if t.Title == "" {
 		return fmt.Errorf("title is required")
