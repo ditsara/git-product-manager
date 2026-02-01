@@ -10,12 +10,12 @@ echo "Setting up test environment in sandbox/..."
 rm -rf sandbox
 mkdir -p sandbox
 
-cd sandbox
-
 # Initialize and test
 echo ""
-echo "Running: pm init ."
-../bin/pm init .
+echo "Running: pm init sandbox"
+./bin/pm init sandbox
+
+cd sandbox
 
 echo ""
 echo "Running: pm new 'Test ticket'"

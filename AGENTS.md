@@ -763,19 +763,19 @@ This project will be built in three distinct stages, each resulting in a viable,
 
 This stage focuses on the essential functionality for a single user to manage tickets locally. It establishes the core data structures and commands but omits collaborative features like comments and complex relationships.
 
-- [ ] **`pm init`**: Initialize the `.pm` directory, configs, and an initial SQLite database (without comment/relationship tables).
-- [ ] **`pm new`**: Create new tickets from templates.
-- [ ] **`pm list`**: List all tickets with basic filtering (status, type).
-- [ ] **`pm show`**: Display a single ticket's content (no comments).
-- [ ] **`pm edit`**: Open a ticket in `$EDITOR` and update basic fields.
-- [ ] **`pm move`**: Change a ticket's status.
-- [ ] **Validation**: Implement the "Bad YAML" guardrail for all ticket write operations.
-- [ ] **Database**:
-    - [ ] Implement the `tickets` table in SQLite.
-    - [ ] Set up `golang-migrate` with the initial schema for the `tickets` table only.
-- [ ] **Tests**:
-    - [ ] Unit tests for ticket parsing and validation.
-    - [ ] Integration tests for the `init` -> `new` -> `list` -> `show` -> `edit` -> `move` workflow.
+- [x] **`pm init`**: Initialize the `.pm` directory, configs, and an initial SQLite database (without comment/relationship tables).
+- [x] **`pm new`**: Create new tickets from templates.
+- [x] **`pm list`**: List all tickets with basic filtering (status, type).
+- [x] **`pm show`**: Display a single ticket's content (no comments).
+- [x] **`pm edit`**: Open a ticket in `$EDITOR` and update basic fields.
+- [x] **`pm move`**: Change a ticket's status.
+- [x] **Validation**: Implement the "Bad YAML" guardrail for all ticket write operations.
+- [x] **Database**:
+    - [x] Implement the `tickets` table in SQLite.
+    - [x] Set up `golang-migrate` with the initial schema for the `tickets` table only.
+- [x] **Tests**:
+    - [x] Unit tests for ticket parsing and validation.
+    - [x] Integration tests for the `init` -> `new` -> `list` -> `show` -> `edit` -> `move` workflow.
 
 ### Stage 2: Collaboration and History
 
