@@ -12,7 +12,8 @@ var rootCmd = &cobra.Command{
 	Short: "Git Product Manager is a project management tool for git repositories.",
 	Long:  `A Fast and Flexible project management tool built with love by ditsara and friends in Go.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Do nothing
+		// Show help when no subcommand is provided
+		cmd.Help()
 	},
 }
 

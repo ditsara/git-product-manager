@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Helper function to build the pm binary for testing
@@ -196,6 +197,12 @@ func TestIntegrationWorkflow(t *testing.T) {
 
 	// Step 6: Move ticket
 	t.Run("move", func(t *testing.T) {
+		// TIMING NOTE: Sleep ensures the file modification time will be in a different second
+		// than the previous operation. The cache sync logic uses second-level precision (see
+		// ShouldSync() in internal/cache/sync.go), so operations within the same second won't
+		// trigger a re-sync. 1100ms guarantees we cross a second boundary.
+		time.Sleep(1100 * time.Millisecond)
+		
 		output, err := runPM(t, pmBinary, workspace, "move", ticket1ID, "todo")
 		if err != nil {
 			t.Fatalf("pm move failed: %v\nOutput: %s", err, output)
@@ -234,6 +241,11 @@ func TestIntegrationWorkflow(t *testing.T) {
 
 	// Step 8: List with filter
 	t.Run("list_filtered", func(t *testing.T) {
+		// TIMING NOTE: Sleep ensures cache detects the file change from the move operation.
+		// Without this, the move and list operations may happen in the same second, causing
+		// ShouldSync() to return false and the cache to show stale data.
+		time.Sleep(1100 * time.Millisecond)
+		
 		output, err := runPM(t, pmBinary, workspace, "list", "--status", "todo")
 		if err != nil {
 			t.Fatalf("pm list --status failed: %v\nOutput: %s", err, output)
@@ -241,7 +253,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 
 		// Should show INT-1 (moved to todo) but not INT-2 (still in backlog)
 		if !strings.Contains(output, "INT-1") {
-			t.Error("pm list --status=todo does not show INT-1")
+			t.Errorf("pm list --status=todo does not show INT-1\nOutput: %s", output)
 		}
 		if strings.Contains(output, "INT-2") {
 			t.Error("pm list --status=todo incorrectly shows INT-2")
@@ -307,6 +319,126 @@ func TestIntegrationInitValidation(t *testing.T) {
 
 		if !strings.Contains(output, "LOWER-1") {
 			t.Error("pm new did not use uppercased prefix")
+		}
+	})
+}
+
+func TestIntegrationCacheSync(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+
+	// Initialize workspace
+	output, err := runPM(t, pmBinary, workspace, "init", ".", "--prefix", "CACHE")
+	if err != nil {
+		t.Fatalf("pm init failed: %v\nOutput: %s", err, output)
+	}
+
+	// Create a ticket using pm new
+	_, err = runPM(t, pmBinary, workspace, "new", "First ticket")
+	if err != nil {
+		t.Fatalf("pm new failed: %v", err)
+	}
+
+	// Verify it appears in pm list (should auto-sync)
+	t.Run("list_shows_created_ticket", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list")
+		if err != nil {
+			t.Fatalf("pm list failed: %v\nOutput: %s", err, output)
+		}
+
+		if !strings.Contains(output, "CACHE-1") {
+			t.Error("pm list does not show CACHE-1")
+		}
+		if !strings.Contains(output, "First ticket") {
+			t.Error("pm list does not show ticket title")
+		}
+	})
+
+	// Create a ticket manually (bypass CLI)
+	t.Run("manual_ticket_auto_syncs", func(t *testing.T) {
+		// TIMING NOTE: Ensures the manually created file will have a different mtime second
+		// than the previous cache sync, triggering auto-sync when pm list runs.
+		time.Sleep(1100 * time.Millisecond)
+		
+		manualTicket := `---
+id: CACHE-2
+title: "Manually Created Ticket"
+type: bug
+status: backlog
+priority: high
+assignee: ""
+parent: ""
+depends_on: []
+blocks: []
+related: []
+labels: []
+created_at: 2026-02-01T10:00:00Z
+updated_at: 2026-02-01T10:00:00Z
+---
+
+# Description
+This ticket was created manually to test cache sync.
+`
+		ticketPath := filepath.Join(workspace, ".pm", "tickets", "CACHE-2.md")
+		if err := os.WriteFile(ticketPath, []byte(manualTicket), 0644); err != nil {
+			t.Fatalf("Failed to create manual ticket: %v", err)
+		}
+
+		// Run pm list - should auto-sync and show the manual ticket
+		output, err := runPM(t, pmBinary, workspace, "list")
+		if err != nil {
+			t.Fatalf("pm list failed: %v\nOutput: %s", err, output)
+		}
+
+		if !strings.Contains(output, "CACHE-2") {
+			t.Error("pm list does not show manually created ticket CACHE-2")
+		}
+		if !strings.Contains(output, "Manually Created Ticket") {
+			t.Error("pm list does not show manual ticket title")
+		}
+	})
+
+	// Modify a ticket manually and verify list shows updated data
+	t.Run("manual_update_auto_syncs", func(t *testing.T) {
+		// TIMING NOTE: Ensures the file update will be detected by the cache staleness check.
+		// The 1100ms delay guarantees the mtime will be in a different second.
+		time.Sleep(1100 * time.Millisecond)
+		
+		updatedTicket := `---
+id: CACHE-1
+title: "Updated First Ticket"
+type: story
+status: done
+priority: high
+assignee: alice
+parent: ""
+depends_on: []
+blocks: []
+related: []
+labels: []
+created_at: 2026-02-01T09:00:00Z
+updated_at: 2026-02-01T11:00:00Z
+---
+
+# Description
+This ticket was updated manually.
+`
+		ticketPath := filepath.Join(workspace, ".pm", "tickets", "CACHE-1.md")
+		if err := os.WriteFile(ticketPath, []byte(updatedTicket), 0644); err != nil {
+			t.Fatalf("Failed to update ticket: %v", err)
+		}
+
+		// Run pm list - should auto-sync and show updated data
+		output, err := runPM(t, pmBinary, workspace, "list")
+		if err != nil {
+			t.Fatalf("pm list failed: %v\nOutput: %s", err, output)
+		}
+
+		if !strings.Contains(output, "Updated First Ticket") {
+			t.Error("pm list does not show updated ticket title")
+		}
+		if !strings.Contains(output, "done") {
+			t.Error("pm list does not show updated status")
 		}
 	})
 }

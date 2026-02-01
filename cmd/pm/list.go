@@ -1,67 +1,76 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ditsara/git-product-manager/internal/cache"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tickets",
 	Long:  `Lists all tickets from the .pm/tickets directory with optional filtering.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, cmdArgs []string) {
 		statusFilter, _ := cmd.Flags().GetString("status")
-		
-		// For now, assume .pm is in the current directory.
-		ticketsPath := ".pm/tickets"
-		files, err := os.ReadDir(ticketsPath)
+		pmPath := ".pm"
+
+		// Check if cache needs sync and sync if necessary
+		shouldSync, err := cache.ShouldSync(pmPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Warning: failed to check cache staleness: %v", err)
+			log.Println("Continuing with potentially stale cache...")
+		} else if shouldSync {
+			if err := cache.SyncCache(pmPath); err != nil {
+				log.Fatalf("Error syncing cache: %v", err)
+			}
 		}
+
+		// Query from SQLite cache
+		dbPath := filepath.Join(pmPath, ".cache.db")
+		db, err := sql.Open("sqlite3", dbPath)
+		if err != nil {
+			log.Fatalf("Error opening database: %v", err)
+		}
+		defer db.Close()
+
+		// Build query
+		query := "SELECT id, title, type, status FROM tickets"
+		var queryArgs []interface{}
+		
+		if statusFilter != "" {
+			query += " WHERE status = ?"
+			queryArgs = append(queryArgs, statusFilter)
+		}
+		
+		query += " ORDER BY updated_at DESC"
+
+		rows, err := db.Query(query, queryArgs...)
+		if err != nil {
+			log.Fatalf("Error querying tickets: %v", err)
+		}
+		defer rows.Close()
 
 		fmt.Printf("%-20s %-50s %-10s %-15s\n", "ID", "TITLE", "TYPE", "STATUS")
 		fmt.Println(strings.Repeat("-", 95))
 
-		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") {
-				filePath := filepath.Join(ticketsPath, file.Name())
-				content, err := os.ReadFile(filePath)
-				if err != nil {
-					log.Printf("Error reading file %s: %v", filePath, err)
-					continue
-				}
-
-				// Simple parsing of YAML front matter
-				parts := strings.SplitN(string(content), "---", 3)
-				if len(parts) < 3 {
-					continue
-				}
-
-				var ticket struct {
-					ID     string `yaml:"id"`
-					Title  string `yaml:"title"`
-					Type   string `yaml:"type"`
-					Status string `yaml:"status"`
-				}
-
-				if err := yaml.Unmarshal([]byte(parts[1]), &ticket); err != nil {
-					log.Printf("Error unmarshalling YAML from %s: %v", filePath, err)
-					continue
-				}
-
-				// Apply status filter if specified
-				if statusFilter != "" && ticket.Status != statusFilter {
-					continue
-				}
-
-				fmt.Printf("%-20s %-50s %-10s %-15s\n", ticket.ID, ticket.Title, ticket.Type, ticket.Status)
+		for rows.Next() {
+			var id, title, ticketType, status string
+			if err := rows.Scan(&id, &title, &ticketType, &status); err != nil {
+				log.Printf("Error scanning row: %v", err)
+				continue
 			}
+
+			fmt.Printf("%-20s %-50s %-10s %-15s\n", id, title, ticketType, status)
+		}
+
+		if err := rows.Err(); err != nil {
+			log.Fatalf("Error iterating rows: %v", err)
 		}
 	},
 }

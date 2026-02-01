@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -23,4 +24,9 @@ func RunMigrations(dbPath string, migrationPath string) error {
 	}
 
 	return nil
+}
+
+// openDB opens a database connection (helper for tests)
+func openDB(dbPath string) (*sql.DB, error) {
+	return sql.Open("sqlite3", dbPath)
 }
