@@ -814,6 +814,50 @@ This stage refines the MVP based on initial usage feedback, focusing on making t
 - **Sequential IDs**: Much more memorable and user-friendly than KSUIDs
 - **Filesystem-first**: Ensures the system works even if cache is corrupted/deleted
 
+### Stage 1.6: UX Polish and Cache Strategy
+
+This stage improves the user experience with better help messages and establishes a clear strategy for SQLite cache synchronization to handle manual ticket edits.
+
+- [ ] **Help improvements**:
+    - [ ] When `pm` is run with no arguments, display available commands (similar to `git` or `docker`)
+    - [ ] When `pm show` is run with no arguments, display usage help instead of erroring
+    - [ ] Other commands should also show helpful error messages when missing required arguments
+
+- [ ] **SQLite cache synchronization strategy**:
+    - [ ] **Current state**: `pm list` reads directly from filesystem (slow but always accurate)
+    - [ ] **Problem**: Cache becomes stale when tickets are manually created/edited
+    - [ ] **Solution: Lazy sync on read**
+      - Before any query operation (`list`, `search`), check if cache is stale
+      - Use filesystem scan with `mtime` comparison: if any `.md` file is newer than last cache update, resync
+      - Store last sync timestamp in a `cache_metadata` table
+      - Automatic, no user intervention needed
+      - Small overhead on every read operation is acceptable for correctness
+      
+    - [ ] **Implementation**:
+      - [ ] Create `internal/cache/sync.go` with sync logic
+      - [ ] Add `cache_metadata` table with `last_sync_timestamp` field
+      - [ ] Implement `ShouldSync()` function: check if any ticket file mtime > last_sync_timestamp
+      - [ ] Add `SyncCache()` function: scan `.pm/tickets/`, parse all tickets, update database
+      - [ ] Update `pm list` to check cache staleness and auto-sync if needed
+      
+    - [ ] **Migration**:
+      - [ ] Create `000002_add_cache_metadata.up.sql`:
+        ```sql
+        CREATE TABLE cache_metadata (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+        INSERT INTO cache_metadata (key, value) VALUES ('last_sync_timestamp', '1970-01-01T00:00:00Z');
+        ```
+      
+    - [ ] **Tests**:
+      - [ ] Unit tests for staleness detection
+      - [ ] Integration test: create ticket manually, verify `pm list` auto-syncs and shows it
+
+**Rationale:**
+- **Lazy sync**: Balances performance with correctness—cache is fast but never shows stale data
+- **Transparent to users**: Most users won't need to think about the cache; it "just works"
+
 ### Stage 2: Collaboration and History
 
 This stage introduces features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
@@ -847,3 +891,66 @@ This final stage completes the vision by adding powerful relationship tracking, 
     - [ ] Unit tests for relationship validation (circular dependencies, self-reference).
     - [ ] Integration tests for linking, unlinking, and visualizing tickets (`tree`, `blocked`).
     - [ ] Tests for `pm search` and advanced filtering.
+
+---
+
+## 7. Future Improvements
+
+### Enhanced Cache Control (Future)
+
+While Stage 1.6 implements automatic lazy sync for cache correctness, future versions could add explicit cache management commands for power users and debugging:
+
+- **`pm sync` command**: Manual cache rebuild from filesystem
+  - Useful for troubleshooting
+  - Forces full rescan regardless of timestamps
+  - Displays progress for large repositories
+  
+- **`--no-cache` flag**: Bypass cache entirely on read operations
+  - Example: `pm list --no-cache`
+  - Reads directly from filesystem
+  - Useful for debugging cache issues
+  - Performance trade-off acceptable for debugging scenarios
+  
+- **Staleness warnings**: Display notification if cache hasn't synced in >5 minutes
+  - Example: "⚠ Cache may be outdated. Run `pm sync` to refresh."
+  - Helps users understand when manual sync might be helpful
+  
+- **Cache statistics**: `pm cache-info` command to show cache health
+  - Last sync timestamp
+  - Number of cached tickets
+  - Cache file size
+  - Staleness status
+
+**Rationale for deferring:**
+- Lazy sync (Stage 1.6) handles 99% of use cases automatically
+- Additional commands add complexity for diminishing returns
+- Can be added later based on actual user needs and feedback
+- Keeps the core tool simple and focused
+
+### Bash Completion (Future)
+
+Add shell completion support for better UX with command-line interaction:
+
+- **`pm completion` command**: Generate completion script for bash/zsh/fish
+  - Leverages Cobra's built-in completion generation
+  - Example: `pm completion bash > /etc/bash_completion.d/pm`
+  - Instructions: `source <(pm completion bash)` for immediate use
+  
+- **Auto-complete features**:
+  - Subcommands: `pm li<TAB>` → `pm list`
+  - Flags: `pm new --ty<TAB>` → `pm new --type`
+  - Flag values: `pm new --type t<TAB>` → `pm new --type task`
+  - Ticket IDs: `pm show TEST-<TAB>` → shows available ticket IDs
+  - Status values: `pm move TICKET-1 <TAB>` → shows valid states from workflow.yaml
+  
+- **Implementation**:
+  - Add completion command using `rootCmd.GenBashCompletion()`
+  - Register custom completions for ticket IDs (read from `.pm/tickets/`)
+  - Register custom completions for statuses (read from `workflow.yaml`)
+  - Generate man pages alongside completion scripts
+
+**Rationale for deferring:**
+- Not critical for core functionality
+- Easy to add later (~15 minutes with Cobra)
+- Command structure should stabilize first
+- Better to add when there are real users requesting it
