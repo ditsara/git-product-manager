@@ -752,3 +752,61 @@ func runMigrations(dbPath string) error {
   * State change history extraction
   * Migration rollback scenarios
 * Use `t.TempDir()` for isolated filesystem tests
+
+---
+
+## 6. Build Stages
+
+This project will be built in three distinct stages, each resulting in a viable, testable product.
+
+### Stage 1: Core Ticket Management (MVP)
+
+This stage focuses on the essential functionality for a single user to manage tickets locally. It establishes the core data structures and commands but omits collaborative features like comments and complex relationships.
+
+- [ ] **`pm init`**: Initialize the `.pm` directory, configs, and an initial SQLite database (without comment/relationship tables).
+- [ ] **`pm new`**: Create new tickets from templates.
+- [ ] **`pm list`**: List all tickets with basic filtering (status, type).
+- [ ] **`pm show`**: Display a single ticket's content (no comments).
+- [ ] **`pm edit`**: Open a ticket in `$EDITOR` and update basic fields.
+- [ ] **`pm move`**: Change a ticket's status.
+- [ ] **Validation**: Implement the "Bad YAML" guardrail for all ticket write operations.
+- [ ] **Database**:
+    - [ ] Implement the `tickets` table in SQLite.
+    - [ ] Set up `golang-migrate` with the initial schema for the `tickets` table only.
+- [ ] **Tests**:
+    - [ ] Unit tests for ticket parsing and validation.
+    - [ ] Integration tests for the `init` -> `new` -> `list` -> `show` -> `edit` -> `move` workflow.
+
+### Stage 2: Collaboration and History
+
+This stage introduces features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
+
+- [ ] **`pm comment`**: Implement the full comment system (separate files, editor logic, `-m` flag).
+- [ ] **`pm show`**: Update to integrate comment display, including the `--no-comments` flag.
+- [ ] **`pm history`**: Implement state change auditing by parsing git history.
+- [ ] **`pm assign`**: Add the assignee shorthand command.
+- [ ] **Database**:
+    - [ ] Add a new migration for the `comments` table.
+    - [ ] Update the cache logic to index new comments.
+- [ ] **Tests**:
+    - [ ] Unit tests for comment file parsing.
+    - [ ] Integration tests for creating, viewing, and listing comments.
+    - [ ] Tests for the `pm history` command against a sample git history.
+
+### Stage 3: Advanced Relationships and Search
+
+This final stage completes the vision by adding powerful relationship tracking, visualization, and efficient searching capabilities.
+
+- [ ] **`pm link` & `pm unlink`**: Implement all relationship types (`parent`, `depends-on`, `blocks`, `related`).
+- [ ] **`pm tree`**: Visualize the parent-child hierarchy.
+- [ ] **`pm blocked`**: Show dependency information.
+- [ ] **`pm search`**: Implement full-text search using the SQLite FTS table.
+- [ ] **`pm list`**: Update to add `--parent` filtering.
+- [ ] **Validation**: Add reference integrity and circular dependency checks.
+- [ ] **Database**:
+    - [ ] Add a new migration for the `relationships` and `tickets_fts` tables.
+    - [ ] Update cache logic to index all relationships.
+- [ ] **Tests**:
+    - [ ] Unit tests for relationship validation (circular dependencies, self-reference).
+    - [ ] Integration tests for linking, unlinking, and visualizing tickets (`tree`, `blocked`).
+    - [ ] Tests for `pm search` and advanced filtering.
