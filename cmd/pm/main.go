@@ -9,8 +9,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "pm",
-	Short: "Git Product Manager is a project management tool for git repositories.",
-	Long:  `A Fast and Flexible project management tool built with love by ditsara and friends in Go.`,
+	Short: "Git Product Manager: a project management tool for git repositories.",
+	Long:  `Git Product Manager: a fast and flexible project management tool for git repositories; built with ❤️, ☮️, and 😡 in Bangkok, Thailand.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help when no subcommand is provided
 		cmd.Help()

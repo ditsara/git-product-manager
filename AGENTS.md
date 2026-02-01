@@ -4,7 +4,7 @@ Git-based project management system. This document is designed to be
 
 ---
 
-# Specification: Git Product Manager (GPR)
+# Specification: Git Product Manager (GPM)
 
 ## 1. Vision & Core Philosophy
 
