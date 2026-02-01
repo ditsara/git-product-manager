@@ -14,8 +14,10 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tickets",
-	Long:  `Lists all tickets from the .pm/tickets directory.`,
+	Long:  `Lists all tickets from the .pm/tickets directory with optional filtering.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		statusFilter, _ := cmd.Flags().GetString("status")
+		
 		// For now, assume .pm is in the current directory.
 		ticketsPath := ".pm/tickets"
 		files, err := os.ReadDir(ticketsPath)
@@ -53,6 +55,11 @@ var listCmd = &cobra.Command{
 					continue
 				}
 
+				// Apply status filter if specified
+				if statusFilter != "" && ticket.Status != statusFilter {
+					continue
+				}
+
 				fmt.Printf("%-20s %-50s %-10s %-15s\n", ticket.ID, ticket.Title, ticket.Type, ticket.Status)
 			}
 		}
@@ -60,5 +67,6 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
+	listCmd.Flags().String("status", "", "Filter by status")
 	rootCmd.AddCommand(listCmd)
 }

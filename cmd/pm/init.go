@@ -65,7 +65,15 @@ var initCmd = &cobra.Command{
 
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")
-		if err := cache.RunMigrations(dbPath, "migrations"); err != nil {
+		
+		// Find migration directory - try both installed and development locations
+		migrationPath := findMigrationPath()
+		if migrationPath == "" {
+			fmt.Println("Error: could not find migration files")
+			os.Exit(1)
+		}
+		
+		if err := cache.RunMigrations(dbPath, migrationPath); err != nil {
 			fmt.Printf("Error initializing database: %v\n", err)
 			os.Exit(1)
 		}
@@ -250,7 +258,35 @@ func createProjectConfig(pmPath string, prefix string) {
 }
 
 func init() {
-	initCmd.Flags().StringP("prefix", "p", "", "Ticket prefix (required, will be uppercased)")
+	initCmd.Flags().StringP("prefix", "p", "", "Ticket prefix (e.g., MYPROJECT) - required")
 	initCmd.MarkFlagRequired("prefix")
 	rootCmd.AddCommand(initCmd)
+}
+
+// findMigrationPath locates the migration directory
+// Tries: 1) relative to current dir, 2) relative to executable
+func findMigrationPath() string {
+	// Try relative to current directory (for development)
+	if _, err := os.Stat("migrations"); err == nil {
+		absPath, _ := filepath.Abs("migrations")
+		return absPath
+	}
+	
+	// Try relative to executable (for installed binary)
+	if execPath, err := os.Executable(); err == nil {
+		execDir := filepath.Dir(execPath)
+		migrationPath := filepath.Join(execDir, "migrations")
+		if _, err := os.Stat(migrationPath); err == nil {
+			return migrationPath
+		}
+		
+		// Try one level up (for bin/pm structure)
+		migrationPath = filepath.Join(execDir, "..", "migrations")
+		if _, err := os.Stat(migrationPath); err == nil {
+			absPath, _ := filepath.Abs(migrationPath)
+			return absPath
+		}
+	}
+	
+	return ""
 }

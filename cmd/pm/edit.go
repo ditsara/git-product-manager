@@ -16,12 +16,27 @@ import (
 var editCmd = &cobra.Command{
 	Use:   "edit [id]",
 	Short: "Edit a ticket",
-	Long:  `Opens a ticket in the default editor.`,
+	Long:  `Opens a ticket in the default editor or updates a specific field.`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
 		ticketPath := findTicketByID(ticketID)
+		
+		// Check if --field flag is used
+		field, _ := cmd.Flags().GetString("field")
+		if field != "" {
+			// Parse field=value
+			parts := strings.SplitN(field, "=", 2)
+			if len(parts) != 2 {
+				fmt.Println("Error: --field must be in format field=value")
+				os.Exit(1)
+			}
+			updateTicketField(ticketPath, parts[0], parts[1])
+			fmt.Printf("✓ Updated %s for %s\n", parts[0], ticketID)
+			return
+		}
 
+		// Open in editor
 		editor := getEditor()
 		c := exec.Command(editor, ticketPath)
 		c.Stdin = os.Stdin
@@ -103,5 +118,39 @@ func getEditor() string {
 }
 
 func init() {
+	editCmd.Flags().String("field", "", "Update a specific field (format: field=value)")
 	rootCmd.AddCommand(editCmd)
+}
+
+// updateTicketField updates a specific field in a ticket
+func updateTicketField(ticketPath, field, value string) {
+	content, err := os.ReadFile(ticketPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	parts := strings.SplitN(string(content), "---", 3)
+	if len(parts) != 3 {
+		log.Fatal("Invalid ticket format")
+	}
+
+	var metadata map[string]interface{}
+	if err := yaml.Unmarshal([]byte(parts[1]), &metadata); err != nil {
+		log.Fatal(err)
+	}
+
+	// Update the field
+	metadata[field] = value
+	metadata["updated_at"] = time.Now().UTC().Format(time.RFC3339)
+
+	newYAML, err := yaml.Marshal(metadata)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Reconstruct the file
+	newContent := "---\n" + string(newYAML) + "---" + parts[2]
+	if err := os.WriteFile(ticketPath, []byte(newContent), 0644); err != nil {
+		log.Fatal(err)
+	}
 }
