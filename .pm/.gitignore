@@ -1,0 +1,16 @@
+# Ignore the local SQLite cache
+.cache.db
+.cache.db-journal
+.cache.db-wal
+.cache.db-shm
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# Ignore editor-specific files
+.vscode/
+.idea/
+*.iml

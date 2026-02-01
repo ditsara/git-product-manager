@@ -1,0 +1,59 @@
+# Labels Configuration
+# Defines allowed tags for categorizing tickets
+
+# Allowed labels (enforce consistency)
+labels:
+  # Technical areas
+  - backend
+  - frontend
+  - api
+  - database
+  - infrastructure
+  - devops
+  
+  # Feature areas
+  - auth
+  - payments
+  - notifications
+  - search
+  - reporting
+  - admin
+  
+  # Work type
+  - refactor
+  - performance
+  - security
+  - documentation
+  - testing
+  - ci-cd
+  
+  # Priority/urgency
+  - critical
+  - hotfix
+  - technical-debt
+  
+  # Special flags
+  - breaking-change
+  - needs-migration
+  - external-dependency
+
+# Optional: Label groups for validation
+# Ensures tickets can only have one label from certain groups
+label_groups:
+  priority:
+    - critical
+    - hotfix
+  
+  area:
+    - backend
+    - frontend
+    - infrastructure
+
+# Optional: Color coding for terminal output (future enhancement)
+label_colors:
+  critical: red
+  hotfix: red
+  security: yellow
+  backend: blue
+  frontend: cyan
+  documentation: green

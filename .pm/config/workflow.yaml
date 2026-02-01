@@ -1,0 +1,17 @@
+# Workflow State Configuration
+# Defines valid states for tickets. No transitions enforced - git history provides audit trail.
+
+states:
+  - backlog
+  - todo
+  - in-progress
+  - done
+
+# Default state for newly created tickets
+initial_state: backlog
+
+# Optional: Semantic groupings for filtering and reporting
+state_groups:
+  active: [todo, in-progress]
+  completed: [done]
+  incomplete: [backlog, todo, in-progress]
