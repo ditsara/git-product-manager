@@ -4,6 +4,7 @@
 
 # Local testing
 /sandbox/
+/test-*/
 
 # Go
 *.exe
@@ -23,3 +24,6 @@ vendor/
 
 # Go workspace file
 go.work
+
+# Editor-specific
+.vscode

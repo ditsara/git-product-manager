@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
+
+//go:embed all:templates
+var templateFS embed.FS
 
 var initCmd = &cobra.Command{
 	Use:   "init [path]",
@@ -65,14 +69,14 @@ var initCmd = &cobra.Command{
 
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")
-		
+
 		// Find migration directory - try both installed and development locations
 		migrationPath := findMigrationPath()
 		if migrationPath == "" {
 			fmt.Println("Error: could not find migration files")
 			os.Exit(1)
 		}
-		
+
 		if err := cache.RunMigrations(dbPath, migrationPath); err != nil {
 			fmt.Printf("Error initializing database: %v\n", err)
 			os.Exit(1)
@@ -103,133 +107,49 @@ var initCmd = &cobra.Command{
 }
 
 func createDefaultWorkflow(pmPath string) {
-	content := `
-states:
-  - backlog
-  - todo
-  - in-progress
-  - done
+	// Read workflow from embedded filesystem
+	content, err := templateFS.ReadFile("templates/workflow.yaml")
+	if err != nil {
+		fmt.Printf("Error reading embedded workflow.yaml: %v\n", err)
+		os.Exit(1)
+	}
 
-initial_state: backlog
-
-state_groups:
-  active: [todo, in-progress]
-  completed: [done]
-  incomplete: [backlog, todo, in-progress]
-`
 	path := filepath.Join(pmPath, "config", "workflow.yaml")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, content, 0644); err != nil {
 		fmt.Printf("Error creating workflow.yaml: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func createDefaultLabels(pmPath string) {
-	content := `
-labels:
-  - backend
-  - frontend
-  - bug
-  - feature
-  - documentation
-  - testing
-  - refactor
-  - chore
-`
+	// Read labels from embedded filesystem
+	content, err := templateFS.ReadFile("templates/labels.yaml")
+	if err != nil {
+		fmt.Printf("Error reading embedded labels.yaml: %v\n", err)
+		os.Exit(1)
+	}
+
 	path := filepath.Join(pmPath, "config", "labels.yaml")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, content, 0644); err != nil {
 		fmt.Printf("Error creating labels.yaml: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func createDefaultTemplates(pmPath string) {
-	templates := map[string]string{
-		"story.md": `---
-id: {{.ID}}
-title: "{{.Title}}"
-type: story
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: []
-blocks: []
-related: []
-labels: []
-assignee: ""
-created_at: {{.CreatedAt}}
-updated_at: {{.UpdatedAt}}
----
+	templateNames := []string{"story.md", "task.md", "bug.md", "epic.md"}
 
-# Description
+	for _, name := range templateNames {
+		// Read template from embedded filesystem
+		content, err := templateFS.ReadFile(filepath.Join("templates", name))
+		if err != nil {
+			fmt.Printf("Error reading embedded template %s: %v\n", name, err)
+			os.Exit(1)
+		}
 
-`,
-		"task.md": `---
-id: {{.ID}}
-title: "{{.Title}}"
-type: task
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: []
-blocks: []
-related: []
-labels: []
-assignee: ""
-created_at: {{.CreatedAt}}
-updated_at: {{.UpdatedAt}}
----
-
-# Description
-
-`,
-		"bug.md": `---
-id: {{.ID}}
-title: "{{.Title}}"
-type: bug
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: []
-blocks: []
-related: []
-labels: []
-assignee: ""
-created_at: {{.CreatedAt}}
-updated_at: {{.UpdatedAt}}
----
-
-# Description
-
-`,
-		"epic.md": `---
-id: {{.ID}}
-title: "{{.Title}}"
-type: epic
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: []
-blocks: []
-related: []
-labels: []
-assignee: ""
-created_at: {{.CreatedAt}}
-updated_at: {{.UpdatedAt}}
----
-
-# Description
-
-`,
-	}
-
-	for name, content := range templates {
+		// Write to .pm/config/templates/
 		path := filepath.Join(pmPath, "config", "templates", name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, content, 0644); err != nil {
 			fmt.Printf("Error creating template %s: %v\n", name, err)
 			os.Exit(1)
 		}
@@ -271,7 +191,7 @@ func findMigrationPath() string {
 		absPath, _ := filepath.Abs("migrations")
 		return absPath
 	}
-	
+
 	// Try relative to executable (for installed binary)
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
@@ -279,7 +199,7 @@ func findMigrationPath() string {
 		if _, err := os.Stat(migrationPath); err == nil {
 			return migrationPath
 		}
-		
+
 		// Try one level up (for bin/pm structure)
 		migrationPath = filepath.Join(execDir, "..", "migrations")
 		if _, err := os.Stat(migrationPath); err == nil {
@@ -287,6 +207,6 @@ func findMigrationPath() string {
 			return absPath
 		}
 	}
-	
+
 	return ""
 }
