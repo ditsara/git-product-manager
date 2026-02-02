@@ -4,7 +4,13 @@ A Git-native project management system that stores tickets as structured YAML + 
 
 ## Philosophy
 
-- **Single Source of Truth:** Tasks and code live in the same repository
+**Single Source of Truth:** Keep tasks and code together in one repository. No context switching between JIRA tabs and your IDE. Everything you need to understand what to build and why lives alongside the code itself.
+
+**LLM-Native Design:** AI code assistants can read tickets directly from your repository—no API keys, no integrations, no external services. Your LLM has full context of requirements, acceptance criteria, and implementation status without leaving your codebase.
+
+**Familiar Workflow:** Uses the same concepts developers already know from JIRA—epics, stories, tasks, bugs, status workflows, assignees. The only difference: it's all version-controlled files instead of a web UI.
+
+**Additional Benefits:**
 - **GitOps Workflow:** All ticket operations are git commits
 - **Process as Code:** Workflows and labels are version-controlled
 - **Auditability:** Git history is the immutable audit trail

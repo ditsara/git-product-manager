@@ -860,37 +860,33 @@ This stage improves the user experience with better help messages and establishe
 
 ### Stage 2: Collaboration and History
 
+**See ticket: [GPM-1](.pm/tickets/GPM-1.md)**
+
 This stage introduces features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
 
-- [ ] **`pm comment`**: Implement the full comment system (separate files, editor logic, `-m` flag).
-- [ ] **`pm show`**: Update to integrate comment display, including the `--no-comments` flag.
-- [ ] **`pm history`**: Implement state change auditing by parsing git history.
-- [ ] **`pm assign`**: Add the assignee shorthand command.
-- [ ] **Database**:
-    - [ ] Add a new migration for the `comments` table.
-    - [ ] Update the cache logic to index new comments.
-- [ ] **Tests**:
-    - [ ] Unit tests for comment file parsing.
-    - [ ] Integration tests for creating, viewing, and listing comments.
-    - [ ] Tests for the `pm history` command against a sample git history.
+**Key deliverables:**
+- `pm comment` - Full comment system with separate files
+- `pm show` - Enhanced to display comments
+- `pm history` - State change auditing via git history
+- `pm assign` - Assignee shorthand command
+- Database migration for comments table
+- Comprehensive test coverage
 
 ### Stage 3: Advanced Relationships and Search
 
+**See ticket: [GPM-2](.pm/tickets/GPM-2.md)**
+
 This final stage completes the vision by adding powerful relationship tracking, visualization, and efficient searching capabilities.
 
-- [ ] **`pm link` & `pm unlink`**: Implement all relationship types (`parent`, `depends-on`, `blocks`, `related`).
-- [ ] **`pm tree`**: Visualize the parent-child hierarchy.
-- [ ] **`pm blocked`**: Show dependency information.
-- [ ] **`pm search`**: Implement full-text search using the SQLite FTS table.
-- [ ] **`pm list`**: Update to add `--parent` filtering.
-- [ ] **Validation**: Add reference integrity and circular dependency checks.
-- [ ] **Database**:
-    - [ ] Add a new migration for the `relationships` and `tickets_fts` tables.
-    - [ ] Update cache logic to index all relationships.
-- [ ] **Tests**:
-    - [ ] Unit tests for relationship validation (circular dependencies, self-reference).
-    - [ ] Integration tests for linking, unlinking, and visualizing tickets (`tree`, `blocked`).
-    - [ ] Tests for `pm search` and advanced filtering.
+**Key deliverables:**
+- `pm link` & `pm unlink` - Relationship management
+- `pm tree` - Hierarchy visualization
+- `pm blocked` - Dependency tracking
+- `pm search` - Full-text search
+- Enhanced `pm list` with parent filtering
+- Reference integrity validation
+- Database migrations for relationships and FTS tables
+- Comprehensive test coverage
 
 ---
 
