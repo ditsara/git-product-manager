@@ -2,17 +2,20 @@
 id: {{.ID}}
 title: "{{.Title}}"
 type: story
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: []
-blocks: []
-related: []
-labels: []
-assignee: ""
-created_at: {{.CreatedAt}}
-updated_at: {{.UpdatedAt}}
+status: backlog  # Current workflow state
+priority: medium  # low, medium, high, critical
+points: 0  # Story points for estimation
+
+# Relationships - use ticket IDs (e.g., PROJ-123)
+parent: ""  # Parent epic or story
+depends_on: []  # Must complete these first
+blocks: []  # This blocks these tickets
+related: []  # Related work (duplicates, see-also)
+
+labels: []  # Tags from labels.yaml
+assignee: ""  # GitHub username or email
+created_at: "{{.CreatedAt}}"
+updated_at: "{{.UpdatedAt}}"
 ---
 
 # Description

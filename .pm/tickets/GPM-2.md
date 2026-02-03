@@ -17,6 +17,8 @@ updated_at: 2026-02-02T03:57:21Z
 
 # Description
 
+[Sonnet 4.5]
+
 This final stage completes the vision by adding powerful relationship tracking, visualization, and efficient searching capabilities.
 
 ## Objectives

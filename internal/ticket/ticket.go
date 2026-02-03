@@ -1,6 +1,7 @@
 package ticket
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"time"
@@ -54,9 +55,37 @@ func (t *Ticket) Validate() error {
 }
 
 func Parse(content []byte) (*Ticket, error) {
+	// Split YAML front matter from Markdown body
+	// Expected format for markdown files:
+	// ---
+	// id: value
+	// ...
+	// ---
+	// # Markdown content
+	//
+	// Also support raw YAML (for testing)
+
+	var yamlContent []byte
+
+	// Check if content starts with --- (front-matter format)
+	if bytes.HasPrefix(bytes.TrimSpace(content), []byte("---")) {
+		parts := bytes.SplitN(content, []byte("---"), 3)
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("invalid ticket format: missing front matter delimiters")
+		}
+
+		// parts[0] is empty (before first ---)
+		// parts[1] is the YAML front matter
+		// parts[2] is the Markdown body
+		yamlContent = parts[1]
+	} else {
+		// Raw YAML format (no front-matter delimiters)
+		yamlContent = content
+	}
+
 	var t Ticket
-	if err := yaml.Unmarshal(content, &t); err != nil {
-		return nil, err
+	if err := yaml.Unmarshal(yamlContent, &t); err != nil {
+		return nil, fmt.Errorf("failed to parse YAML front matter: %w", err)
 	}
 	return &t, nil
 }

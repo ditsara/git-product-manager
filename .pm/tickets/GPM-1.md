@@ -17,6 +17,8 @@ updated_at: 2026-02-02T03:54:36Z
 
 # Description
 
+[Sonnet 4.5]
+
 This stage introduces features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
 
 ## Objectives
