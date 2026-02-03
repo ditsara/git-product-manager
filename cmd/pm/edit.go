@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -104,24 +103,6 @@ Array updates REPLACE existing values, they do not append.`,
 		fmt.Printf("✓ Updated ticket: %s\n", ticketPath)
 		// TODO: Add to git staging area
 	},
-}
-
-func findTicketByID(idPrefix string) string {
-	ticketsPath := ".pm/tickets"
-	files, err := os.ReadDir(ticketsPath)
-	if err != nil {
-		log.Fatalf("Error reading tickets directory: %v", err)
-	}
-
-	for _, f := range files {
-		if !f.IsDir() && strings.HasPrefix(f.Name(), idPrefix) {
-			return filepath.Join(ticketsPath, f.Name())
-		}
-	}
-
-	fmt.Printf("Error: ticket with ID starting with '%s' not found.\n", idPrefix)
-	os.Exit(1)
-	return ""
 }
 
 func getEditor() string {
