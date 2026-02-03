@@ -12,6 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// truncate truncates a string to maxLen characters, adding "..." if truncated.
+// Uses rune counting for proper Unicode/emoji handling.
+func truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	if maxLen < 3 {
+		return "..."
+	}
+	return string(runes[:maxLen-3]) + "..."
+}
+
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tickets",
@@ -42,12 +55,12 @@ var listCmd = &cobra.Command{
 		// Build query
 		query := "SELECT id, title, type, status FROM tickets"
 		var queryArgs []interface{}
-		
+
 		if statusFilter != "" {
 			query += " WHERE status = ?"
 			queryArgs = append(queryArgs, statusFilter)
 		}
-		
+
 		query += " ORDER BY updated_at DESC"
 
 		rows, err := db.Query(query, queryArgs...)
@@ -66,7 +79,7 @@ var listCmd = &cobra.Command{
 				continue
 			}
 
-			fmt.Printf("%-20s %-50s %-10s %-15s\n", id, title, ticketType, status)
+			fmt.Printf("%-20s %-50s %-10s %-15s\n", id, truncate(title, 50), ticketType, status)
 		}
 
 		if err := rows.Err(); err != nil {

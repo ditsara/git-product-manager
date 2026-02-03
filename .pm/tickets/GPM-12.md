@@ -1,22 +1,22 @@
 ---
-id: GPM-12
-title: "Fix column alignment in pm list for long titles"
-type: bug
-status: backlog
-priority: low
-points: 2
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: []
-related: []
-
-labels: [ux, formatting]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T04:02:02Z"
-updated_at: "2026-02-03T04:02:02Z"
+depends_on: []
+id: GPM-12
+labels:
+    - ux
+    - formatting
+parent: ""
+points: 2
+priority: low
+related: []
+status: done
+title: Fix column alignment in pm list for long titles
+type: bug
+updated_at: "2026-02-03T04:48:36Z"
 ---
+
 
 # Description
 
@@ -37,27 +37,21 @@ GPM-12               Fix column alignment in pm list for long titles    bug     
 
 Notice how GPM-12's title is exactly 50 characters (the column width), but if it were longer, it would push the other columns out of alignment.
 
-## Problem
+## Solution
 
-In `cmd/pm/list.go`, the output uses fixed-width formatting:
-```go
-fmt.Printf("%-20s %-50s %-10s %-15s\n", id, title, ticketType, status)
-```
+Implement truncation with ellipsis to ensure columns always align correctly:
 
-The `%-50s` format specifier doesn't truncate - it only pads. Titles longer than 50 characters overflow.
-
-## Solution Options
-
-### Option 1: Truncate with Ellipsis (Recommended)
 ```go
 func truncate(s string, maxLen int) string {
-    if len(s) <= maxLen {
+    // Use rune count for proper Unicode handling
+    runes := []rune(s)
+    if len(runes) <= maxLen {
         return s
     }
-    return s[:maxLen-3] + "..."
+    return string(runes[:maxLen-3]) + "..."
 }
 
-// Usage:
+// Usage in list.go:
 fmt.Printf("%-20s %-50s %-10s %-15s\n", 
     id, 
     truncate(title, 50), 
@@ -65,31 +59,38 @@ fmt.Printf("%-20s %-50s %-10s %-15s\n",
     status)
 ```
 
-Output:
+**Output example:**
 ```
+ID                   TITLE                                              TYPE       STATUS         
+-----------------------------------------------------------------------------------------------
 GPM-12               Fix column alignment in pm list for long t...     bug        backlog
 ```
 
-### Option 2: Dynamic Column Width (Terminal-Aware)
-Use terminal width to adjust column sizes dynamically:
-- Detect terminal width (e.g., 80, 120, 160 columns)
-- Allocate space proportionally
-- Requires `golang.org/x/term` or similar
-
-### Option 3: Use Table Library
-Use a proper table formatting library like `olekukonko/tablewriter` or `charmbracelet/lipgloss`:
-- Handles alignment, truncation, borders
-- More sophisticated but adds dependency
-
-## Recommendation
-
-Start with **Option 1** (simple truncation) since:
+**Why this approach:**
 - Zero dependencies
 - Predictable output
-- Easy to implement
+- Easy to implement and maintain
 - Solves the immediate problem
+- Works correctly with Unicode (uses rune counting, not byte counting)
 
-Later, could add **Option 2** for better UX in wide terminals.
+## Implementation
+
+1. Add `truncate()` helper function to `cmd/pm/list.go`
+2. Apply to title column in the Printf statement
+3. Ensure Unicode/emoji handling via `[]rune()` conversion
+4. Consider adding to other display commands if they have similar issues
+
+## Edge Cases
+
+- **Empty strings**: Already handled by Printf padding
+- **Exact width (50 chars)**: No truncation needed
+- **Multibyte characters**: Use `utf8.RuneCountInString()` or `[]rune()` for accurate counting
+- **Emoji**: Properly counted as single runes
+- **Very short maxLen**: Ensure maxLen > 3 to avoid negative slice index
+
+## Future Enhancement
+
+See GPM-15 for potential upgrade to a table formatting library for more sophisticated output.
 
 ## Implementation
 
@@ -100,11 +101,11 @@ Later, could add **Option 2** for better UX in wide terminals.
 
 ## Acceptance Criteria
 
-- [ ] Titles longer than 50 chars are truncated with "..."
-- [ ] Column alignment remains perfect regardless of title length
-- [ ] Empty titles don't cause issues
-- [ ] Unicode/emoji in titles handled correctly (rune count vs byte count)
-- [ ] All columns remain aligned in `pm list` output
+- [x] Titles longer than 50 chars are truncated with "..."
+- [x] Column alignment remains perfect regardless of title length
+- [x] Empty titles don't cause issues
+- [x] Unicode/emoji in titles handled correctly (rune count vs byte count)
+- [x] All columns remain aligned in `pm list` output
 
 ## Additional Considerations
 
