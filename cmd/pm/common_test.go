@@ -115,3 +115,69 @@ func TestFindTicketByID_NotFound(t *testing.T) {
 	// We can't easily test os.Exit in a unit test
 	t.Skip("Cannot test os.Exit in unit test - function should be refactored to return errors")
 }
+
+func TestFindTicketByID_CaseInsensitiveExactMatch(t *testing.T) {
+	// Setup temp directory
+	tmpDir := t.TempDir()
+	ticketsDir := filepath.Join(tmpDir, ".pm", "tickets")
+	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+		t.Fatalf("Failed to create tickets directory: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create test ticket with uppercase ID
+	path := filepath.Join(ticketsDir, "GPM-123.md")
+	if err := os.WriteFile(path, []byte("test content"), 0644); err != nil {
+		t.Fatalf("Failed to create test ticket: %v", err)
+	}
+
+	// Test lowercase query should find uppercase file
+	result := findTicketByID("gpm-123")
+	expected := filepath.Join(".pm", "tickets", "GPM-123.md")
+	if result != expected {
+		t.Errorf("Lowercase query failed. Expected %s, got %s", expected, result)
+	}
+
+	// Test mixed case query
+	result = findTicketByID("GpM-123")
+	if result != expected {
+		t.Errorf("Mixed case query failed. Expected %s, got %s", expected, result)
+	}
+
+	// Test uppercase query (original behavior)
+	result = findTicketByID("GPM-123")
+	if result != expected {
+		t.Errorf("Uppercase query failed. Expected %s, got %s", expected, result)
+	}
+}
+
+func TestFindTicketByID_CaseInsensitivePrefixMatch(t *testing.T) {
+	// Setup temp directory
+	tmpDir := t.TempDir()
+	ticketsDir := filepath.Join(tmpDir, ".pm", "tickets")
+	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+		t.Fatalf("Failed to create tickets directory: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	os.Chdir(tmpDir)
+
+	// Create only GPM-10.md (uppercase)
+	path := filepath.Join(ticketsDir, "GPM-10.md")
+	if err := os.WriteFile(path, []byte("test content"), 0644); err != nil {
+		t.Fatalf("Failed to create test ticket: %v", err)
+	}
+
+	// Test lowercase prefix match: gpm-1 should match GPM-10
+	result := findTicketByID("gpm-1")
+	expected := filepath.Join(".pm", "tickets", "GPM-10.md")
+	if result != expected {
+		t.Errorf("Lowercase prefix match failed. Expected %s, got %s", expected, result)
+	}
+}

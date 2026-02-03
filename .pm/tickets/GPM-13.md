@@ -1,22 +1,23 @@
 ---
-id: GPM-13
-title: "Make ticket IDs case-insensitive in commands"
-type: bug
-status: backlog
-priority: medium
-points: 2
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: []
-related: [GPM-6]
-
-labels: [ux, usability]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T04:07:29Z"
-updated_at: "2026-02-03T04:07:29Z"
+depends_on: []
+id: GPM-13
+labels:
+    - ux
+    - usability
+parent: ""
+points: 2
+priority: medium
+related:
+    - GPM-6
+status: done
+title: Make ticket IDs case-insensitive in commands
+type: bug
+updated_at: "2026-02-03T12:04:23Z"
 ---
+
 
 # Description
 
@@ -105,10 +106,16 @@ All commands that use `findTicketByID()`:
 
 ## Implementation Steps
 
-- [ ] Update `findTicketByID()` in `cmd/pm/common.go` to use case-insensitive matching
-- [ ] Verify all commands using `findTicketByID()` now work with lowercase IDs
-- [ ] Add test case: create GPM-99, verify `pm show gpm-99` works
-- [ ] Update error messages to show what the user typed (preserve case in error output)
+- [x] Update `findTicketByID()` in `cmd/pm/common.go` to use case-insensitive matching
+  - Uses `strings.ToUpper()` to normalize both search ID and filenames for comparison
+  - Preserves actual filename case in results
+- [x] Verify all commands using `findTicketByID()` now work with lowercase IDs
+  - All commands (`show`, `edit`, `move`) automatically benefit from shared function
+- [x] Add test case: create GPM-99, verify `pm show gpm-99` works
+  - Added `TestFindTicketByID_CaseInsensitiveExactMatch` test
+  - Added `TestFindTicketByID_CaseInsensitivePrefixMatch` test
+- [x] Update error messages to show what the user typed (preserve case in error output)
+  - Error messages use the original `id` parameter, not the normalized version
 
 ## Edge Cases to Consider
 
@@ -121,12 +128,21 @@ All commands that use `findTicketByID()`:
 
 ## Acceptance Criteria
 
-- [ ] `pm show gpm-1` works the same as `pm show GPM-1`
-- [ ] `pm edit gpm-1` works the same as `pm edit GPM-1`
-- [ ] `pm move gpm-1 done` works the same as `pm move GPM-1 done`
-- [ ] Error messages still show the ID as the user typed it
-- [ ] Case-insensitive matching doesn't break existing functionality
-- [ ] Tests verify behavior across different case variations
+- [x] `pm show gpm-1` works the same as `pm show GPM-1`
+- [x] `pm edit gpm-1` works the same as `pm edit GPM-1`
+- [x] `pm move gpm-1 done` works the same as `pm move GPM-1 done`
+- [x] Error messages still show the ID as the user typed it
+- [x] Case-insensitive matching doesn't break existing functionality
+  - All existing tests still pass
+- [x] Tests verify behavior across different case variations
+  - Added comprehensive test coverage for lowercase, uppercase, and mixed case
+
+**Implementation Notes:**
+- Modified `findTicketByID()` in `cmd/pm/common.go` to normalize IDs using `strings.ToUpper()`
+- Two-pass approach: exact match first (case-insensitive), then prefix match (case-insensitive)
+- Preserves actual filename in results (returns original case from filesystem)
+- Error messages preserve user's input case for clarity
+- Works across all platforms (Linux, macOS, Windows) since comparison is string-based
 
 ## Related
 
