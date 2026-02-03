@@ -17,6 +17,111 @@ The goal is to eliminate the context switch between coding and project managemen
 
 ---
 
+## 1.5. Development Workflow (LLM Collaboration)
+
+This project uses an **iterative, ticket-driven development workflow** designed for LLM-human collaboration. Future AI agents working on this codebase should follow this process:
+
+### The Workflow
+
+1. **Idea/Request:** User provides a feature request, bug report, or improvement idea
+   - May be informal ("we should fix X") or detailed
+   - May reference existing code or be completely new
+
+2. **Ticket Creation:** LLM creates a comprehensive ticket with:
+   - **LLM Attribution:** Add `[Sonnet 4.5]` (or appropriate model identifier) at the start of the description
+     - This helps future users know the ticket was AI-generated
+     - Update with your model name/version
+   - **Problem Statement:** Clear description of the issue or feature
+   - **Solution Approach:** Recommended implementation strategy
+   - **Edge Cases:** Explicitly defined behavior for corner cases
+   - **Implementation Steps:** Actionable checklist items
+   - **Acceptance Criteria:** Clear, testable outcomes
+   - **Code Examples:** When helpful, include example code or expected behavior
+   - Use `pm new` command to create the ticket file
+   - Edit the markdown file directly to add full details
+
+3. **Review & Refinement:** User reviews the ticket
+   - User may request clarifications
+   - User may challenge assumptions or suggest alternatives
+   - User may ask for edge cases to be explicitly defined
+   - LLM updates the ticket based on feedback
+   - Iterate until both parties are satisfied with the specification
+
+4. **Implementation:** LLM implements the ticket
+   - Follow the implementation steps checklist
+   - Check off items (`- [x]`) as they're completed
+   - Write tests for edge cases identified in the ticket
+   - Run tests frequently to ensure nothing breaks
+   - Update the ticket if implementation reveals new considerations
+
+5. **Verification & Completion:** 
+   - Verify all acceptance criteria are met
+   - Check off all acceptance criteria (`- [x]`)
+   - Mark ticket as done: `pm move TICKET-ID done`
+   - Add notes about what was done differently than planned (if applicable)
+
+### Key Principles
+
+**Tickets are the specification:**
+- Don't start implementing before the ticket is well-defined
+- When in doubt, ask for clarification rather than making assumptions
+- Tickets should be detailed enough that another LLM could implement them
+
+**Be explicit about edge cases:**
+- User may ask: "what happens if X?"
+- Document the answer in the ticket before implementing
+- Edge cases often become test cases
+
+**Replacement over append (example from GPM-4):**
+- When making design decisions, document the rationale
+- Example: "Array updates REPLACE existing values (not append) for consistency with single-value fields"
+
+**Checklists drive implementation:**
+- Implementation Steps: What to build
+- Acceptance Criteria: How to verify it works
+- Check items off as you complete them
+- If you deviate from the plan, add a note explaining what you did instead
+
+### Example Exchange
+
+```
+User: "when the title is long, it makes the columns not line up in pm list"
+
+LLM: [Creates GPM-12 ticket with:
+  - Problem description with example
+  - Three solution options (simple truncation, terminal-aware, table library)
+  - Recommendation: Option 1 for simplicity
+  - Edge cases: Unicode, emoji, empty strings
+  - Implementation steps
+  - Acceptance criteria]
+
+User: "okay let's implement GPM-12. note that we will choose Option 1. 
+       Create a separate enhancement ticket for Option 3."
+
+LLM: [Updates GPM-12 to focus on Option 1
+     Creates GPM-15 for Option 3 (table library)
+     Implements GPM-12:
+       - Adds truncate() function
+       - Updates list.go to use it
+       - Checks off implementation steps
+       - Verifies acceptance criteria
+       - Marks ticket as done]
+```
+
+### Benefits of This Workflow
+
+- **Reduces rework:** Specification agreed upon before coding
+- **Knowledge transfer:** Tickets document decisions for future maintainers
+- **Testability:** Edge cases identified upfront become test cases
+- **Transparency:** User can see what you're planning before you build it
+- **Auditability:** Git history + ticket history = complete project narrative
+
+### Using GPM to Build GPM
+
+This project uses GPM to manage its own development (dogfooding). All tickets are in `.pm/tickets/`. Use `pm list` to see current work, `pm show TICKET-ID` to read specifications, and create new tickets for any work you're doing.
+
+---
+
 ## 2. File Architecture
 
 ### 2.1 Directory Structure
@@ -818,45 +923,15 @@ This stage refines the MVP based on initial usage feedback, focusing on making t
 
 This stage improves the user experience with better help messages and establishes a clear strategy for SQLite cache synchronization to handle manual ticket edits.
 
-- [ ] **Help improvements**:
-    - [ ] When `pm` is run with no arguments, display available commands (similar to `git` or `docker`)
-    - [ ] When `pm show` is run with no arguments, display usage help instead of erroring
-    - [ ] Other commands should also show helpful error messages when missing required arguments
-
-- [ ] **SQLite cache synchronization strategy**:
-    - [ ] **Current state**: `pm list` reads directly from filesystem (slow but always accurate)
-    - [ ] **Problem**: Cache becomes stale when tickets are manually created/edited
-    - [ ] **Solution: Lazy sync on read**
-      - Before any query operation (`list`, `search`), check if cache is stale
-      - Use filesystem scan with `mtime` comparison: if any `.md` file is newer than last cache update, resync
-      - Store last sync timestamp in a `cache_metadata` table
-      - Automatic, no user intervention needed
-      - Small overhead on every read operation is acceptable for correctness
-      
-    - [ ] **Implementation**:
-      - [ ] Create `internal/cache/sync.go` with sync logic
-      - [ ] Add `cache_metadata` table with `last_sync_timestamp` field
-      - [ ] Implement `ShouldSync()` function: check if any ticket file mtime > last_sync_timestamp
-      - [ ] Add `SyncCache()` function: scan `.pm/tickets/`, parse all tickets, update database
-      - [ ] Update `pm list` to check cache staleness and auto-sync if needed
-      
-    - [ ] **Migration**:
-      - [ ] Create `000002_add_cache_metadata.up.sql`:
-        ```sql
-        CREATE TABLE cache_metadata (
-          key TEXT PRIMARY KEY,
-          value TEXT NOT NULL
-        );
-        INSERT INTO cache_metadata (key, value) VALUES ('last_sync_timestamp', '1970-01-01T00:00:00Z');
-        ```
-      
-    - [ ] **Tests**:
-      - [ ] Unit tests for staleness detection
-      - [ ] Integration test: create ticket manually, verify `pm list` auto-syncs and shows it
+**Key deliverables:**
+- Better help messages when commands are run without arguments ([GPM-16](.pm/tickets/GPM-16.md))
+- Lazy migration check to auto-recover from missing/outdated cache ([GPM-10](.pm/tickets/GPM-10.md))
+- Cache metadata table with automatic staleness detection and sync ([GPM-17](.pm/tickets/GPM-17.md))
 
 **Rationale:**
 - **Lazy sync**: Balances performance with correctness—cache is fast but never shows stale data
 - **Transparent to users**: Most users won't need to think about the cache; it "just works"
+- **Better UX**: New users discover commands naturally without reading docs
 
 ### Stage 2: Collaboration and History
 

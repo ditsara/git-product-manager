@@ -84,29 +84,40 @@ See [AGENTS.md](AGENTS.md) for the complete technical specification.
 
 ## Features
 
-### Phase 1 (Core)
+### Stage 1: Core Ticket Management (MVP) ✅
 - ✅ Initialize `.pm/` directory structure
 - ✅ Create tickets from templates (story, task, bug, epic)
-- ✅ List and filter tickets
-- ✅ Display ticket details with comments
-- ✅ Audit trail via git history
-
-### Phase 2 (Management)
+- ✅ List tickets with filtering (status, type)
+- ✅ Display ticket details
+- ✅ Edit ticket metadata (including `--field` for direct updates)
 - ✅ Update ticket status
-- ✅ Edit ticket metadata
-- ✅ Add comments (conflict-free)
-- ✅ Assign tickets
+- ✅ YAML validation and parsing
+- ✅ SQLite database for ticket indexing
+- ✅ Type-aware field parsing (arrays, integers, enums)
 
-### Phase 3 (Search)
+### Stage 1.5: Refinements ✅
+- ✅ Sequential ticket IDs (PREFIX-1, PREFIX-2, etc.)
+- ✅ Configurable prefix (uppercase)
+- ✅ Filesystem-based ID generation
+- ✅ Column alignment with truncation
+
+### Stage 1.6: UX Polish (In Progress)
+- ⬜ Help improvements (no-arg commands)
+- ⬜ Lazy cache synchronization
+- ⬜ Auto-recovery on database errors
+
+### Stage 2: Collaboration & History (Planned)
+- ⬜ Comment system (conflict-free)
+- ⬜ Display comments in `pm show`
+- ⬜ State change audit trail (`pm history`)
+- ⬜ Assignee shorthand (`pm assign`)
+
+### Stage 3: Relationships & Search (Planned)
 - ⬜ Full-text search
-- ⬜ SQLite cache for performance
+- ⬜ Relationship management (`pm link`, `pm unlink`)
+- ⬜ Hierarchy visualization (`pm tree`)
+- ⬜ Dependency tracking (`pm blocked`)
 - ⬜ Advanced filtering
-
-### Phase 4 (Relationships)
-- ✅ Parent-child hierarchies
-- ✅ Dependencies (blocks/depends_on)
-- ⬜ Visualize ticket trees
-- ⬜ Dependency graphs
 
 ## License
 
