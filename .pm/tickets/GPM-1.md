@@ -7,9 +7,9 @@ priority: high
 points: 0
 parent: ""
 depends_on: []
-blocks: []
+blocks: ["GPM-19", "GPM-20", "GPM-21", "GPM-22", "GPM-23"]
 related: []
-labels: [collaboration, git-history]
+labels: [collaboration, git-history, epic]
 assignee: ""
 created_at: 2026-02-02T03:54:36Z
 updated_at: 2026-02-02T03:54:36Z
@@ -19,7 +19,17 @@ updated_at: 2026-02-02T03:54:36Z
 
 [Sonnet 4.5]
 
-This stage introduces features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
+This epic tracks the implementation of Stage 2 features for team collaboration and auditing, centered around the conflict-free comment system and git history analysis.
+
+## Child Stories
+
+This epic has been broken down into the following user stories:
+
+- **[GPM-19](GPM-19.md)**: Implement `pm comment` command (comment system)
+- **[GPM-20](GPM-20.md)**: Enhance `pm show` to display comments
+- **[GPM-21](GPM-21.md)**: Implement `pm history` for state change auditing
+- **[GPM-22](GPM-22.md)**: Implement `pm assign` shorthand command
+- **[GPM-23](GPM-23.md)**: Implement `pm edit-comment` to modify existing comments
 
 ## Objectives
 
