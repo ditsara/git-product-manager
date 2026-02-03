@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ditsara/git-product-manager/internal/ticket"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -16,12 +17,34 @@ import (
 var editCmd = &cobra.Command{
 	Use:   "edit [id]",
 	Short: "Edit a ticket",
-	Long:  `Opens a ticket in the default editor or updates a specific field.`,
-	Args:  cobra.ExactArgs(1),
+	Long: `Opens a ticket in the default editor or updates a specific field.
+
+Examples:
+  # Open ticket in editor
+  pm edit GPM-1
+
+  # Update a single field
+  pm edit GPM-1 --field assignee=alice
+
+  # Update array field (replaces all values)
+  pm edit GPM-1 --field labels=bug,critical,p1
+
+  # Clear an array field
+  pm edit GPM-1 --field labels=
+
+  # Update integer field
+  pm edit GPM-1 --field points=5
+
+  # Update enum field
+  pm edit GPM-1 --field priority=high
+
+Note: Array fields use comma (,) as delimiter. Values are trimmed.
+Array updates REPLACE existing values, they do not append.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
 		ticketPath := findTicketByID(ticketID)
-		
+
 		// Check if --field flag is used
 		field, _ := cmd.Flags().GetString("field")
 		if field != "" {
@@ -139,8 +162,15 @@ func updateTicketField(ticketPath, field, value string) {
 		log.Fatal(err)
 	}
 
-	// Update the field
-	metadata[field] = value
+	// Parse the value according to field type
+	parsedValue, err := ticket.ParseFieldValue(field, value)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Update the field with the correctly typed value
+	metadata[field] = parsedValue
 	metadata["updated_at"] = time.Now().UTC().Format(time.RFC3339)
 
 	newYAML, err := yaml.Marshal(metadata)
