@@ -62,6 +62,29 @@ go install ./cmd/pm
 go install github.com/yourusername/git-product-manager/cmd/pm@latest
 ```
 
+## Shell Completion
+
+Enable tab completion for ticket IDs, commands, and flags:
+
+### Bash
+
+Add to ~/.bashrc:
+```bash
+eval "$(pm completion bash)"
+```
+
+### PowerShell
+
+Add to your PowerShell profile:
+```powershell
+pm completion powershell | Out-String | Invoke-Expression
+```
+
+### Others
+
+For Zsh, Fish, or others, see completion instructions for Cobra.
+
+
 ## Development
 
 ```bash
