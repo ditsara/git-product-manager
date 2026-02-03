@@ -33,6 +33,11 @@ var listCmd = &cobra.Command{
 		statusFilter, _ := cmd.Flags().GetString("status")
 		pmPath := ".pm"
 
+		// Ensure cache database exists and has current schema
+		if err := cache.EnsureCacheReady(pmPath); err != nil {
+			log.Fatalf("Error initializing cache: %v", err)
+		}
+
 		// Check if cache needs sync and sync if necessary
 		shouldSync, err := cache.ShouldSync(pmPath)
 		if err != nil {

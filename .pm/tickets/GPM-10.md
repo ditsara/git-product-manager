@@ -1,22 +1,24 @@
 ---
-id: GPM-10
-title: "Lazy migration check on every command"
-type: task
-status: backlog
-priority: high
-points: 2
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: [GPM-9]
-related: []
-
-labels: [cache, migrations, reliability]
 assignee: ""
+blocks:
+    - GPM-9
 created_at: "2026-02-03T03:52:16Z"
-updated_at: "2026-02-03T03:52:16Z"
+depends_on: []
+id: GPM-10
+labels:
+    - cache
+    - migrations
+    - reliability
+parent: ""
+points: 2
+priority: high
+related: []
+status: done
+title: Lazy migration check on every command
+type: task
+updated_at: "2026-02-03T10:13:25Z"
 ---
+
 
 # Description
 
@@ -59,11 +61,21 @@ func ensureCacheReady(pmPath string) error {
 
 ## Implementation Steps
 
-- [ ] Create `internal/cache/ensure.go` with `EnsureCacheReady(pmPath) error`
-- [ ] Call `EnsureCacheReady()` in `list.go` before opening database
-- [ ] Call `EnsureCacheReady()` in `show.go`, `search.go`, and other cache users
-- [ ] Update `cache.RunMigrations()` to be idempotent (safe to call multiple times)
-- [ ] Add tests: missing db, outdated schema, already current
+- [x] Create `internal/cache/ensure.go` with `EnsureCacheReady(pmPath) error`
+- [x] Call `EnsureCacheReady()` in `list.go` before opening database
+- [x] Call `EnsureCacheReady()` in `show.go`, `search.go`, and other cache users
+  - **Note:** Only `list.go` uses the cache currently. `show.go`, `move.go`, and `edit.go` read directly from filesystem, so no changes needed.
+- [x] Update `cache.RunMigrations()` to be idempotent (safe to call multiple times)
+  - **Note:** `RunMigrations()` already uses `golang-migrate` which is idempotent by design (uses `migrate.ErrNoChange` for no-op).
+- [x] Add tests: missing db, outdated schema, already current
+  - Created `ensure_test.go` with three test cases covering all scenarios
+
+**Additional Work:**
+- [x] Created `cache.FindMigrationPath()` - Robust migration directory locator
+  - Checks current directory, executable directory, and walks up tree
+  - Refactored from `init.go`'s duplicate `findMigrationPath()` function
+  - Works in development, tests, and production environments
+- [x] Updated `init.go` to use shared `cache.FindMigrationPath()` function
 
 ## Performance Considerations
 
@@ -73,10 +85,11 @@ func ensureCacheReady(pmPath string) error {
 
 ## Acceptance Criteria
 
-- [ ] Deleting `.cache.db` doesn't break any command (auto-recreates)
-- [ ] Adding new migration automatically updates existing databases
-- [ ] No performance regression for normal usage (current schema)
-- [ ] Works correctly with concurrent commands (database locking)
+- [x] Deleting `.cache.db` doesn't break any command (auto-recreates)
+- [x] Adding new migration automatically updates existing databases
+- [x] No performance regression for normal usage (current schema)
+- [x] Works correctly with concurrent commands (database locking)
+  - **Note:** SQLite handles locking automatically; `golang-migrate` uses database-level locks during migration.
 
 ## Related
 
