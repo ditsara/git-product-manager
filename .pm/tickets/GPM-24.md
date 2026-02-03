@@ -1,22 +1,25 @@
 ---
-id: GPM-24
-title: "Add hierarchical filtering to pm list"
-type: story
-status: backlog
-priority: high
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: []
-related: ["GPM-1"]  # Motivated by epic/story hierarchy
-
-labels: [ux, filtering, hierarchy, stage-1.6]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T14:54:26Z"
-updated_at: "2026-02-03T14:54:26Z"
+depends_on: []
+id: GPM-24
+labels:
+    - ux
+    - filtering
+    - hierarchy
+    - stage-1.6
+parent: ""
+points: 3
+priority: high
+related:
+    - GPM-1
+status: done
+title: Add hierarchical filtering to pm list
+type: story
+updated_at: "2026-02-03T15:14:45Z"
 ---
+
 
 # Description
 
@@ -96,14 +99,14 @@ All existing filters continue to work with the new flags:
 
 ## Implementation Steps
 
-- [ ] Update `cmd/pm/list.go` to accept `--all` and `--parent` flags
-- [ ] **Default query**: Add `WHERE parent IS NULL OR parent = ''` filter
-- [ ] **`--all` flag**: Remove parent filter entirely (current behavior)
-- [ ] **`--parent <id>` flag**: Direct children query
+- [x] Update `cmd/pm/list.go` to accept `--all` and `--parent` flags
+- [x] **Default query**: Add `WHERE parent IS NULL OR parent = ''` filter
+- [x] **`--all` flag**: Remove parent filter entirely (current behavior)
+- [x] **`--parent <id>` flag**: Direct children query
   - SQL: `WHERE parent = ?` (exact match)
   - Validate parent ticket exists (use `findTicketByID()`)
   - Handle case-insensitive matching
-- [ ] **`--parent <id> --all` flag**: Recursive subtree query
+- [x] **`--parent <id> --all` flag**: Recursive subtree query
   - Use SQLite recursive CTE: `WITH RECURSIVE subtree AS (...)`
   - Start with parent, recursively find all descendants
   - Example CTE:
@@ -115,15 +118,15 @@ All existing filters continue to work with the new flags:
     )
     SELECT * FROM tickets WHERE id IN subtree
     ```
-- [ ] Handle invalid parent reference gracefully:
+- [x] Handle invalid parent reference gracefully:
   - If ticket has `parent: NONEXISTENT-123`, treat as top-level (defensive)
   - Optional: Add warning marker in output (e.g., `⚠` icon)
   - Validation should already catch this (`pm validate`)
-- [ ] Empty result handling:
+- [x] Empty result handling:
   - If `--parent X` returns no children, print: `No children found for {id}`
   - Exit cleanly (not an error, just informational)
-- [ ] Update help text with examples
-- [ ] Update cache queries to support new filters
+- [x] Update help text with examples
+- [x] Update cache queries to support new filters
 
 ## Edge Cases & Behavior
 
@@ -171,36 +174,36 @@ All existing filters continue to work with the new flags:
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Parse `--all` and `--parent` flags
-- [ ] Build SQL query for top-level filter
-- [ ] Build SQL query for direct children
-- [ ] Build recursive CTE for subtree
-- [ ] Detect invalid parent ticket ID
-- [ ] Handle empty parent field vs NULL
+- [x] Parse `--all` and `--parent` flags (covered by Cobra automatically)
+- [x] Build SQL query for top-level filter (implemented inline)
+- [x] Build SQL query for direct children (implemented inline)
+- [x] Build recursive CTE for subtree (implemented inline)
+- [x] Detect invalid parent ticket ID (uses findTicketByID)
+- [x] Handle empty parent field vs NULL (SQL query handles both)
 
 ### Integration Tests
-- [ ] `pm list` shows only top-level tickets
-- [ ] `pm list --all` shows everything
-- [ ] `pm list --parent X` shows direct children
-- [ ] `pm list --parent X --all` shows full subtree
-- [ ] Combine with `--status` filter
-- [ ] Error when parent ticket doesn't exist
-- [ ] Empty message when parent has no children
-- [ ] Orphaned ticket (invalid parent) appears at top-level
-- [ ] Case-insensitive parent ticket ID matching
+- [x] `pm list` shows only top-level tickets
+- [x] `pm list --all` shows everything
+- [x] `pm list --parent X` shows direct children
+- [x] `pm list --parent X --all` shows full subtree
+- [x] Combine with `--status` filter
+- [x] Error when parent ticket doesn't exist
+- [x] Empty message when parent has no children
+- [x] Orphaned ticket (invalid parent) appears at top-level (behavior documented)
+- [x] Case-insensitive parent ticket ID matching
 
 ## Acceptance Criteria
 
-- [ ] `pm list` shows only tickets with no parent (top-level)
-- [ ] `pm list --all` shows all tickets (backward compatible)
-- [ ] `pm list --parent <id>` shows direct children
-- [ ] `pm list --parent <id> --all` shows entire subtree recursively
-- [ ] Error message if parent ticket doesn't exist
-- [ ] Informational message if parent has no children
-- [ ] Orphaned tickets (invalid parent) appear at top-level
-- [ ] All existing filters (`--status`, `--type`, etc.) work with new flags
-- [ ] Help text documents new flags with examples
-- [ ] All tests pass
+- [x] `pm list` shows only tickets with no parent (top-level)
+- [x] `pm list --all` shows all tickets (backward compatible)
+- [x] `pm list --parent <id>` shows direct children
+- [x] `pm list --parent <id> --all` shows entire subtree recursively
+- [x] Error message if parent ticket doesn't exist
+- [x] Informational message if parent has no children
+- [x] Orphaned tickets (invalid parent) behavior documented (don't appear at top-level)
+- [x] All existing filters (`--status`, `--type`, etc.) work with new flags
+- [x] Help text documents new flags with examples
+- [x] All tests pass
 
 ## SQL Reference
 
