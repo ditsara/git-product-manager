@@ -16,7 +16,7 @@ import (
 // by comparing the last sync timestamp with the modification times of ticket files
 func ShouldSync(pmPath string) (bool, error) {
 	dbPath := filepath.Join(pmPath, ".cache.db")
-	
+
 	// Open database
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -68,7 +68,7 @@ func ShouldSync(pmPath string) (bool, error) {
 		// the filesystem actually stored the file's mtime.
 		fileTime := info.ModTime().Truncate(time.Second)
 		syncTime := lastSync.Truncate(time.Second)
-		
+
 		if fileTime.After(syncTime) {
 			return true, nil
 		}
@@ -81,7 +81,7 @@ func ShouldSync(pmPath string) (bool, error) {
 // by scanning all ticket files and updating the database
 func SyncCache(pmPath string) error {
 	dbPath := filepath.Join(pmPath, ".cache.db")
-	
+
 	// Open database
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -102,6 +102,12 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to clear tickets table: %w", err)
 	}
 
+	// Also clear existing comments
+	_, err = tx.Exec("DELETE FROM comments")
+	if err != nil {
+		return fmt.Errorf("failed to clear comments table: %w", err)
+	}
+
 	// Scan tickets directory
 	ticketsPath := filepath.Join(pmPath, "tickets")
 	files, err := os.ReadDir(ticketsPath)
@@ -113,54 +119,104 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to read tickets directory: %w", err)
 	}
 
-	// Prepare insert statement
-	stmt, err := tx.Prepare(`
+	// Prepare insert statements
+	ticketStmt, err := tx.Prepare(`
 		INSERT INTO tickets (id, title, type, status, priority, assignee, parent, created_at, updated_at, body)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to prepare insert statement: %w", err)
+		return fmt.Errorf("failed to prepare ticket insert statement: %w", err)
 	}
-	defer stmt.Close()
+	defer ticketStmt.Close()
+
+	commentStmt, err := tx.Prepare(`
+		INSERT INTO comments (ticket_id, author, timestamp, filepath)
+		VALUES (?, ?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare comment insert statement: %w", err)
+	}
+	defer commentStmt.Close()
 
 	// Process each ticket file
 	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+		// Handle both ticket files (.md) and comment directories
+		if strings.HasSuffix(file.Name(), ".md") {
+			// Process ticket file
+			filePath := filepath.Join(ticketsPath, file.Name())
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				continue // Skip files we can't read
+			}
+
+			t, err := ticket.Parse(content)
+			if err != nil {
+				continue // Skip invalid tickets
+			}
+
+			// Extract body (everything after the second ---)
+			parts := strings.SplitN(string(content), "---", 3)
+			body := ""
+			if len(parts) == 3 {
+				body = strings.TrimSpace(parts[2])
+			}
+
+			_, err = ticketStmt.Exec(
+				t.ID,
+				t.Title,
+				t.Type,
+				t.Status,
+				t.Priority,
+				t.Assignee,
+				t.Parent,
+				t.CreatedAt,
+				t.UpdatedAt,
+				body,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to insert ticket %s: %w", t.ID, err)
+			}
+		} else if file.IsDir() {
+			// This might be a comment directory - skip it here, we'll handle it below
+		}
+	}
+
+	// Now process comments in ticket comment directories
+	for _, file := range files {
+		if !file.IsDir() {
 			continue
 		}
 
-		filePath := filepath.Join(ticketsPath, file.Name())
-		content, err := os.ReadFile(filePath)
+		ticketID := file.Name()
+		commentDir := filepath.Join(ticketsPath, ticketID)
+		commentEntries, err := os.ReadDir(commentDir)
 		if err != nil {
-			continue // Skip files we can't read
+			continue // Skip if we can't read the directory
 		}
 
-		t, err := ticket.Parse(content)
-		if err != nil {
-			continue // Skip invalid tickets
-		}
+		for _, commentFile := range commentEntries {
+			if commentFile.IsDir() || !strings.HasSuffix(commentFile.Name(), ".md") {
+				continue
+			}
 
-		// Extract body (everything after the second ---)
-		parts := strings.SplitN(string(content), "---", 3)
-		body := ""
-		if len(parts) == 3 {
-			body = strings.TrimSpace(parts[2])
-		}
+			commentPath := filepath.Join(commentDir, commentFile.Name())
+			relPath := filepath.Join(ticketID, commentFile.Name())
 
-		_, err = stmt.Exec(
-			t.ID,
-			t.Title,
-			t.Type,
-			t.Status,
-			t.Priority,
-			t.Assignee,
-			t.Parent,
-			t.CreatedAt,
-			t.UpdatedAt,
-			body,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert ticket %s: %w", t.ID, err)
+			// Parse comment to get metadata
+			comment, err := ticket.ParseCommentFile(commentPath)
+			if err != nil {
+				continue // Skip invalid comment files
+			}
+
+			_, err = commentStmt.Exec(
+				ticketID,
+				comment.Author,
+				comment.Timestamp.Format(time.RFC3339),
+				relPath,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to insert comment for %s: %w", ticketID, err)
+			}
 		}
 	}
 

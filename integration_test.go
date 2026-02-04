@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +64,23 @@ func runPM(t *testing.T, pmBinary, workDir string, args ...string) (string, erro
 	cmd.Dir = workDir
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+// Helper function to initialize a workspace with pm init
+func initWorkspace(t *testing.T, pmBinary, workspace, prefix string) {
+	t.Helper()
+
+	// Initialize workspace
+	output, err := runPM(t, pmBinary, workspace, "init", ".", "--prefix", prefix)
+	if err != nil {
+		t.Fatalf("pm init failed: %v\nOutput: %s", err, output)
+	}
+
+	// Verify .pm directory was created
+	pmDir := filepath.Join(workspace, ".pm")
+	if _, err := os.Stat(pmDir); os.IsNotExist(err) {
+		t.Fatalf("pm init did not create .pm directory")
+	}
 }
 
 func TestIntegrationWorkflow(t *testing.T) {
@@ -737,4 +755,220 @@ This ticket has an invalid parent reference.
 			t.Error("Unexpected: Orphaned ticket HIER-6 appears at top level")
 		}
 	})
+}
+
+// TestCommentDirectMode tests the pm comment command with -m flag
+func TestCommentDirectMode(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	// Initialize a test workspace
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+
+	// Create a test ticket
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket for Comments")
+
+	// Add a comment via direct mode
+	output, err := runPM(t, pmBinary, workspace, "comment", "COMMENT-1", "-m", "This is a test comment")
+	if err != nil {
+		t.Fatalf("pm comment failed: %v\nOutput: %s", err, output)
+	}
+
+	if !strings.Contains(output, "✓ Comment added") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+
+	// Verify comment file was created
+	commentFile := filepath.Join(workspace, ".pm", "tickets", "COMMENT-1")
+	entries, err := os.ReadDir(commentFile)
+	if err != nil {
+		t.Fatalf("Failed to read comment directory: %v", err)
+	}
+
+	if len(entries) == 0 {
+		t.Fatalf("No comment files found")
+	}
+
+	// Read the comment file and verify content
+	commentPath := filepath.Join(commentFile, entries[0].Name())
+	content, err := os.ReadFile(commentPath)
+	if err != nil {
+		t.Fatalf("Failed to read comment file: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "This is a test comment") {
+		t.Errorf("Comment body not found in file")
+	}
+
+	if !strings.Contains(contentStr, "author:") {
+		t.Errorf("Author metadata not found in comment file")
+	}
+
+	if !strings.Contains(contentStr, "timestamp:") {
+		t.Errorf("Timestamp metadata not found in comment file")
+	}
+}
+
+// TestCommentWithCustomAuthor tests overriding the author
+func TestCommentWithCustomAuthor(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket")
+
+	// Add comment with custom author
+	output, err := runPM(t, pmBinary, workspace, "comment", "COMMENT-1", "-m", "Custom author comment", "--author", "bob")
+	if err != nil {
+		t.Fatalf("pm comment with --author failed: %v\nOutput: %s", err, output)
+	}
+
+	// Verify author in comment file
+	commentFile := filepath.Join(workspace, ".pm", "tickets", "COMMENT-1")
+	entries, _ := os.ReadDir(commentFile)
+	commentPath := filepath.Join(commentFile, entries[0].Name())
+	content, _ := os.ReadFile(commentPath)
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "author: bob") {
+		t.Errorf("Custom author 'bob' not found in comment metadata")
+	}
+}
+
+// TestCommentOnNonexistentTicket tests error handling
+func TestCommentOnNonexistentTicket(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+
+	// Try to add comment on ticket that doesn't exist
+	output, err := runPM(t, pmBinary, workspace, "comment", "COMMENT-999", "-m", "This should fail")
+	if err == nil {
+		t.Fatalf("pm comment should fail for nonexistent ticket")
+	}
+
+	if !strings.Contains(output, "not found") {
+		t.Errorf("Expected 'not found' error message, got: %s", output)
+	}
+}
+
+// TestMultipleComments tests adding multiple comments to the same ticket
+func TestMultipleComments(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket")
+
+	// Add multiple comments
+	for i := 1; i <= 3; i++ {
+		_, err := runPM(t, pmBinary, workspace, "comment", "COMMENT-1", "-m", "Comment "+string(rune(i)))
+		if err != nil {
+			t.Fatalf("Failed to add comment %d: %v", i, err)
+		}
+		// Small delay to ensure different timestamps
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Verify all comments exist
+	commentDir := filepath.Join(workspace, ".pm", "tickets", "COMMENT-1")
+	entries, err := os.ReadDir(commentDir)
+	if err != nil {
+		t.Fatalf("Failed to read comment directory: %v", err)
+	}
+
+	if len(entries) != 3 {
+		t.Errorf("Expected 3 comments, got %d", len(entries))
+	}
+}
+
+// TestCommentEmptyMessage tests that empty comments are rejected
+func TestCommentEmptyMessage(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket")
+
+	// Try to add empty comment
+	output, err := runPM(t, pmBinary, workspace, "comment", "COMMENT-1", "-m", "   ")
+	if err == nil {
+		t.Fatalf("pm comment should fail for empty message")
+	}
+
+	if !strings.Contains(output, "empty") {
+		t.Errorf("Expected 'empty' error message, got: %s", output)
+	}
+}
+
+// TestCommentFilenameFormat tests that comment filenames follow the correct format
+func TestCommentFilenameFormat(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "COMMENT")
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket")
+
+	// Add comment
+	runPM(t, pmBinary, workspace, "comment", "COMMENT-1", "-m", "Test", "--author", "alice")
+
+	// Verify filename format: ISO8601-timestamp-author.md with hyphens instead of colons
+	commentDir := filepath.Join(workspace, ".pm", "tickets", "COMMENT-1")
+	entries, _ := os.ReadDir(commentDir)
+	filename := entries[0].Name()
+
+	// Should match pattern: YYYY-MM-DDTHH-MM-SSZ-author.md
+	if !strings.HasSuffix(filename, ".md") {
+		t.Errorf("Comment filename should end with .md: %s", filename)
+	}
+
+	if !strings.Contains(filename, "T") {
+		t.Errorf("Filename should contain 'T' date separator: %s", filename)
+	}
+
+	if !strings.Contains(filename, "Z-alice") {
+		t.Errorf("Filename should contain 'Z-alice' (UTC marker and author): %s", filename)
+	}
+
+	// Should NOT contain colons (they're replaced with hyphens)
+	if strings.Count(filename, ":") > 0 {
+		t.Errorf("Filename should not contain colons: %s", filename)
+	}
+}
+
+// TestCommentCaseInsensitive tests that pm comment works with various case combinations
+func TestCommentCaseInsensitive(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "CASE")
+	runPM(t, pmBinary, workspace, "new", "--type", "task", "Test Ticket")
+
+	testCases := []string{
+		"case-1", // lowercase
+		"CASE-1", // uppercase
+		"Case-1", // mixed case
+		"cAsE-1", // random case
+	}
+
+	for i, ticketID := range testCases {
+		output, err := runPM(t, pmBinary, workspace, "comment", ticketID, "-m", fmt.Sprintf("Comment %d", i+1))
+		if err != nil {
+			t.Fatalf("pm comment with %q failed: %v\nOutput: %s", ticketID, err, output)
+		}
+
+		if !strings.Contains(output, "✓ Comment added") {
+			t.Errorf("Expected success message for %q, got: %s", ticketID, output)
+		}
+	}
+
+	// Verify all comments are in the same directory (CASE-1, the canonical form)
+	commentDir := filepath.Join(workspace, ".pm", "tickets", "CASE-1")
+	entries, _ := os.ReadDir(commentDir)
+
+	if len(entries) != 4 {
+		t.Errorf("Expected 4 comments in CASE-1 directory, got %d", len(entries))
+	}
 }
