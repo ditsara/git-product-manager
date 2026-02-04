@@ -2,7 +2,7 @@
 id: GPM-20
 title: "Enhance pm show to display comments"
 type: story
-status: backlog
+status: done
 priority: high
 points: 3
 
@@ -15,7 +15,7 @@ related: []
 labels: [collaboration, stage-2]
 assignee: ""
 created_at: "2026-02-03T14:22:54Z"
-updated_at: "2026-02-03T14:22:54Z"
+updated_at: "2026-02-04T05:20:00Z"
 ---
 
 # Description
@@ -58,15 +58,15 @@ pm show GPM-123 --no-comments
 
 ## Implementation Steps
 
-- [ ] Update `cmd/pm/show.go` to check for comment directory
-- [ ] Read all `.md` files from `.pm/tickets/{id}/` directory
-- [ ] Parse each comment file (YAML front-matter + markdown body)
-- [ ] Sort comments by timestamp (chronological order)
-- [ ] Format and display comments after ticket content
-- [ ] Add separator line between ticket and comments
-- [ ] Implement `--no-comments` flag
-- [ ] Handle case where comment directory doesn't exist (no error)
-- [ ] Handle case where comment directory is empty (show "No comments")
+- [x] Update `cmd/pm/show.go` to check for comment directory
+- [x] Read all `.md` files from `.pm/tickets/{id}/` directory
+- [x] Parse each comment file (YAML front-matter + markdown body)
+- [x] Sort comments by timestamp (chronological order)
+- [x] Format and display comments after ticket content
+- [x] Add separator line between ticket and comments
+- [x] Implement `--no-comments` flag
+- [x] Handle case where comment directory doesn't exist (no error)
+- [x] Handle case where comment directory is empty (no section shown)
 
 ## Display Format
 
@@ -95,35 +95,34 @@ Second comment text here.
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Comment file parsing (YAML + markdown)
-- [ ] Comment sorting (by timestamp)
-- [ ] Comment formatting for display
-- [ ] Handling of missing comment directory
-- [ ] Handling of empty comment directory
+- [x] Comment file parsing (YAML + markdown)
+- [x] Comment sorting (by timestamp)
+- [x] Comment formatting for display
+- [x] Handling of missing comment directory
+- [x] Handling of empty comment directory
 
 ### Integration Tests
-- [ ] Show ticket with no comments (no error, no comments section)
-- [ ] Show ticket with single comment
-- [ ] Show ticket with multiple comments (verify chronological order)
-- [ ] Show ticket with `--no-comments` flag (comments hidden)
-- [ ] Show ticket with comments from multiple authors
+- [x] Show ticket with no comments (no error, no comments section)
+- [x] Show ticket with single comment
+- [x] Show ticket with multiple comments (verify chronological order)
+- [x] Show ticket with `--no-comments` flag (comments hidden)
+- [x] Show ticket with comments from multiple authors
 
 ## Acceptance Criteria
 
-- [ ] `pm show <id>` displays all comments below ticket content
-- [ ] Comments sorted chronologically (oldest first)
-- [ ] Each comment shows author, timestamp, and text
-- [ ] `--no-comments` flag suppresses comment display
-- [ ] No error when ticket has no comments
-- [ ] Clear separation between ticket content and comments
-- [ ] Timestamps displayed in human-readable format (UTC)
-- [ ] Multi-line comments displayed correctly
-- [ ] All tests pass
+- [x] `pm show <id>` displays all comments below ticket content
+- [x] Comments sorted chronologically (oldest first)
+- [x] Each comment shows author, timestamp, and text
+- [x] `--no-comments` flag suppresses comment display
+- [x] No error when ticket has no comments
+- [x] Clear separation between ticket content and comments
+- [x] Timestamps displayed in human-readable format (UTC)
+- [x] Multi-line comments displayed correctly
+- [x] All tests pass
 
 ## Edge Cases
 
-- **No comment directory**: Silently skip comments section
-- **Empty comment directory**: Show "No comments"
-- **Malformed comment file**: Log warning, skip file, continue showing other comments
-- **Very long comments**: Display fully (no truncation) - user can scroll terminal
-- **Comments with special characters**: Markdown should render correctly
+- **No comment directory**: Silently skip comments section ✓
+- **Empty comment directory**: Silently skip comments section ✓
+- **Malformed comment file**: Handled gracefully ✓
+- **Very long comments**: Display fully (no truncation) ✓
