@@ -1,6 +1,6 @@
 ---
 id: GPM-23
-title: "Implement pm edit-comment to modify existing comments"
+title: "Implement pm comment --amend to modify existing comments"
 type: story
 status: backlog
 priority: medium
@@ -20,15 +20,13 @@ updated_at: "2026-02-03T14:41:14Z"
 
 # Description
 
-[Sonnet 4.5]
-
-Implement the `pm edit-comment` command to allow users to modify or delete existing comments after they've been created.
+Implement the `pm comment --amend` command to allow users to modify existing comments after they've been created.
 
 ## User Story
 
-As a team member, I want to edit or delete my comments after posting them, so that I can fix typos, update information, or remove outdated remarks.
+As a team member, I want to edit my comments after posting them, so that I can fix typos, update information, or remove outdated remarks.
 
-A comment which has been edited will show the editor and time (from git history) when viewed with `pm show`.
+A comment which has been edited will show the editor and time when viewed with `pm show`. For simplicity, for now we will use the `updated_at` field.
 
 ## Solution Approach
 
@@ -36,53 +34,41 @@ Allow editing comment files directly:
 
 1. **List comments** for a ticket to select which one to edit
 2. **Open comment file** in `$EDITOR` for modification
-3. **Update timestamp** in YAML front-matter to track edits
-4. **Auto-commit** with descriptive message
-5. **Support deletion** via `--delete` flag
+3. **Update `updated_at`** in YAML front-matter to track edits
 
 ## Command Signature
 
 ```bash
-pm edit-comment <ticket-id> [--author AUTHOR] [--timestamp TIMESTAMP] [--delete]
+pm comment <ticket-id> --amend [--author AUTHOR] [--timestamp TIMESTAMP]
 
 Arguments:
   ticket-id      Ticket ID containing the comment
 
 Options:
+  --amend        Edit an existing comment, rather than create a new one (default: most recent comment)
   --author       Filter by comment author (default: current user)
   --timestamp    Specific comment timestamp to edit (ISO8601 format)
-  --delete       Delete the comment instead of editing
-  --list         List all comments for selection (interactive mode)
 
 Examples:
-  pm edit-comment GPM-123                          # Interactive: list and select comment
-  pm edit-comment GPM-123 --author alice           # Edit most recent comment by alice
-  pm edit-comment GPM-123 --timestamp 2026-02-01T14-30-00Z-alice  # Edit specific comment
-  pm edit-comment GPM-123 --delete --author bob    # Delete most recent comment by bob
+  pm comment GPM-123 --amend                      # Interactive: list and select comment
+  pm comment GPM-123 --amend --author alice       # Edit most recent comment by alice
+  pm comment GPM-123 --amend --timestamp 2026-02-01T14-30-00Z  # Edit specific comment
 ```
 
 ## Implementation Steps
 
-- [ ] Create `cmd/pm/edit_comment.go` with cobra command
+- [ ] Integrate `--amend` flag into existing `cmd/pm/comment.go` command
 - [ ] Implement comment file discovery in `.pm/tickets/{id}/` directory
-- [ ] Interactive mode: list comments and prompt for selection
-  - Display: `[1] @alice (2026-02-01 14:30): First line of comment...`
-  - Read user input for selection (1, 2, 3, etc.)
+- [ ] Change comments YAML front matter from `timestamp` to `created_at` and `updated_at`
 - [ ] Direct mode: Find specific comment by author and/or timestamp
   - If only `--author` provided, select most recent comment by that author
   - If `--timestamp` provided, find exact match
 - [ ] Edit mode: Open comment file in `$EDITOR`
   - Use standard fallback chain: `$VISUAL` → `$EDITOR` → `editor` → `nano` → `vi`
   - Wait for editor to close
-  - Update YAML front-matter: add `edited_at` field with current timestamp
-- [ ] Delete mode: Remove comment file with confirmation
-  - Prompt: "Delete comment by {author} from {timestamp}? [y/N]"
-  - Remove file from filesystem
-  - Update SQLite cache (remove from comments table)
-- [ ] Validation: Ensure comment file exists before attempting edit/delete
-- [ ] Auto-commit after edit/delete with message:
-  - Edit: `comment(pm): Edit comment on {ticket-id} by {author}`
-  - Delete: `comment(pm): Delete comment on {ticket-id} by {author}`
+  - Update YAML front-matter: set `updated_at` to current timestamp
+- [ ] Validation: Ensure comment file exists before attempting edit
+- [ ] Auto-commit after edit with message: `comment(pm): Edit comment on {ticket-id} by {author}`
 - [ ] Update cache after modification
 
 ## Comment File Format After Edit
@@ -90,8 +76,8 @@ Examples:
 ```markdown
 ---
 author: alice
-timestamp: 2026-02-01T14:30:00Z
-edited_at: 2026-02-03T16:45:00Z  # Added on edit
+created_at: 2026-02-01T14:30:00Z
+updated_at: 2026-02-03T16:45:00Z  # Updated on edit
 ---
 
 Updated comment text here.
@@ -100,7 +86,7 @@ Updated comment text here.
 ## Interactive Mode Flow
 
 ```bash
-$ pm edit-comment GPM-123
+$ pm comment GPM-123 --amend
 
 Comments on GPM-123:
 [1] @alice (2026-02-01 14:30): Should we use OAuth2 library...
@@ -119,55 +105,53 @@ Select comment to edit [1-3] (or 'q' to cancel): 3
 - [ ] Find comments by author
 - [ ] Find comments by timestamp
 - [ ] Sort comments chronologically
-- [ ] Handle edited_at field in YAML front-matter
+- [ ] Handle created_at/updated_at fields in YAML front-matter
 
 ### Integration Tests
-- [ ] Create comment, then edit it
-- [ ] Verify `edited_at` timestamp added to front-matter
+- [ ] Create comment, then edit it with `--amend`
+- [ ] Verify `updated_at` timestamp updated in front-matter
 - [ ] Edit comment interactively (simulate user selection)
 - [ ] Edit comment with `--author` flag
 - [ ] Edit comment with `--timestamp` flag
-- [ ] Delete comment with confirmation
-- [ ] Delete comment bypassing confirmation (testing only)
-- [ ] Verify cache updated after edit/delete
+- [ ] Verify cache updated after edit
 - [ ] Error handling: ticket not found
 - [ ] Error handling: no comments exist
 - [ ] Error handling: comment file not found
+- [ ] Verify distinguishing between `pm comment` (new comment) vs `pm comment --amend` (edit comment)
 
 ## Acceptance Criteria
 
-- [ ] `pm edit-comment <id>` opens interactive comment selection
+- [ ] `pm comment <id> --amend` opens interactive comment selection
 - [ ] Selected comment opens in `$EDITOR`
-- [ ] `edited_at` timestamp added to front-matter after edit
-- [ ] `--delete` flag removes comment file
-- [ ] Delete prompts for confirmation (y/N)
-- [ ] Git commit created after edit/delete
+- [ ] `updated_at` timestamp updated in front-matter after edit
+- [ ] Git commit created after edit
 - [ ] Cache synchronized after modification
 - [ ] Works with case-insensitive ticket IDs
 - [ ] Error message if ticket has no comments
 - [ ] Error message if specified comment not found
+- [ ] `--amend` flag distinguishes from creating new comments
 - [ ] All tests pass
 
 ## Edge Cases
 
 - **No comments exist**: Error "No comments found for {ticket-id}"
-- **Multiple edits**: Update `edited_at` timestamp on each edit (don't track edit history)
+- **Multiple edits**: Update `updated_at` timestamp on each edit (don't track full edit history)
 - **Author doesn't match**: If `--author bob` but bob has no comments, error "No comments by bob"
 - **Ambiguous timestamp**: If multiple comments at same second, use filename as tiebreaker
 - **Comment file manually deleted**: Gracefully handle missing file ("Comment file not found")
-- **Editor aborted**: If editor returns non-zero or file unchanged, cancel operation
+- **Editor aborted**: If editor returns non-zero or file unchanged, cancel operation (preserve original)
 - **Permission to edit others' comments**: Allow editing any comment (rely on git history for audit)
+- **Content removal**: Users can remove comment content if needed (leaves `updated_at` timestamp showing it was modified)
 
 ## Security Considerations
 
 - **Audit trail**: Git history preserves original comment even after edits
 - **No permission system**: Any user can edit any comment (trust-based, like git)
-- **Edited marker**: `edited_at` field makes edits visible to readers
-- **Deletion is permanent**: Deleted comments removed from filesystem but preserved in git history
+- **Edited marker**: `updated_at` field makes edits visible to readers
+- **Transparency**: Comment modifications tracked in git history
 
 ## Future Enhancements
 
-- `--no-confirm` flag to skip delete confirmation
-- Display edit history from git log
-- Inline edit mode: `pm edit-comment <id> -m "New text"`
-- Restore deleted comments from git history
+- Display edit history from git log (show `updated_at` timestamps when viewing)
+- Inline edit mode: `pm comment <id> --amend -m "New text"` (direct update without editor)
+- View comment edit diffs: `pm show <id> --comment-diff` to show what changed
