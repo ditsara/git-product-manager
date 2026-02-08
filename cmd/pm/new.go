@@ -133,7 +133,7 @@ func getNextTicketNumber(pmPath string, prefix string) int {
 
 func init() {
 	newCmd.Flags().StringP("type", "t", "story", "Type of the ticket (e.g., story, task, bug, epic)")
-	newCmd.Flags().StringP("parent", "p", "", "Parent ticket ID (optional)")
+	newCmd.Flags().StringP("parent", "P", "", "Parent ticket ID (optional)")
 
 	// Register completion functions for flags
 	newCmd.RegisterFlagCompletionFunc("type", completeTicketTypes)
