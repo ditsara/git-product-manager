@@ -3,10 +3,11 @@ states:
   - todo
   - in-progress
   - done
+  - canceled
 
 initial_state: backlog
 
 state_groups:
   active: [todo, in-progress]
-  completed: [done]
+  completed: [done, canceled]
   incomplete: [backlog, todo, in-progress]
