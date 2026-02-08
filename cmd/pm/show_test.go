@@ -51,7 +51,7 @@ func TestDisplayCommentsFormatting(t *testing.T) {
 
 	// Verify chronological order
 	for i := 1; i < len(readComments); i++ {
-		if readComments[i].Timestamp.Before(readComments[i-1].Timestamp) {
+		if readComments[i].CreatedAt.Before(readComments[i-1].CreatedAt) {
 			t.Errorf("Comments not in chronological order")
 		}
 	}
@@ -104,7 +104,7 @@ func TestDisplayCommentsOutput(t *testing.T) {
 
 	// Mock the display by checking key components
 	for _, comment := range comments {
-		timestamp := comment.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
+		timestamp := comment.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
 		// Just verify the structure would be valid
 		_ = timestamp
 		_ = comment.Author
@@ -181,7 +181,7 @@ func TestDisplayCommentsTimestampFormat(t *testing.T) {
 	}
 
 	// Verify timestamp can be formatted
-	timestamp := comments[0].Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
+	timestamp := comments[0].CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
 
 	// Should have valid format
 	if !strings.Contains(timestamp, "-") || !strings.Contains(timestamp, "UTC") {

@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/ticket"
 	"github.com/spf13/cobra"
 )
@@ -35,11 +39,15 @@ Examples:
 var commentFlags struct {
 	message string
 	author  string
+	amend   bool
+	timeStr string
 }
 
 func init() {
 	commentCmd.Flags().StringVarP(&commentFlags.message, "message", "m", "", "Comment text (skips editor if provided)")
 	commentCmd.Flags().StringVarP(&commentFlags.author, "author", "a", "", "Author name (defaults to git user.name)")
+	commentCmd.Flags().BoolVar(&commentFlags.amend, "amend", false, "Edit an existing comment instead of creating a new one")
+	commentCmd.Flags().StringVar(&commentFlags.timeStr, "timestamp", "", "Specific comment timestamp to edit (RFC3339 format)")
 	rootCmd.AddCommand(commentCmd)
 }
 
@@ -62,6 +70,10 @@ func runComment(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("could not determine author: please set git user.name or use --author flag")
 		}
 		author = gitAuthor
+	}
+
+	if commentFlags.amend {
+		return amendComment(actualTicketID, author, pmDir)
 	}
 
 	var commentBody string
@@ -93,6 +105,109 @@ func runComment(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("✓ Comment added to %s\n", actualTicketID)
 	return nil
+}
+
+func amendComment(ticketID string, author string, pmDir string) error {
+	comments, err := ticket.ListCommentsForTicket(ticketID, pmDir)
+	if err != nil {
+		return err
+	}
+
+	if len(comments) == 0 {
+		return fmt.Errorf("no comments found for %s", ticketID)
+	}
+
+	filtered := comments
+	if author != "" {
+		filtered = []*ticket.Comment{}
+		for _, c := range comments {
+			if c.Author == author {
+				filtered = append(filtered, c)
+			}
+		}
+		if len(filtered) == 0 {
+			return fmt.Errorf("no comments by %s", author)
+		}
+	}
+
+	var target *ticket.Comment
+	if commentFlags.timeStr != "" {
+		targetTime, err := time.Parse(time.RFC3339, commentFlags.timeStr)
+		if err != nil {
+			return fmt.Errorf("invalid timestamp %q: %w", commentFlags.timeStr, err)
+		}
+
+		for _, c := range filtered {
+			if c.CreatedAt.Equal(targetTime) {
+				target = c
+				break
+			}
+		}
+		if target == nil {
+			return fmt.Errorf("comment with timestamp %s not found", commentFlags.timeStr)
+		}
+	} else if commentFlags.message == "" && len(filtered) > 1 {
+		selected, err := selectCommentToAmend(filtered)
+		if err != nil {
+			return err
+		}
+		target = selected
+	} else {
+		// Default: most recent comment
+		target = filtered[len(filtered)-1]
+	}
+
+	var newBody string
+	if commentFlags.message != "" {
+		newBody = commentFlags.message
+	} else {
+		newBody, err = getCommentEditViaEditor(ticketID, target.Author, target.Body)
+		if err != nil {
+			return err
+		}
+	}
+
+	if strings.TrimSpace(newBody) == "" {
+		return fmt.Errorf("empty comment not saved")
+	}
+
+	if err := ticket.UpdateCommentFile(target.Path, newBody, time.Now().UTC()); err != nil {
+		return fmt.Errorf("failed to update comment: %w", err)
+	}
+
+	if err := cache.SyncCache(pmDir); err != nil {
+		return fmt.Errorf("failed to update cache: %w", err)
+	}
+
+	fmt.Printf("✓ Comment updated on %s\n", ticketID)
+	return nil
+}
+
+func selectCommentToAmend(comments []*ticket.Comment) (*ticket.Comment, error) {
+	fmt.Println("Comments:")
+	for i, c := range comments {
+		preview := strings.SplitN(strings.TrimSpace(c.Body), "\n", 2)[0]
+		createdAt := c.CreatedAt.UTC().Format("2006-01-02 15:04")
+		fmt.Printf("[%d] @%s (%s): %s\n", i+1, c.Author, createdAt, preview)
+	}
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("Select comment to edit [1-%d] (or 'q' to cancel): ", len(comments))
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read selection: %w", err)
+		}
+		input = strings.TrimSpace(input)
+		if strings.EqualFold(input, "q") {
+			return nil, fmt.Errorf("comment edit cancelled")
+		}
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(comments) {
+			fmt.Println("Invalid selection.")
+			continue
+		}
+		return comments[idx-1], nil
+	}
 }
 
 // getGitAuthor retrieves the author name from git config user.name
@@ -130,6 +245,55 @@ func getCommentViaEditor(ticketID string, author string) (string, error) {
 # Please enter your comment above the line.
 # Lines starting with # are ignored.
 `, ticketID, author)
+
+	if _, err := tmpFile.WriteString(template); err != nil {
+		tmpFile.Close()
+		return "", fmt.Errorf("failed to write template: %w", err)
+	}
+	tmpFile.Close()
+
+	// Open editor
+	editor := getEditor()
+	editorCmd := exec.Command(editor, tmpPath)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
+
+	if err := editorCmd.Run(); err != nil {
+		return "", fmt.Errorf("editor failed: %w", err)
+	}
+
+	// Read edited content
+	content, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read edited comment: %w", err)
+	}
+
+	// Filter out comment lines and trim
+	lines := strings.Split(string(content), "\n")
+	var filteredLines []string
+	for _, line := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	result := strings.TrimSpace(strings.Join(filteredLines, "\n"))
+	return result, nil
+}
+
+// getCommentEditViaEditor opens the configured editor for editing an existing comment
+func getCommentEditViaEditor(ticketID string, author string, currentBody string) (string, error) {
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "pm-comment-edit-*.md")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	// Write current body and instructions
+	template := fmt.Sprintf("%s\n\n# Editing comment on %s by %s\n# Lines starting with # are ignored.\n", currentBody, ticketID, author)
 
 	if _, err := tmpFile.WriteString(template); err != nil {
 		tmpFile.Close()

@@ -13,14 +13,18 @@ import (
 // Comment represents a single comment on a ticket.
 type Comment struct {
 	Author    string    `yaml:"author"`
-	Timestamp time.Time `yaml:"-"` // Stored as ISO8601 string in YAML
+	CreatedAt time.Time `yaml:"-"` // Stored as ISO8601 string in YAML
+	UpdatedAt time.Time `yaml:"-"` // Stored as ISO8601 string in YAML
 	Body      string    `yaml:"-"`
+	Path      string    `yaml:"-"`
 }
 
 // CommentMetadata is the YAML front-matter of a comment file
 type CommentMetadata struct {
 	Author    string `yaml:"author"`
-	Timestamp string `yaml:"timestamp"` // ISO8601 format
+	Timestamp string `yaml:"timestamp,omitempty"`  // Legacy ISO8601 format
+	CreatedAt string `yaml:"created_at,omitempty"` // ISO8601 format
+	UpdatedAt string `yaml:"updated_at,omitempty"` // ISO8601 format
 }
 
 // ParseCommentFile reads and parses a comment file
@@ -45,10 +49,26 @@ func ParseCommentFile(filepath string) (*Comment, error) {
 		return nil, fmt.Errorf("failed to parse comment metadata: %w", err)
 	}
 
-	// Parse timestamp
-	timestamp, err := time.Parse(time.RFC3339, metadata.Timestamp)
+	createdAtStr := metadata.CreatedAt
+	if createdAtStr == "" {
+		createdAtStr = metadata.Timestamp
+	}
+	if createdAtStr == "" {
+		return nil, fmt.Errorf("missing created_at in comment metadata")
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, createdAtStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid timestamp format %q: %w", metadata.Timestamp, err)
+		return nil, fmt.Errorf("invalid created_at format %q: %w", createdAtStr, err)
+	}
+
+	updatedAtStr := metadata.UpdatedAt
+	if updatedAtStr == "" {
+		updatedAtStr = createdAtStr
+	}
+	updatedAt, err := time.Parse(time.RFC3339, updatedAtStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid updated_at format %q: %w", updatedAtStr, err)
 	}
 
 	// Extract body (trim leading/trailing whitespace)
@@ -56,8 +76,10 @@ func ParseCommentFile(filepath string) (*Comment, error) {
 
 	return &Comment{
 		Author:    metadata.Author,
-		Timestamp: timestamp,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
 		Body:      body,
+		Path:      filepath,
 	}, nil
 }
 
@@ -113,7 +135,8 @@ func CreateCommentFile(ticketID string, author string, body string, baseDir stri
 	// Build comment content
 	metadata := CommentMetadata{
 		Author:    author,
-		Timestamp: now.Format(time.RFC3339),
+		CreatedAt: now.Format(time.RFC3339),
+		UpdatedAt: now.Format(time.RFC3339),
 	}
 
 	metadataBytes, err := yaml.Marshal(metadata)
@@ -133,7 +156,35 @@ func CreateCommentFile(ticketID string, author string, body string, baseDir stri
 	return relPath, nil
 }
 
-// ListCommentsForTicket returns all comments for a ticket, sorted by timestamp ascending
+// UpdateCommentFile updates an existing comment file with a new body and updated_at timestamp.
+// It preserves the original author and created_at fields.
+func UpdateCommentFile(commentPath string, body string, updatedAt time.Time) error {
+	comment, err := ParseCommentFile(commentPath)
+	if err != nil {
+		return err
+	}
+
+	metadata := CommentMetadata{
+		Author:    comment.Author,
+		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: updatedAt.UTC().Format(time.RFC3339),
+	}
+
+	metadataBytes, err := yaml.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal comment metadata: %w", err)
+	}
+
+	content := fmt.Sprintf("---\n%s---\n\n%s", string(metadataBytes), body)
+
+	if err := os.WriteFile(commentPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write comment file: %w", err)
+	}
+
+	return nil
+}
+
+// ListCommentsForTicket returns all comments for a ticket, sorted by created_at ascending
 func ListCommentsForTicket(ticketID string, baseDir string) ([]*Comment, error) {
 	commentDir := filepath.Join(baseDir, "tickets", ticketID)
 
@@ -172,10 +223,10 @@ func ListCommentsForTicket(ticketID string, baseDir string) ([]*Comment, error) 
 		comments = append(comments, comment)
 	}
 
-	// Sort by timestamp ascending
+	// Sort by created_at ascending
 	for i := 0; i < len(comments)-1; i++ {
 		for j := i + 1; j < len(comments); j++ {
-			if comments[j].Timestamp.Before(comments[i].Timestamp) {
+			if comments[j].CreatedAt.Before(comments[i].CreatedAt) {
 				comments[i], comments[j] = comments[j], comments[i]
 			}
 		}

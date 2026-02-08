@@ -79,9 +79,14 @@ func displayComments(ticketID string) {
 
 	// Display each comment
 	for i, comment := range comments {
-		// Format timestamp in readable UTC format
-		timestamp := comment.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
-		fmt.Printf("@%s (%s)\n", comment.Author, timestamp)
+		// Format created_at in readable UTC format
+		createdAt := comment.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
+		if comment.UpdatedAt.After(comment.CreatedAt) {
+			updatedAt := comment.UpdatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
+			fmt.Printf("@%s (%s, edited %s)\n", comment.Author, createdAt, updatedAt)
+		} else {
+			fmt.Printf("@%s (%s)\n", comment.Author, createdAt)
+		}
 		fmt.Println(comment.Body)
 
 		// Add blank line between comments (but not after the last one)

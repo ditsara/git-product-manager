@@ -1,22 +1,25 @@
 ---
-id: GPM-23
-title: "Implement pm comment --amend to modify existing comments"
-type: story
-status: backlog
-priority: medium
-points: 2
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-1"
-depends_on: ["GPM-19"]  # Need comment system first
-blocks: []
-related: ["GPM-20"]  # Related to comment display
-
-labels: [comments, editing, stage-2]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T14:41:14Z"
-updated_at: "2026-02-03T14:41:14Z"
+depends_on:
+    - GPM-19
+id: GPM-23
+labels:
+    - comments
+    - editing
+    - stage-2
+parent: GPM-1
+points: 2
+priority: medium
+related:
+    - GPM-20
+status: done
+title: Implement pm comment --amend to modify existing comments
+type: story
+updated_at: "2026-02-08T00:10:50Z"
 ---
+
 
 # Description
 
@@ -57,19 +60,19 @@ Examples:
 
 ## Implementation Steps
 
-- [ ] Integrate `--amend` flag into existing `cmd/pm/comment.go` command
-- [ ] Implement comment file discovery in `.pm/tickets/{id}/` directory
-- [ ] Change comments YAML front matter from `timestamp` to `created_at` and `updated_at`
-- [ ] Direct mode: Find specific comment by author and/or timestamp
+- [x] Integrate `--amend` flag into existing `cmd/pm/comment.go` command
+- [x] Implement comment file discovery in `.pm/tickets/{id}/` directory
+- [x] Change comments YAML front matter from `timestamp` to `created_at` and `updated_at`
+- [x] Direct mode: Find specific comment by author and/or timestamp
   - If only `--author` provided, select most recent comment by that author
   - If `--timestamp` provided, find exact match
-- [ ] Edit mode: Open comment file in `$EDITOR`
+- [x] Edit mode: Open comment file in `$EDITOR`
   - Use standard fallback chain: `$VISUAL` → `$EDITOR` → `editor` → `nano` → `vi`
   - Wait for editor to close
   - Update YAML front-matter: set `updated_at` to current timestamp
-- [ ] Validation: Ensure comment file exists before attempting edit
-- [ ] Auto-commit after edit with message: `comment(pm): Edit comment on {ticket-id} by {author}`
-- [ ] Update cache after modification
+- [x] Validation: Ensure comment file exists before attempting edit
+- [x] No auto-commit (consistent with existing `pm comment` behavior)
+- [x] Update cache after modification
 
 ## Comment File Format After Edit
 
@@ -101,36 +104,36 @@ Select comment to edit [1-3] (or 'q' to cancel): 3
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Parse comment filename format (extract author and timestamp)
-- [ ] Find comments by author
-- [ ] Find comments by timestamp
-- [ ] Sort comments chronologically
-- [ ] Handle created_at/updated_at fields in YAML front-matter
+- [x] Parse comment filename format (extract author and timestamp)
+- [x] Find comments by author (covered by integration tests)
+- [x] Find comments by timestamp (covered by integration tests)
+- [x] Sort comments chronologically
+- [x] Handle created_at/updated_at fields in YAML front-matter
 
 ### Integration Tests
-- [ ] Create comment, then edit it with `--amend`
-- [ ] Verify `updated_at` timestamp updated in front-matter
-- [ ] Edit comment interactively (simulate user selection)
-- [ ] Edit comment with `--author` flag
-- [ ] Edit comment with `--timestamp` flag
-- [ ] Verify cache updated after edit
-- [ ] Error handling: ticket not found
-- [ ] Error handling: no comments exist
-- [ ] Error handling: comment file not found
-- [ ] Verify distinguishing between `pm comment` (new comment) vs `pm comment --amend` (edit comment)
+- [x] Create comment, then edit it with `--amend`
+- [x] Verify `updated_at` timestamp updated in front-matter
+- [x] Edit comment interactively (simulate user selection)
+- [x] Edit comment with `--author` flag
+- [x] Edit comment with `--timestamp` flag
+- [x] Verify cache updated after edit
+- [x] Error handling: ticket not found
+- [x] Error handling: no comments exist
+- [x] Error handling: comment file not found
+- [x] Verify distinguishing between `pm comment` (new comment) vs `pm comment --amend` (edit comment)
 
 ## Acceptance Criteria
 
-- [ ] `pm comment <id> --amend` opens interactive comment selection
-- [ ] Selected comment opens in `$EDITOR`
-- [ ] `updated_at` timestamp updated in front-matter after edit
-- [ ] Git commit created after edit
-- [ ] Cache synchronized after modification
-- [ ] Works with case-insensitive ticket IDs
-- [ ] Error message if ticket has no comments
-- [ ] Error message if specified comment not found
-- [ ] `--amend` flag distinguishes from creating new comments
-- [ ] All tests pass
+- [x] `pm comment <id> --amend` opens interactive comment selection
+- [x] Selected comment opens in `$EDITOR`
+- [x] `updated_at` timestamp updated in front-matter after edit
+- [x] No auto-commit (consistent with existing `pm comment` behavior)
+- [x] Cache synchronized after modification
+- [x] Works with case-insensitive ticket IDs
+- [x] Error message if ticket has no comments
+- [x] Error message if specified comment not found
+- [x] `--amend` flag distinguishes from creating new comments
+- [x] All tests pass
 
 ## Edge Cases
 

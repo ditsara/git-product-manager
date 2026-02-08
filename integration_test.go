@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ditsara/git-product-manager/internal/ticket"
 )
 
 // Helper function to build the pm binary for testing
@@ -805,8 +807,11 @@ func TestCommentDirectMode(t *testing.T) {
 		t.Errorf("Author metadata not found in comment file")
 	}
 
-	if !strings.Contains(contentStr, "timestamp:") {
-		t.Errorf("Timestamp metadata not found in comment file")
+	if !strings.Contains(contentStr, "created_at:") {
+		t.Errorf("created_at metadata not found in comment file")
+	}
+	if !strings.Contains(contentStr, "updated_at:") {
+		t.Errorf("updated_at metadata not found in comment file")
 	}
 }
 
@@ -834,9 +839,14 @@ func TestCommentWithCustomAuthor(t *testing.T) {
 	if !strings.Contains(contentStr, "author: bob") {
 		t.Errorf("Custom author 'bob' not found in comment metadata")
 	}
-}
+	if !strings.Contains(contentStr, "created_at:") {
+		t.Errorf("created_at metadata not found in comment file")
+	}
+	if !strings.Contains(contentStr, "updated_at:") {
+		t.Errorf("updated_at metadata not found in comment file")
+	}
 
-// TestCommentOnNonexistentTicket tests error handling
+}
 func TestCommentOnNonexistentTicket(t *testing.T) {
 	workspace := t.TempDir()
 	pmBinary := buildPMBinary(t)
@@ -970,6 +980,116 @@ func TestCommentCaseInsensitive(t *testing.T) {
 
 	if len(entries) != 4 {
 		t.Errorf("Expected 4 comments in CASE-1 directory, got %d", len(entries))
+	}
+}
+
+// TestCommentAmendDirectMode tests updating a comment with --amend and -m
+func TestCommentAmendDirectMode(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "AMEND")
+	runPM(t, pmBinary, workspace, "new", "Test Ticket")
+
+	// Create initial comment
+	_, err := runPM(t, pmBinary, workspace, "comment", "AMEND-1", "-m", "Original comment", "--author", "alice")
+	if err != nil {
+		t.Fatalf("pm comment failed: %v", err)
+	}
+
+	commentDir := filepath.Join(workspace, ".pm", "tickets", "AMEND-1")
+	entries, err := os.ReadDir(commentDir)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("Expected 1 comment file, got %d", len(entries))
+	}
+
+	commentPath := filepath.Join(commentDir, entries[0].Name())
+	before, err := ticket.ParseCommentFile(commentPath)
+	if err != nil {
+		t.Fatalf("ParseCommentFile failed: %v", err)
+	}
+
+	// Ensure updated_at changes
+	time.Sleep(1100 * time.Millisecond)
+
+	// Amend comment
+	_, err = runPM(t, pmBinary, workspace, "comment", "AMEND-1", "--amend", "-m", "Updated comment", "--author", "alice")
+	if err != nil {
+		t.Fatalf("pm comment --amend failed: %v", err)
+	}
+
+	after, err := ticket.ParseCommentFile(commentPath)
+	if err != nil {
+		t.Fatalf("ParseCommentFile failed: %v", err)
+	}
+
+	if after.Body != "Updated comment" {
+		t.Errorf("Expected updated body, got %q", after.Body)
+	}
+	if !after.CreatedAt.Equal(before.CreatedAt) {
+		t.Errorf("created_at should not change")
+	}
+	if !after.UpdatedAt.After(before.UpdatedAt) {
+		t.Errorf("updated_at should be newer after amend")
+	}
+}
+
+// TestCommentAmendByTimestamp tests selecting a comment by timestamp
+func TestCommentAmendByTimestamp(t *testing.T) {
+	workspace := t.TempDir()
+	pmBinary := buildPMBinary(t)
+
+	initWorkspace(t, pmBinary, workspace, "AMEND")
+	runPM(t, pmBinary, workspace, "new", "Test Ticket")
+
+	// Create two comments
+	_, err := runPM(t, pmBinary, workspace, "comment", "AMEND-1", "-m", "First comment", "--author", "bob")
+	if err != nil {
+		t.Fatalf("pm comment failed: %v", err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+	_, err = runPM(t, pmBinary, workspace, "comment", "AMEND-1", "-m", "Second comment", "--author", "bob")
+	if err != nil {
+		t.Fatalf("pm comment failed: %v", err)
+	}
+
+	commentDir := filepath.Join(workspace, ".pm", "tickets", "AMEND-1")
+	entries, err := os.ReadDir(commentDir)
+	if err != nil || len(entries) != 2 {
+		t.Fatalf("Expected 2 comment files, got %d", len(entries))
+	}
+
+	firstPath := filepath.Join(commentDir, entries[0].Name())
+	secondPath := filepath.Join(commentDir, entries[1].Name())
+	firstComment, err := ticket.ParseCommentFile(firstPath)
+	if err != nil {
+		t.Fatalf("ParseCommentFile failed: %v", err)
+	}
+	secondComment, err := ticket.ParseCommentFile(secondPath)
+	if err != nil {
+		t.Fatalf("ParseCommentFile failed: %v", err)
+	}
+
+	// Identify the oldest comment by created_at
+	oldest := firstComment
+	oldestPath := firstPath
+	if secondComment.CreatedAt.Before(firstComment.CreatedAt) {
+		oldest = secondComment
+		oldestPath = secondPath
+	}
+
+	// Amend the oldest comment by timestamp
+	_, err = runPM(t, pmBinary, workspace, "comment", "AMEND-1", "--amend", "--timestamp", oldest.CreatedAt.Format(time.RFC3339), "-m", "Updated oldest", "--author", "bob")
+	if err != nil {
+		t.Fatalf("pm comment --amend --timestamp failed: %v", err)
+	}
+
+	updatedOldest, err := ticket.ParseCommentFile(oldestPath)
+	if err != nil {
+		t.Fatalf("ParseCommentFile failed: %v", err)
+	}
+	if updatedOldest.Body != "Updated oldest" {
+		t.Errorf("Expected oldest comment to be updated")
 	}
 }
 

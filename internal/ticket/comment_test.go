@@ -86,8 +86,11 @@ func TestCreateAndParseCommentFile(t *testing.T) {
 		t.Errorf("Expected body %q, got %q", body, comment.Body)
 	}
 
-	if comment.Timestamp.IsZero() {
-		t.Errorf("Timestamp should not be zero")
+	if comment.CreatedAt.IsZero() {
+		t.Errorf("CreatedAt should not be zero")
+	}
+	if comment.UpdatedAt.IsZero() {
+		t.Errorf("UpdatedAt should not be zero")
 	}
 }
 
@@ -162,8 +165,8 @@ func TestListCommentsForTicket(t *testing.T) {
 
 	// Verify they're in chronological order
 	for i := 1; i < len(result); i++ {
-		if result[i].Timestamp.Before(result[i-1].Timestamp) {
-			t.Errorf("Comments not sorted by timestamp")
+		if result[i].CreatedAt.Before(result[i-1].CreatedAt) {
+			t.Errorf("Comments not sorted by created_at")
 		}
 	}
 }
@@ -225,7 +228,7 @@ func TestCommentBodyWithSpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestCommentTimestampFormat(t *testing.T) {
+func TestCommentCreatedAtFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, err := CreateCommentFile("TEST-1", "alice", "Test", tmpDir)
@@ -246,11 +249,11 @@ func TestCommentTimestampFormat(t *testing.T) {
 		t.Fatalf("ParseCommentFile failed: %v", err)
 	}
 
-	// Verify timestamp is valid and in UTC
-	if comment.Timestamp.Location() != time.UTC && comment.Timestamp.Location() != time.Local {
+	// Verify created_at is valid and in UTC
+	if comment.CreatedAt.Location() != time.UTC && comment.CreatedAt.Location() != time.Local {
 		// time.Parse with RFC3339 always returns UTC, so this should pass
-		if comment.Timestamp.IsZero() {
-			t.Errorf("Timestamp is zero")
+		if comment.CreatedAt.IsZero() {
+			t.Errorf("CreatedAt is zero")
 		}
 	}
 }

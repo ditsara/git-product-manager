@@ -211,7 +211,7 @@ func SyncCache(pmPath string) error {
 			_, err = commentStmt.Exec(
 				ticketID,
 				comment.Author,
-				comment.Timestamp.Format(time.RFC3339),
+				comment.CreatedAt.Format(time.RFC3339),
 				relPath,
 			)
 			if err != nil {
