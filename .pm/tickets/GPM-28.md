@@ -44,6 +44,49 @@ This makes guidance discoverable and self-contained in each repo.
   - Help system enhancements
   - Documentation updates
 
+## Demonstrated Workflow Pattern (From Actual Implementation)
+
+Based on successful session implementing GPM-45, here's the proven workflow pattern for future LLM assistants:
+
+### Phase 1: Specification & Clarification
+1. **Read the Epic/Ticket**: Thoroughly understand the problem statement and acceptance criteria
+2. **Identify Clarifications Needed**: Don't assume implementation details—ask for explicit decisions
+3. **Design First**: Document the approach (data structures, algorithm, symmetry logic, error handling) before coding
+4. **User Agreement**: Get user confirmation on key design decisions before implementation begins
+
+**Example from GPM-45**: Tickets specified "automatic symmetry" but left implementation strategy open. We clarified: Should de-duplication happen on read or write? How to handle idempotency? What about atomic rollback on failure? User reviewed options, we chose Normalize-on-write with atomic rollback. This prevented wasted coding.
+
+### Phase 2: Implementation with Continuous Verification
+1. **Incremental Coding**: Create one file at a time, build immediately after
+2. **Run Tests After Each Change**: Don't batch changes; verify immediately
+3. **Check Off Checklist Items**: Mark implementation steps complete as you finish them
+4. **Update Timestamps**: When modifying tickets, refresh `updated_at` to reflect current state
+
+**Example from GPM-45**: 
+   - Created relationships.go, tested it
+   - Created link.go/unlink.go, tested both commands
+   - Created relationships_test.go with comprehensive coverage
+   - Each step verified before moving to next
+
+### Phase 3: Completion & Documentation
+1. **Verify All Acceptance Criteria**: Go through each one, confirm it's met
+2. **Run Full Test Suite**: Ensure no regressions
+3. **Build Final Binary**: Verify clean compilation
+4. **Update Ticket Status**: Mark as "done" using `pm move`, check off all checklist items
+5. **Skip Git Commit**: Let user review and commit—they own the git history
+
+**Example from GPM-45**: All 42 tests passed, both commands working, acceptance criteria verified, ticket marked done.
+
+### Key Principles Demonstrated
+
+- **Tickets ARE the specification**: Don't start coding before the ticket is crystal clear
+- **User review prevents rework**: Clarify ambiguities before implementation (saves hours)
+- **Testing is not optional**: Run tests after every change to catch issues early
+- **Checklists drive implementation**: The acceptance criteria and implementation steps guide what to build
+- **Transparency matters**: Explain design choices to user for approval before coding
+
+---
+
 ## LLM Conversation output
 
 Previous LLM conversation output below, for reference.
