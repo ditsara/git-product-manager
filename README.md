@@ -152,10 +152,10 @@ See [AGENTS.md](AGENTS.md) for the complete technical specification.
 - ✅ Error message formatting improvements
 
 ### Stage 2: Collaboration & History (Planned)
-- ⬜ Comment system (conflict-free)
-- ⬜ Display comments in `pm show`
-- ⬜ State change audit trail (`pm history`)
-- ⬜ Assignee shorthand (`pm assign`)
+- ✅ Comment system (conflict-free)
+- ✅ Display comments in `pm show`
+- ✅ State change audit trail (`pm history`)
+- ✅ Assignee shorthand (`pm assign`)
 
 ### Stage 3: Relationships & Search (Planned)
 - ⬜ Full-text search

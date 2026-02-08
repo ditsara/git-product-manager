@@ -28,100 +28,49 @@ This final stage completes the vision by adding powerful relationship tracking, 
 - Implement fast full-text search across tickets
 - Add relationship validation and integrity checks
 
-## Key Features
+## Child Tickets
 
-### 1. Relationship Management (`pm link` & `pm unlink`)
-Create and manage relationships between tickets:
+- **GPM-45**: Implement `pm link` and `pm unlink` with automatic symmetry
+- **GPM-46**: Cache sync: detect and warn on broken relationship symmetry
+- **GPM-47**: Implement `pm blocked` for dependency tracking
+- **GPM-48**: Implement `pm tree` for hierarchy visualization
+- **GPM-49**: Implement `pm search` for full-text search
+- **GPM-50**: Enhance `pm list` with relationship-aware filtering
 
-**`pm link <id> <target-id> [--type TYPE]`**:
-- **Types**: `parent`, `depends-on`, `blocks`, `related`
-- **Default**: `related`
-- **Behavior**: Updates the appropriate field in the source ticket
-- **Auto-commit**: `chore(pm): Link {id} to {target-id} ({type})`
+Create and manage array-based relationships between tickets with automatic bidirectional symmetry for dependency pairs.
 
-**`pm unlink <id> <target-id> [--type TYPE]`**:
-- **Behavior**: Removes the target from the relationship array
-- **No type specified**: Removes from all relationship fields
+**Note on `parent` field:**
+- The `parent` field is excluded from link/unlink (single-value, not array)
+- Manage via: `pm edit <id> --field parent=<parent-id>`
 
 ### 2. Hierarchy Visualization (`pm tree`)
-Display ticket hierarchies as ASCII trees:
-
-**`pm tree <id> [--depth N]`**:
-- **Display**: Shows parent-child relationships recursively
-- **Default depth**: Unlimited
-- **Example output**:
-  ```
-  EPIC-123: Implement Authentication
-  ├── STORY-456: OAuth2 Login
-  │   ├── TASK-789: Setup Google Provider
-  │   └── TASK-790: Create JWT Middleware
-  └── STORY-457: Password Reset Flow
-      └── TASK-791: Email Template
-  ```
+Display ticket hierarchies as ASCII trees showing parent-child relationships recursively.
 
 ### 3. Dependency Tracking (`pm blocked`)
-Show blocking relationships:
+**See: GPM-47**
 
-**`pm blocked [<id>]`**:
-- **No ID**: List all tickets with unresolved dependencies
-- **With ID**: Show what blocks this ticket and what it blocks
-- **Use case**: Identify bottlenecks in workflow
+Show blocking relationships and identify bottlenecks in the workflow.
 
 ### 4. Full-Text Search (`pm search`)
-Implement efficient search across tickets:
+Implement efficient search across tickets using SQLite FTS5.
 
-**`pm search <query>`**:
-- **Backend**: Use SQLite FTS5 (Full-Text Search) on title and body
-- **Scope**: Search across all ticket content
-- **Performance**: Fast indexed queries
-- **Results**: Display matching tickets with context
+### 5. Enhanced List Filtering
+**Note**: `pm list --parent <id>` is already implemented in Stage 1.
 
-### 5. Enhanced List Filtering (`pm list --parent`)
-Add parent-based filtering:
-
-**`pm list --parent <id>`**:
-- **Display**: Show all tickets with the specified parent
-- **Use case**: View all stories/tasks under an epic
-- **Combination**: Works with existing filters (status, label, assignee)
-
-## Database Changes
-
-### New Migration (000004)
-- **Add `relationships` table**:
-  ```sql
-  CREATE TABLE relationships (
-    from_ticket TEXT NOT NULL,
-    to_ticket TEXT NOT NULL,
-    relationship_type TEXT NOT NULL,
-    PRIMARY KEY (from_ticket, to_ticket, relationship_type)
-  );
-  CREATE INDEX idx_from ON relationships(from_ticket);
-  CREATE INDEX idx_to ON relationships(to_ticket);
-  ```
-
-- **Add `tickets_fts` table** for full-text search:
-  ```sql
-  CREATE VIRTUAL TABLE tickets_fts USING fts5(
-    id, title, body,
-    content='tickets'
-  );
-  ```
-
-### Cache Logic Updates
-- **Index relationships**: Populate relationships table when syncing
-- **Update FTS**: Keep full-text search index synchronized
-- **Query optimization**: Use indexes for fast relationship queries
+Enhance with additional relationship-aware filtering.
 
 ## Validation Enhancements
 
 ### Reference Integrity
-- **All referenced IDs must exist**: parent, depends_on, blocks, related fields
-- **No self-reference**: Ticket cannot reference itself
+- **All referenced IDs must exist**: depends_on, blocks, related fields (parent validated separately via pm edit)
+- **No self-reference**: Ticket cannot reference itself in any relationship field
 - **Circular dependency detection**: Prevent cycles in depends_on relationships
+- **Array operations only**: link/unlink commands only operate on array fields (depends_on, blocks, related)
 
 ### User Responsibility
 - **No semantic enforcement**: System doesn't enforce logical hierarchies (e.g., stories containing epics)
 - **User maintains**: Teams responsible for logical relationship structures
+- **Parent management**: Users set/clear parent field explicitly via `pm edit --field parent=...`
 
 ## Testing Requirements
 
@@ -154,7 +103,7 @@ Add parent-based filtering:
 
 ## Implementation Checklist
 
-- [ ] **`pm link` & `pm unlink`**: Implement all relationship types (`parent`, `depends-on`, `blocks`, `related`)
+- [ ] **`pm link` & `pm unlink`**: Implement array relationship types (`depends-on`, `blocks`, `related`) - parent excluded by design
 - [ ] **`pm tree`**: Visualize the parent-child hierarchy
 - [ ] **`pm blocked`**: Show dependency information
 - [ ] **`pm search`**: Implement full-text search using SQLite FTS table
