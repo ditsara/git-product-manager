@@ -28,9 +28,11 @@ This project uses an **iterative, ticket-driven development workflow** designed 
    - May reference existing code or be completely new
 
 2. **Ticket Creation:** LLM creates a comprehensive ticket with:
-   - **LLM Attribution:** Add `[Sonnet 4.5]` (or appropriate model identifier) at the start of the description
+   - **LLM Attribution:** Add `[Model Name]` at the start of the description (e.g., `[Claude Haiku 4.5]`, `[Claude Sonnet 4.5]`)
      - This helps future users know the ticket was AI-generated
-     - Update with your model name/version
+     - **CRITICAL:** Use the correct model identifier. Do NOT assume Sonnet; identify your actual model.
+     - When in doubt, refer to the system instructions which state your model
+     - Common models: Claude Haiku 3.5, Claude Sonnet 4.5, etc.
    - **Problem Statement:** Clear description of the issue or feature
    - **Solution Approach:** Recommended implementation strategy
    - **Edge Cases:** Explicitly defined behavior for corner cases
