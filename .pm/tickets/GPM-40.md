@@ -6,7 +6,7 @@ status: backlog
 priority: low
 points: 1
 
-parent: ""
+parent: GPM-43
 depends_on: []
 blocks: []
 related: []

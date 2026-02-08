@@ -6,9 +6,8 @@ status: backlog
 priority: medium
 points: 2
 
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: ["GPM-24"]  # Hierarchical filtering must exist first
+parent: GPM-43
+depends_on: ["GPM-24"]
 blocks: []
 related: ["GPM-24"]
 

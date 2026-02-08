@@ -2,14 +2,13 @@
 id: GPM-16
 title: "Improve help messages for commands with missing arguments"
 type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 2  # Story points for estimation
+status: backlog
+priority: medium
+points: 2
 
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
+parent: GPM-43
+depends_on: []
+blocks: []
 related: []  # Related work (duplicates, see-also)
 
 labels: [ux, cli]  # Tags from labels.yaml
