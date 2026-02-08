@@ -46,15 +46,15 @@ GPM-6   Fix findTicketByID             task   done
 **Desired output:**
 ```bash
 $ pm list
-ID      TITLE                          TYPE   STATUS      
-GPM-1   Stage 2: Collaboration (+)     epic   backlog     
-GPM-2   Stage 3: Relationships (+)     epic   backlog     
-GPM-6   Fix findTicketByID             task   done        
+ID         TITLE                          TYPE   STATUS      
+GPM-1 (+)  Stage 2: Collaboration         epic   backlog     
+GPM-2 (+)  Stage 3: Relationships         epic   backlog     
+GPM-6      Fix findTicketByID             task   done        
 ```
 
 ## Solution: Simple (+) Indicator
 
-Add a "(+)" suffix to the title for any ticket that has at least one direct child:
+Add a "(+)" suffix to the ticket ID for any ticket that has at least one direct child:
 - `GPM-1 (+)` - Has children (can drill down with `--parent GPM-1`)
 - `GPM-6` - No children (leaf ticket)
 
@@ -81,14 +81,12 @@ FROM tickets
 
 When formatting each row:
 ```go
-var indicator string
-if hasChildren {
-    indicator = " (+)"
-} else {
-    indicator = ""
+displayID := id
+if hasChildren > 0 {
+    displayID = id + " (+)"
 }
 fmt.Printf("%-20s %-50s %-10s %-15s\n", 
-    id, truncate(title + indicator, 50), ticketType, status)
+    displayID, truncate(title, 50), ticketType, status)
 ```
 
 ### No Schema Changes Needed
@@ -101,16 +99,16 @@ fmt.Printf("%-20s %-50s %-10s %-15s\n",
 
 - [x] Update SQL query in `cmd/pm/list.go` to check for children existence
 - [x] Add `has_children` to the SELECT clause using EXISTS subquery
-- [x] Modify display logic to append " (+)" to title if has_children
-- [x] Ensure truncation includes the "(+)" in character count
+- [x] Modify display logic to append " (+)" to ID if has_children
+- [x] Ensure ID column width (20 chars) accommodates the indicator
 - [x] Update help text if needed
 - [x] Test with various hierarchy levels
 
 ## Acceptance Criteria
 
-- [x] Tickets with direct children show " (+)" after title
+- [x] Tickets with direct children show " (+)" after ticket ID
 - [x] Tickets without children show no indicator
-- [x] Indicator is included in title truncation
+- [x] Indicator fits within the 20-character ID column
 - [x] Works with all list modes (default, --all, --parent)
 - [x] All tests pass
 - [x] No performance degradation
@@ -118,14 +116,13 @@ fmt.Printf("%-20s %-50s %-10s %-15s\n",
 ## Implementation Notes
 
 **What was done:**
-- Simplified approach to use "(+)" indicator instead of child count column
+- Simplified approach to use "(+)" indicator after ticket ID instead of title
 - No schema changes required - uses EXISTS subquery to check for children on-the-fly
 - Updated all SQL queries in list.go (4 query variants) to include has_children check
-- Modified display logic to append " (+)" when has_children > 0
-- Removed CHILDREN column header - now shows indicator inline with title
+- Modified display logic to append " (+)" to ID when has_children > 0
 - All migration files reverted - no database changes needed
 - Verified with --parent filter - indicators show correctly
-- All 47 tests passing
+- All tests passing
 
 **Result:**
 Tickets now show a simple " (+)" indicator when they have children, making the hierarchy discoverable without extra columns or database changes.
@@ -134,9 +131,9 @@ Tickets now show a simple " (+)" indicator when they have children, making the h
 
 - **Deeply nested ticket:** Indicator shows presence of immediate children only (not total descendants)
 - **Empty epic:** No "(+)" shown (it has no children, even if it's an epic)
-- **Truncated title:** The "(+)" may cause earlier truncation if title is very long
-  - Example: "Very long title that would normally truncate" → "Very long title that woul... (+)" (if char limit exceeded)
-  - This is acceptable - truncation priority is: keep "(+)" visible if possible
+- **Long ticket ID:** The "(+)" is included in the 20-character ID column width
+  - Most IDs are ~10 chars (e.g., "GPM-43"), so "GPM-43 (+)" = 11 chars fits easily
+  - This is acceptable - ID column has plenty of room
 
 ## Advantages Over Count Column
 

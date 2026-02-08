@@ -209,14 +209,14 @@ Examples:
 				continue
 			}
 
-			// Append " (+)" to title if ticket has children
-			displayTitle := title
+			// Append " (+)" to ID if ticket has children
+			displayID := id
 			if hasChildren > 0 {
-				displayTitle = title + " (+)"
+				displayID = id + " (+)"
 			}
 
 			fmt.Printf("%-20s %-50s %-10s %-15s\n",
-				id, truncate(displayTitle, 50), ticketType, status)
+				displayID, truncate(title, 50), ticketType, status)
 		}
 
 		if err := rows.Err(); err != nil {
