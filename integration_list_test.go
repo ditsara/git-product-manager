@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -422,6 +423,202 @@ This ticket has an invalid parent reference.
 			t.Log("Verified: Orphaned ticket HIER-6 does not appear at top level (expected)")
 		} else {
 			t.Error("Unexpected: Orphaned ticket HIER-6 appears at top level")
+		}
+	})
+}
+
+// TestStateGroupFiltering tests the state_groups filtering features
+func TestStateGroupFiltering(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+
+	// Initialize workspace
+	output, err := runPM(t, pmBinary, workspace, "init", ".", "--prefix", "FILT")
+	if err != nil {
+		t.Fatalf("pm init failed: %v\nOutput: %s", err, output)
+	}
+
+	// Create tickets with different statuses
+	// FILT-1: backlog
+	_, err = runPM(t, pmBinary, workspace, "new", "Backlog ticket")
+	if err != nil {
+		t.Fatalf("Failed to create FILT-1: %v", err)
+	}
+
+	// FILT-2: todo
+	_, err = runPM(t, pmBinary, workspace, "new", "Todo ticket")
+	if err != nil {
+		t.Fatalf("Failed to create FILT-2: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "move", "FILT-2", "todo")
+	if err != nil {
+		t.Fatalf("Failed to move FILT-2 to todo: %v", err)
+	}
+
+	// FILT-3: in-progress
+	_, err = runPM(t, pmBinary, workspace, "new", "In progress ticket")
+	if err != nil {
+		t.Fatalf("Failed to create FILT-3: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "move", "FILT-3", "in-progress")
+	if err != nil {
+		t.Fatalf("Failed to move FILT-3 to in-progress: %v", err)
+	}
+
+	// FILT-4: done
+	_, err = runPM(t, pmBinary, workspace, "new", "Done ticket")
+	if err != nil {
+		t.Fatalf("Failed to create FILT-4: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "move", "FILT-4", "done")
+	if err != nil {
+		t.Fatalf("Failed to move FILT-4 to done: %v", err)
+	}
+
+	// FILT-5: canceled
+	_, err = runPM(t, pmBinary, workspace, "new", "Canceled ticket")
+	if err != nil {
+		t.Fatalf("Failed to create FILT-5: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "move", "FILT-5", "canceled")
+	if err != nil {
+		t.Fatalf("Failed to move FILT-5 to canceled: %v", err)
+	}
+
+	t.Run("default_hides_completed", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list")
+		if err != nil {
+			t.Fatalf("pm list failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show incomplete tickets (backlog, todo, in-progress)
+		if !strings.Contains(output, "FILT-1") {
+			t.Error("pm list does not show backlog ticket FILT-1")
+		}
+		if !strings.Contains(output, "FILT-2") {
+			t.Error("pm list does not show todo ticket FILT-2")
+		}
+		if !strings.Contains(output, "FILT-3") {
+			t.Error("pm list does not show in-progress ticket FILT-3")
+		}
+
+		// Should NOT show completed tickets (done, canceled)
+		if strings.Contains(output, "FILT-4") {
+			t.Error("pm list incorrectly shows done ticket FILT-4")
+		}
+		if strings.Contains(output, "FILT-5") {
+			t.Error("pm list incorrectly shows canceled ticket FILT-5")
+		}
+	})
+
+	t.Run("all_shows_everything", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--all")
+		if err != nil {
+			t.Fatalf("pm list --all failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show all tickets
+		for i := 1; i <= 5; i++ {
+			ticketID := fmt.Sprintf("FILT-%d", i)
+			if !strings.Contains(output, ticketID) {
+				t.Errorf("pm list --all does not show %s", ticketID)
+			}
+		}
+	})
+
+	t.Run("completed_shows_only_done_and_canceled", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--completed")
+		if err != nil {
+			t.Fatalf("pm list --completed failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show completed tickets
+		if !strings.Contains(output, "FILT-4") {
+			t.Error("pm list --completed does not show done ticket FILT-4")
+		}
+		if !strings.Contains(output, "FILT-5") {
+			t.Error("pm list --completed does not show canceled ticket FILT-5")
+		}
+
+		// Should NOT show incomplete tickets
+		if strings.Contains(output, "FILT-1") {
+			t.Error("pm list --completed incorrectly shows backlog ticket FILT-1")
+		}
+		if strings.Contains(output, "FILT-2") {
+			t.Error("pm list --completed incorrectly shows todo ticket FILT-2")
+		}
+		if strings.Contains(output, "FILT-3") {
+			t.Error("pm list --completed incorrectly shows in-progress ticket FILT-3")
+		}
+	})
+
+	t.Run("active_shows_only_todo_and_in_progress", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--active")
+		if err != nil {
+			t.Fatalf("pm list --active failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show active tickets
+		if !strings.Contains(output, "FILT-2") {
+			t.Error("pm list --active does not show todo ticket FILT-2")
+		}
+		if !strings.Contains(output, "FILT-3") {
+			t.Error("pm list --active does not show in-progress ticket FILT-3")
+		}
+
+		// Should NOT show backlog or completed tickets
+		if strings.Contains(output, "FILT-1") {
+			t.Error("pm list --active incorrectly shows backlog ticket FILT-1")
+		}
+		if strings.Contains(output, "FILT-4") {
+			t.Error("pm list --active incorrectly shows done ticket FILT-4")
+		}
+		if strings.Contains(output, "FILT-5") {
+			t.Error("pm list --active incorrectly shows canceled ticket FILT-5")
+		}
+	})
+
+	t.Run("incomplete_shows_all_except_completed", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--incomplete")
+		if err != nil {
+			t.Fatalf("pm list --incomplete failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show incomplete tickets
+		if !strings.Contains(output, "FILT-1") {
+			t.Error("pm list --incomplete does not show backlog ticket FILT-1")
+		}
+		if !strings.Contains(output, "FILT-2") {
+			t.Error("pm list --incomplete does not show todo ticket FILT-2")
+		}
+		if !strings.Contains(output, "FILT-3") {
+			t.Error("pm list --incomplete does not show in-progress ticket FILT-3")
+		}
+
+		// Should NOT show completed tickets
+		if strings.Contains(output, "FILT-4") {
+			t.Error("pm list --incomplete incorrectly shows done ticket FILT-4")
+		}
+		if strings.Contains(output, "FILT-5") {
+			t.Error("pm list --incomplete incorrectly shows canceled ticket FILT-5")
+		}
+	})
+
+	t.Run("status_filter_overrides_group_filters", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--status", "done")
+		if err != nil {
+			t.Fatalf("pm list --status done failed: %v\nOutput: %s", err, output)
+		}
+
+		// Should show only done tickets
+		if !strings.Contains(output, "FILT-4") {
+			t.Error("pm list --status done does not show done ticket FILT-4")
+		}
+
+		// Should NOT show other tickets
+		if strings.Contains(output, "FILT-1") || strings.Contains(output, "FILT-2") ||
+			strings.Contains(output, "FILT-3") || strings.Contains(output, "FILT-5") {
+			t.Error("pm list --status done shows tickets that are not done")
 		}
 	})
 }

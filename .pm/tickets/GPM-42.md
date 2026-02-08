@@ -2,7 +2,7 @@
 id: GPM-42
 title: "Implement bash completion for ticket IDs and commands"
 type: task
-status: backlog
+status: done
 priority: high
 points: 3
 
@@ -14,7 +14,7 @@ related: []
 labels: [ux, cli, completion]
 assignee: ""
 created_at: "2026-02-08T09:37:05Z"
-updated_at: "2026-02-08T09:37:05Z"
+updated_at: "2026-02-08T11:30:00Z"
 ---
 
 # Description
@@ -51,10 +51,10 @@ Cobra provides built-in completion generation for bash, zsh, fish, and PowerShel
 
 ### 1. Add Completion Command
 
-- [ ] Create `cmd/pm/completion.go` with completion subcommand
-- [ ] Use Cobra's `GenBashCompletion()`, `GenZshCompletion()`, etc.
-- [ ] Support all shells: bash, zsh, fish, powershell
-- [ ] Add usage instructions to help text
+- [x] Create `cmd/pm/completion.go` with completion subcommand
+- [x] Use Cobra's `GenBashCompletion()`, `GenZshCompletion()`, etc.
+- [x] Support all shells: bash, zsh, fish, powershell
+- [x] Add usage instructions to help text
 
 ### 2. Custom Completion Functions
 
@@ -90,16 +90,16 @@ func completeTicketIDs(cmd *cobra.Command, args []string, toComplete string) ([]
 
 ### 3. Register Completions for Each Command
 
-- [ ] `pm show <TAB>` → complete ticket IDs
-- [ ] `pm edit <TAB>` → complete ticket IDs
-- [ ] `pm move <id> <TAB>` → complete workflow states
-- [ ] `pm assign <TAB>` → complete ticket IDs
-- [ ] `pm comment <TAB>` → complete ticket IDs
-- [ ] `pm history <TAB>` → complete ticket IDs
-- [ ] `pm list --parent <TAB>` → complete ticket IDs
-- [ ] `pm list --status <TAB>` → complete workflow states
-- [ ] `pm new --type <TAB>` → complete types (story, task, bug, epic)
-- [ ] `pm list --label <TAB>` → complete labels from labels.yaml
+- [x] `pm show <TAB>` → complete ticket IDs
+- [x] `pm edit <TAB>` → complete ticket IDs
+- [x] `pm move <id> <TAB>` → complete workflow states
+- [x] `pm assign <TAB>` → complete ticket IDs
+- [x] `pm comment <TAB>` → complete ticket IDs
+- [x] `pm history <TAB>` → complete ticket IDs
+- [x] `pm list --parent <TAB>` → complete ticket IDs
+- [x] `pm list --status <TAB>` → complete workflow states
+- [x] `pm new --type <TAB>` → complete types (story, task, bug, epic)
+- [x] `pm list --label <TAB>` → complete labels from labels.yaml
 
 ### 4. State Completion Function
 
@@ -228,21 +228,21 @@ pm new --type <TAB>     # Should list: story, task, bug, epic
 
 ## Documentation Updates
 
-- [ ] Update README.md with completion installation instructions
-- [ ] Add examples to help text
-- [ ] Document in AGENTS.md (move from "Future Improvements" to implemented)
+- [x] Update README.md with completion installation instructions
+- [x] Add examples to help text
+- [x] Document in AGENTS.md (move from "Future Improvements" to implemented)
 
 ## Acceptance Criteria
 
-- [ ] `pm completion bash|zsh|fish|powershell` generates working completion scripts
-- [ ] Ticket ID completion works for all relevant commands
-- [ ] State completion works for `pm move` and `--status` flag
-- [ ] Type completion works for `--type` flag
-- [ ] Completion is case-insensitive for ticket IDs
-- [ ] Gracefully handles missing `.pm/` directory
-- [ ] Help text includes installation instructions for each shell
-- [ ] README.md updated with completion setup
-- [ ] All manual tests pass
+- [x] `pm completion bash|zsh|fish|powershell` generates working completion scripts
+- [x] Ticket ID completion works for all relevant commands
+- [x] State completion works for `pm move` and `--status` flag
+- [x] Type completion works for `--type` flag
+- [x] Completion is case-insensitive for ticket IDs
+- [x] Gracefully handles missing `.pm/` directory
+- [x] Help text includes installation instructions for each shell
+- [x] README.md updated with completion setup
+- [x] All manual tests pass
 
 ## References
 

@@ -540,7 +540,6 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
 * `pm stats`: Show metrics (tickets by status, burndown data)
 * `pm graph <id> --format dot`: Generate GraphViz dependency graph
 * `pm sync`: Push/pull workflow with conflict detection
-* bash completion support
 * customize the `.pm` directory, e.g., `pm --root .other-pm-dir`
 
 ---
@@ -999,31 +998,3 @@ While Stage 1.6 implements automatic lazy sync for cache correctness, future ver
 - Additional commands add complexity for diminishing returns
 - Can be added later based on actual user needs and feedback
 - Keeps the core tool simple and focused
-
-### Bash Completion (Future)
-
-Add shell completion support for better UX with command-line interaction:
-
-- **`pm completion` command**: Generate completion script for bash/zsh/fish
-  - Leverages Cobra's built-in completion generation
-  - Example: `pm completion bash > /etc/bash_completion.d/pm`
-  - Instructions: `source <(pm completion bash)` for immediate use
-  
-- **Auto-complete features**:
-  - Subcommands: `pm li<TAB>` → `pm list`
-  - Flags: `pm new --ty<TAB>` → `pm new --type`
-  - Flag values: `pm new --type t<TAB>` → `pm new --type task`
-  - Ticket IDs: `pm show TEST-<TAB>` → shows available ticket IDs
-  - Status values: `pm move TICKET-1 <TAB>` → shows valid states from workflow.yaml
-  
-- **Implementation**:
-  - Add completion command using `rootCmd.GenBashCompletion()`
-  - Register custom completions for ticket IDs (read from `.pm/tickets/`)
-  - Register custom completions for statuses (read from `workflow.yaml`)
-  - Generate man pages alongside completion scripts
-
-**Rationale for deferring:**
-- Not critical for core functionality
-- Easy to add later (~15 minutes with Cobra)
-- Command structure should stabilize first
-- Better to add when there are real users requesting it

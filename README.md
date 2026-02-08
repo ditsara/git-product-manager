@@ -68,13 +68,32 @@ go install github.com/yourusername/git-product-manager/cmd/pm@latest
 
 ## Shell Completion
 
-Enable tab completion for ticket IDs, commands, and flags:
+Enable tab completion for ticket IDs, commands, and flags. The completion system supports:
+- **Ticket IDs**: `pm show GPM-<TAB>` lists all matching tickets (case-insensitive)
+- **Commands**: `pm li<TAB>` completes to `pm list`
+- **Status values**: `pm move GPM-1 <TAB>` shows valid states from workflow.yaml
+- **Flag values**: `pm new --type <TAB>` shows story, task, bug, epic
+- **Parent filtering**: `pm list --parent <TAB>` completes ticket IDs
 
 ### Bash
 
-Add to ~/.bashrc:
+Add to `~/.bashrc`:
 ```bash
 eval "$(pm completion bash)"
+```
+
+### Zsh
+
+Add to `~/.zshrc`:
+```zsh
+eval "$(pm completion zsh)"
+```
+
+### Fish
+
+Add to `~/.config/fish/config.fish`:
+```fish
+pm completion fish | source
 ```
 
 ### PowerShell
@@ -83,10 +102,6 @@ Add to your PowerShell profile:
 ```powershell
 pm completion powershell | Out-String | Invoke-Expression
 ```
-
-### Others
-
-For Zsh, Fish, or others, see completion instructions for Cobra.
 
 
 ## Development
@@ -128,10 +143,13 @@ See [AGENTS.md](AGENTS.md) for the complete technical specification.
 - ✅ Filesystem-based ID generation
 - ✅ Column alignment with truncation
 
-### Stage 1.6: UX Polish (In Progress)
-- ⬜ Help improvements (no-arg commands)
-- ⬜ Lazy cache synchronization
-- ⬜ Auto-recovery on database errors
+### Stage 1.6: UX Polish & CLI Refinements ✅
+- ✅ Help improvements (contextual help for no-arg commands)
+- ✅ Lazy cache synchronization with auto-recovery
+- ✅ State groups for semantic filtering (--completed, --active, --incomplete)
+- ✅ Shell completion for bash, zsh, fish, and PowerShell
+- ✅ Visual hierarchy indicators in ticket lists
+- ✅ Error message formatting improvements
 
 ### Stage 2: Collaboration & History (Planned)
 - ⬜ Comment system (conflict-free)

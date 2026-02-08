@@ -2,7 +2,7 @@
 id: GPM-39
 title: "Implement state_groups in workflow.yaml and filter completed tickets by default"
 type: story
-status: backlog
+status: done
 priority: high
 points: 5
 
@@ -14,7 +14,7 @@ related: []
 labels: [filtering, workflow, ux, enhancement]
 assignee: ""
 created_at: "2026-02-08T09:21:26Z"
-updated_at: "2026-02-08T09:21:26Z"
+updated_at: "2026-02-08T11:20:00Z"
 ---
 
 # Description
@@ -69,33 +69,33 @@ state_groups:
 ## Implementation Steps
 
 ### 1. Update workflow.yaml Template
-- [ ] Add comprehensive comments to `cmd/pm/templates/workflow.yaml`
-- [ ] Explain each section: states, initial_state, state_groups
-- [ ] Include the default state_groups (active, completed, incomplete)
-- [ ] Provide examples of when to customize
+- [x] Add comprehensive comments to `cmd/pm/templates/workflow.yaml`
+- [x] Explain each section: states, initial_state, state_groups
+- [x] Include the default state_groups (active, completed, incomplete)
+- [x] Provide examples of when to customize
 
 ### 2. Parse state_groups in Config
-- [ ] Update `internal/config/workflow.go` to parse state_groups
-- [ ] Add `StateGroups map[string][]string` to Workflow struct
-- [ ] Validate that states in groups exist in the states list
-- [ ] Handle missing state_groups gracefully (fall back to showing all)
+- [x] Update `internal/config/workflow.go` to parse state_groups
+- [x] Add `StateGroups map[string][]string` to Workflow struct
+- [x] Validate that states in groups exist in the states list
+- [x] Handle missing state_groups gracefully (fall back to showing all)
 
 ### 3. Add Filtering Flags to pm list
-- [ ] Add `--completed` flag: Show only tickets in "completed" states
-- [ ] Add `--incomplete` flag: Show only tickets NOT in "completed" states
-- [ ] Add `--active` flag: Show only tickets in "active" states
-- [ ] Update help text with examples
+- [x] Add `--completed` flag: Show only tickets in "completed" states
+- [x] Add `--incomplete` flag: Show only tickets NOT in "completed" states
+- [x] Add `--active` flag: Show only tickets in "active" states
+- [x] Update help text with examples
 
 ### 4. Change Default Behavior (Breaking Change)
-- [ ] Make `pm list` exclude "completed" state_group by default
-- [ ] Document this in help text: "By default, hides completed tickets. Use --all to show everything."
-- [ ] If workflow.yaml has no "completed" group, show all tickets (backward compatible)
-- [ ] Update integration tests for new default behavior
+- [x] Make `pm list` exclude "completed" state_group by default
+- [x] Document this in help text: "By default, hides completed tickets. Use --all to show everything."
+- [x] If workflow.yaml has no "completed" group, show all tickets (backward compatible)
+- [x] Update integration tests for new default behavior
 
 ### 5. Update Documentation
-- [ ] Update AGENTS.md if needed (spec already has this)
-- [ ] Add migration note for existing users
-- [ ] Update pm list help text with new filtering examples
+- [x] Update AGENTS.md if needed (spec already has this)
+- [x] Add migration note for existing users
+- [x] Update pm list help text with new filtering examples
 
 ## Technical Design
 
@@ -219,33 +219,37 @@ If user defines `state_groups` but omits "completed":
 ## Testing Requirements
 
 ### Unit Tests (workflow_test.go)
-- [ ] Parse state_groups from YAML
-- [ ] Validate states in groups exist
-- [ ] IsCompleted() returns correct results
-- [ ] Handle missing state_groups gracefully
+- [x] Parse state_groups from YAML
+- [x] Validate states in groups exist
+- [x] IsCompleted() returns correct results
+- [x] Handle missing state_groups gracefully
+- [x] GetCompletedStates() returns correct results
+- [x] GetStateGroup() returns correct results for all groups
 
 ### Integration Tests (integration_list_test.go)
-- [ ] `pm list` hides completed tickets by default
-- [ ] `pm list --all` shows everything
-- [ ] `pm list --completed` shows only done work
-- [ ] `pm list --active` shows only active states
-- [ ] Works with --parent filtering
-- [ ] Backward compatible with workflow.yaml without state_groups
+- [x] `pm list` hides completed tickets by default
+- [x] `pm list --all` shows everything
+- [x] `pm list --completed` shows only done work
+- [x] `pm list --active` shows only active states
+- [x] `pm list --incomplete` shows only incomplete tickets
+- [x] Works with --parent filtering
+- [x] Backward compatible with workflow.yaml without state_groups
+- [x] Status filter overrides group filters
 
 ### Migration Test
-- [ ] Existing projects without state_groups continue to work
-- [ ] Users can opt into new behavior by adding state_groups
+- [x] Existing projects without state_groups continue to work
+- [x] Users can opt into new behavior by adding state_groups
 
 ## Acceptance Criteria
 
-- [ ] Default workflow.yaml has comprehensive comments explaining states, initial_state, and state_groups
-- [ ] state_groups parsed and validated in config loading
-- [ ] `pm list` excludes "completed" tickets by default (if group is defined)
-- [ ] `--all`, `--completed`, `--active`, `--incomplete` flags work correctly
-- [ ] Backward compatible: projects without state_groups show all tickets
-- [ ] All tests pass
-- [ ] Help text updated with examples
-- [ ] No breaking changes for users who don't use state_groups
+- [x] Default workflow.yaml has comprehensive comments explaining states, initial_state, and state_groups
+- [x] state_groups parsed and validated in config loading
+- [x] `pm list` excludes "completed" tickets by default (if group is defined)
+- [x] `--all`, `--completed`, `--active`, `--incomplete` flags work correctly
+- [x] Backward compatible: projects without state_groups show all tickets
+- [x] All tests pass
+- [x] Help text updated with examples
+- [x] No breaking changes for users who don't use state_groups
 
 ## Breaking Changes & Migration
 

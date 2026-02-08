@@ -15,6 +15,12 @@ import (
 var assignCmd = &cobra.Command{
 	Use:   "assign <id> <user>",
 	Short: "Assign a ticket to a user",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return completeTicketIDs(cmd, args, toComplete)
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	Long: `Quickly assign a ticket to a user without opening an editor.
 
 This is a shorthand for: pm edit <id> --field assignee=<user>

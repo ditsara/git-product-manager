@@ -23,7 +23,7 @@ var newCmd = &cobra.Command{
 		ticketType, _ := cmd.Flags().GetString("type")
 
 		pmPath := ".pm"
-		
+
 		// Load project config to get prefix
 		project, err := config.LoadProject(pmPath)
 		if err != nil {
@@ -98,7 +98,7 @@ func getNextTicketNumber(pmPath string, prefix string) int {
 		if file.IsDir() {
 			continue
 		}
-		
+
 		matches := pattern.FindStringSubmatch(file.Name())
 		if len(matches) == 2 {
 			num, err := strconv.Atoi(matches[1])
@@ -113,5 +113,9 @@ func getNextTicketNumber(pmPath string, prefix string) int {
 
 func init() {
 	newCmd.Flags().StringP("type", "t", "story", "Type of the ticket (e.g., story, task, bug, epic)")
+
+	// Register completion function for type flag
+	newCmd.RegisterFlagCompletionFunc("type", completeTicketTypes)
+
 	rootCmd.AddCommand(newCmd)
 }

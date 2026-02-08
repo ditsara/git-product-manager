@@ -14,8 +14,9 @@ import (
 )
 
 var editCmd = &cobra.Command{
-	Use:   "edit [id]",
-	Short: "Edit a ticket",
+	Use:               "edit [id]",
+	Short:             "Edit a ticket",
+	ValidArgsFunction: completeTicketIDs,
 	Long: `Opens a ticket in the default editor or updates a specific field.
 
 Examples:

@@ -19,6 +19,17 @@ var moveCmd = &cobra.Command{
 	Long:    `Updates the status of a ticket to a new workflow state.`,
 	Args:    cobra.ExactArgs(2),
 	Example: "  pm move GPM-123 in-progress\n  pm move GPM-456 done",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			// Complete ticket ID
+			return completeTicketIDs(cmd, args, toComplete)
+		}
+		if len(args) == 1 {
+			// Complete state
+			return completeStates(cmd, args, toComplete)
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
 		newStatus := args[1]

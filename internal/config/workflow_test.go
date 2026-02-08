@@ -109,3 +109,111 @@ func TestIsValidState(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCompleted(t *testing.T) {
+	workflow := &Workflow{
+		States:       []string{"backlog", "todo", "in-progress", "done", "canceled"},
+		InitialState: "backlog",
+		StateGroups: map[string][]string{
+			"active":     {"todo", "in-progress"},
+			"completed":  {"done", "canceled"},
+			"incomplete": {"backlog", "todo", "in-progress"},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		status    string
+		completed bool
+	}{
+		{"done is completed", "done", true},
+		{"canceled is completed", "canceled", true},
+		{"backlog is not completed", "backlog", false},
+		{"todo is not completed", "todo", false},
+		{"in-progress is not completed", "in-progress", false},
+		{"unknown state is not completed", "unknown", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workflow.IsCompleted(tt.status)
+			if result != tt.completed {
+				t.Errorf("IsCompleted(%q) = %v, want %v", tt.status, result, tt.completed)
+			}
+		})
+	}
+}
+
+func TestGetCompletedStates(t *testing.T) {
+	t.Run("with completed group", func(t *testing.T) {
+		workflow := &Workflow{
+			States:       []string{"backlog", "todo", "done"},
+			InitialState: "backlog",
+			StateGroups: map[string][]string{
+				"completed": {"done"},
+			},
+		}
+
+		states := workflow.GetCompletedStates()
+		if len(states) != 1 || states[0] != "done" {
+			t.Errorf("GetCompletedStates() = %v, want [done]", states)
+		}
+	})
+
+	t.Run("without completed group", func(t *testing.T) {
+		workflow := &Workflow{
+			States:       []string{"backlog", "todo", "done"},
+			InitialState: "backlog",
+			StateGroups:  map[string][]string{},
+		}
+
+		states := workflow.GetCompletedStates()
+		if states != nil {
+			t.Errorf("GetCompletedStates() = %v, want nil", states)
+		}
+	})
+}
+
+func TestGetStateGroup(t *testing.T) {
+	workflow := &Workflow{
+		States:       []string{"backlog", "todo", "in-progress", "done"},
+		InitialState: "backlog",
+		StateGroups: map[string][]string{
+			"active":     {"todo", "in-progress"},
+			"completed":  {"done"},
+			"incomplete": {"backlog", "todo", "in-progress"},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		groupName string
+		expected  []string
+	}{
+		{"active group", "active", []string{"todo", "in-progress"}},
+		{"completed group", "completed", []string{"done"}},
+		{"incomplete group", "incomplete", []string{"backlog", "todo", "in-progress"}},
+		{"nonexistent group", "blocked", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workflow.GetStateGroup(tt.groupName)
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("GetStateGroup(%q) = %v, want nil", tt.groupName, result)
+				}
+			} else {
+				if len(result) != len(tt.expected) {
+					t.Errorf("GetStateGroup(%q) length = %d, want %d", tt.groupName, len(result), len(tt.expected))
+					return
+				}
+				for i, state := range tt.expected {
+					if result[i] != state {
+						t.Errorf("GetStateGroup(%q)[%d] = %q, want %q", tt.groupName, i, result[i], state)
+					}
+				}
+			}
+		})
+	}
+}

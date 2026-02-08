@@ -17,8 +17,9 @@ import (
 )
 
 var commentCmd = &cobra.Command{
-	Use:   "comment <ticket-id>",
-	Short: "Add a comment to a ticket",
+	Use:               "comment <ticket-id>",
+	Short:             "Add a comment to a ticket",
+	ValidArgsFunction: completeTicketIDs,
 	Long: `Add a comment to a ticket without editing the main ticket file.
 
 Comments are stored as separate files in .pm/tickets/{TICKET-ID}/ directory,

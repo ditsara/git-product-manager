@@ -16,11 +16,12 @@ var showFlags struct {
 }
 
 var showCmd = &cobra.Command{
-	Use:     "show <id>",
-	Short:   "Show a single ticket",
-	Long:    `Shows the details of a single ticket.`,
-	Args:    cobra.ExactArgs(1),
-	Example: "  pm show PROJ-123",
+	Use:               "show <id>",
+	Short:             "Show a single ticket",
+	Long:              `Shows the details of a single ticket.`,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeTicketIDs,
+	Example:           "  pm show PROJ-123",
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
 		ticketPath := findTicketByID(ticketID)

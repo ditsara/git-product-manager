@@ -2,7 +2,7 @@
 id: GPM-43
 title: "UX Polish & CLI Refinements"
 type: epic
-status: backlog
+status: done
 priority: high
 points: 0
 
@@ -14,7 +14,7 @@ related: []
 labels: [ux, cli, polish, enhancement]
 assignee: ""
 created_at: "2026-02-08T09:40:28Z"
-updated_at: "2026-02-08T09:40:28Z"
+updated_at: "2026-02-08T11:35:00Z"
 ---
 
 # Description
@@ -59,3 +59,34 @@ This epic groups user-facing improvements that make the tool more pleasant and i
 ## Stage
 
 This represents "Stage 1.7" - UX polish after core functionality is stable.
+
+## Implementation Summary
+
+All child tickets have been completed:
+
+✅ **GPM-42**: Bash completion implemented for all shells (bash, zsh, fish, powershell)
+- Ticket ID completion for all relevant commands
+- State completion for `pm move` and `--status` flag
+- Type completion for `--type` flag
+- Case-insensitive matching
+- Graceful error handling
+
+✅ **GPM-40**: Error messages now end with trailing newline
+- Fixed prompt formatting issue in main.go
+- Tested with various error conditions
+
+✅ **GPM-16**: Improved help messages for missing arguments
+- Commands show helpful usage when arguments are missing
+- Better user guidance
+
+✅ **GPM-26**: Visual indicator for tickets with children
+- Shows `(+)` after ticket ID when ticket has children
+- Clean hierarchy visualization without extra columns
+
+✅ **GPM-39**: State groups & smart filtering
+- `pm list` now excludes completed tickets by default
+- New flags: `--completed`, `--active`, `--incomplete`
+- Configurable via `state_groups` in workflow.yaml
+- Backward compatible
+
+**Result**: The CLI is now polished, discoverable, and user-friendly. All 239 tests passing.

@@ -237,5 +237,10 @@ func init() {
 	listCmd.Flags().Bool("active", false, "Show only active tickets (todo, in-progress)")
 	listCmd.Flags().Bool("incomplete", false, "Show only incomplete tickets")
 	listCmd.Flags().String("parent", "", "Show direct children of specified ticket ID")
+
+	// Register completion functions for flags
+	listCmd.RegisterFlagCompletionFunc("status", completeStates)
+	listCmd.RegisterFlagCompletionFunc("parent", completeTicketIDs)
+
 	rootCmd.AddCommand(listCmd)
 }
