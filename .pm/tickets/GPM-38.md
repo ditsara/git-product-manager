@@ -2,7 +2,7 @@
 id: GPM-38
 title: "Split list and cache tests into integration_list_test.go"
 type: task
-status: backlog
+status: done
 priority: medium
 points: 2
 
@@ -39,16 +39,29 @@ These two tests validate the foundational workflow and should stay together as t
 
 ## Implementation Steps
 
-- [ ] Create `integration_list_test.go`
-- [ ] Move TestIntegrationCacheSync from integration_test.go
-- [ ] Move TestHierarchicalFiltering from integration_test.go
-- [ ] Ensure helper functions (initWorkspace, runPM, buildPMBinary) are accessible
-- [ ] Remove moved tests from integration_test.go
-- [ ] Verify all tests still pass: `make test`
+- [x] Create `integration_list_test.go`
+- [x] Move TestIntegrationCacheSync from integration_test.go
+- [x] Move TestHierarchicalFiltering from integration_test.go
+- [x] Ensure helper functions (initWorkspace, runPM, buildPMBinary) are accessible
+- [x] Remove moved tests from integration_test.go
+- [x] Verify all tests still pass: `make test`
 
 ## Acceptance Criteria
 
-- [ ] New file has ~415 lines with 2 top-level tests (many subtests)
-- [ ] integration_test.go reduced to ~325 lines with 2 core tests + helpers
-- [ ] All tests pass
-- [ ] No broken references or missing helpers
+- [x] New file has ~415 lines with 2 top-level tests (many subtests)
+- [x] integration_test.go reduced to ~325 lines with 2 core tests + helpers
+- [x] All tests pass
+- [x] No broken references or missing helpers
+
+## Implementation Notes
+
+- Fixed initial file creation issue with duplicate "package main" declarations
+- Recreated integration_list_test.go with single clean package declaration
+- All 26 integration tests accounted for across the five split files:
+  - integration_comment_test.go: 9 tests (330 lines)
+  - integration_assign_test.go: 5 tests (157 lines)
+  - integration_show_test.go: 5 tests (206 lines)
+  - integration_history_test.go: 3 tests (159 lines)
+  - integration_list_test.go: 2 tests with many subtests (~415 lines) ✅ NEW
+  - integration_test.go: 2 core tests (~325 lines)
+- All tests pass with `make test`

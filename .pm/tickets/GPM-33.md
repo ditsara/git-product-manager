@@ -2,7 +2,7 @@
 id: GPM-33
 title: "Split show tests into integration_show_test.go"
 type: task
-status: backlog
+status: done
 priority: medium
 points: 1
 
@@ -33,14 +33,19 @@ Extract all pm show command tests from integration_test.go into a dedicated test
 
 ## Implementation Steps
 
-- [ ] Create `integration_show_test.go`
-- [ ] Move all show-related tests from integration_test.go
-- [ ] Ensure helper functions are accessible
-- [ ] Remove moved tests from integration_test.go
-- [ ] Verify all tests pass: `make test`
+- [x] Create `integration_show_test.go`
+- [x] Move all show-related tests from integration_test.go
+- [x] Ensure helper functions are accessible
+- [x] Remove moved tests from integration_test.go
+- [x] Verify all tests pass: `make test`
 
 ## Acceptance Criteria
 
-- [ ] New file has ~200 lines with 5 show tests
-- [ ] All tests pass
-- [ ] No broken references
+- [x] New file has ~200 lines with 5 show tests (actually 206 lines)
+- [x] All tests pass
+- [x] No broken references
+
+## Implementation Notes
+
+- All 5 show tests successfully moved to `integration_show_test.go`
+- All tests passing

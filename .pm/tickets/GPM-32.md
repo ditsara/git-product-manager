@@ -2,7 +2,7 @@
 id: GPM-32
 title: "Split assign tests into integration_assign_test.go"
 type: task
-status: backlog
+status: done
 priority: medium
 points: 1
 
@@ -33,14 +33,20 @@ Extract all assign command tests from integration_test.go into a dedicated test 
 
 ## Implementation Steps
 
-- [ ] Create `integration_assign_test.go`
-- [ ] Move all assign-related tests from integration_test.go
-- [ ] Ensure helper functions (initWorkspace, runPM) are accessible
-- [ ] Remove moved tests from integration_test.go
-- [ ] Verify all tests pass: `make test`
+- [x] Create `integration_assign_test.go`
+- [x] Move all assign-related tests from integration_test.go
+- [x] Ensure helper functions (initWorkspace, runPM) are accessible
+- [x] Remove moved tests from integration_test.go
+- [x] Verify all tests pass: `make test`
 
 ## Acceptance Criteria
 
-- [ ] New file has ~150 lines with 5 assign tests
-- [ ] All tests pass
-- [ ] No broken references
+- [x] New file has ~150 lines with 5 assign tests (actually 157 lines)
+- [x] All tests pass
+- [x] No broken references
+
+## Implementation Notes
+
+- All 5 assign tests successfully moved to `integration_assign_test.go`
+- Removed unused `ticket` import from integration_test.go
+- All tests passing
