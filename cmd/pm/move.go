@@ -14,10 +14,11 @@ import (
 )
 
 var moveCmd = &cobra.Command{
-	Use:   "move [id] [status]",
-	Short: "Move a ticket to a new status",
-	Long:  `Updates the status of a ticket.`,
-	Args:  cobra.ExactArgs(2),
+	Use:     "move <id> <status>",
+	Short:   "Move a ticket to a new status",
+	Long:    `Updates the status of a ticket to a new workflow state.`,
+	Args:    cobra.ExactArgs(2),
+	Example: "  pm move GPM-123 in-progress\n  pm move GPM-456 done",
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
 		newStatus := args[1]

@@ -1,12 +1,48 @@
+# Workflow configuration for Git Product Manager
+#
+# States define the lifecycle of tickets. They are simple labels - no enforced transitions.
+# Teams move tickets between any states freely. Git history provides the audit trail.
+#
+# Standard states:
+#   backlog      - Not yet planned or scheduled
+#   todo         - Ready to start, prioritized for upcoming work
+#   in-progress  - Currently being worked on
+#   done         - Completed and implemented
+#   canceled     - Closed without implementing (won't-fix, duplicate, obsolete, rejected)
+
 states:
   - backlog
   - todo
   - in-progress
   - done
+  - canceled
 
+# initial_state: The default status assigned when creating new tickets via 'pm new'
 initial_state: backlog
 
+# state_groups: Optional semantic groupings for filtering and reporting
+#
+# Groups enable smart filtering in 'pm list':
+#   - active (default):    Shown by 'pm list' unless --completed/--all is used
+#   - completed (default): Hidden by 'pm list' unless --all or --completed is used
+#   - incomplete:          Used for reporting and custom filtering
+#
+# Groups are optional: if not defined, 'pm list' shows all tickets (backward compatible)
+#
+# Customize these to match your workflow. Examples:
+#   - Kanban: active: [todo, in-progress], completed: [done, canceled]
+#   - Scrum:  active: [sprint, in-progress], completed: [done, closed]
+#   - Custom: Define your own states and groups
+
 state_groups:
+  # Active work - shown by default in 'pm list'
   active: [todo, in-progress]
-  completed: [done]
+
+  # Completed work - hidden by default in 'pm list'
+  # Use 'pm list --all' to see everything
+  # Use 'pm list --completed' to see only completed tickets
+  completed: [done, canceled]
+
+  # Everything not yet completed
+  # Useful for burndown tracking and workflow analysis
   incomplete: [backlog, todo, in-progress]

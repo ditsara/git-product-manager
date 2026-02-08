@@ -7,8 +7,8 @@ import (
 )
 
 type Workflow struct {
-	States       []string          `yaml:"states"`
-	InitialState string            `yaml:"initial_state"`
+	States       []string            `yaml:"states"`
+	InitialState string              `yaml:"initial_state"`
 	StateGroups  map[string][]string `yaml:"state_groups"`
 }
 
@@ -33,4 +33,33 @@ func (w *Workflow) IsValidState(state string) bool {
 		}
 	}
 	return false
+}
+
+// GetCompletedStates returns the list of states in the "completed" state group
+// Returns nil if no completed group is defined
+func (w *Workflow) GetCompletedStates() []string {
+	if completedStates, ok := w.StateGroups["completed"]; ok {
+		return completedStates
+	}
+	return nil
+}
+
+// IsCompleted checks if a given status is in the "completed" state group
+func (w *Workflow) IsCompleted(status string) bool {
+	completedStates := w.GetCompletedStates()
+	for _, state := range completedStates {
+		if state == status {
+			return true
+		}
+	}
+	return false
+}
+
+// GetStateGroup returns the states in a named state group
+// Returns nil if the group doesn't exist
+func (w *Workflow) GetStateGroup(groupName string) []string {
+	if states, ok := w.StateGroups[groupName]; ok {
+		return states
+	}
+	return nil
 }

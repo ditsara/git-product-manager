@@ -31,11 +31,12 @@ type historyEntry struct {
 }
 
 var historyCmd = &cobra.Command{
-	Use:   "history <id>",
-	Short: "Show ticket status change history",
-	Long:  "Show an audit trail of status changes for a ticket by parsing git history.",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runHistory,
+	Use:     "history <id>",
+	Short:   "Show ticket status change history",
+	Long:    "Show an audit trail of status changes for a ticket by parsing git history.",
+	Args:    cobra.ExactArgs(1),
+	Example: "  pm history GPM-123",
+	RunE:    runHistory,
 }
 
 func init() {

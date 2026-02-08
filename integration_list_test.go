@@ -114,8 +114,9 @@ This ticket was updated manually.
 			t.Fatalf("Failed to update ticket: %v", err)
 		}
 
-		// Run pm list - should auto-sync and show updated data
-		output, err := runPM(t, pmBinary, workspace, "list")
+		// Run pm list --all - should auto-sync and show updated data
+		// (We use --all because the ticket's status was changed to "done", which is excluded by default)
+		output, err := runPM(t, pmBinary, workspace, "list", "--all")
 		if err != nil {
 			t.Fatalf("pm list failed: %v\nOutput: %s", err, output)
 		}

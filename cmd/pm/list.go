@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/cache"
+	"github.com/ditsara/git-product-manager/internal/config"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -27,20 +28,25 @@ func truncate(s string, maxLen int) string {
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all tickets",
+	Short: "List tickets",
 	Long: `Lists tickets from the .pm/tickets directory with optional filtering.
 
-By default, shows only top-level tickets (those without a parent).
+By default, shows only top-level incomplete tickets (hides completed work).
+Use --all to show everything, or --completed to see only finished tickets.
 
 Examples:
-  pm list                      # Show top-level tickets only
-  pm list --all                # Show all tickets
+  pm list                      # Top-level incomplete tickets (default)
+  pm list --all                # All tickets (including completed)
+  pm list --completed          # Only completed tickets
+  pm list --active             # Only active work (todo, in-progress)
   pm list --parent GPM-1       # Show direct children of GPM-1
-  pm list --parent GPM-1 --all # Show entire subtree under GPM-1
-  pm list --status todo        # Filter by status (works with all modes)`,
+  pm list --status todo        # Filter by specific status`,
 	Run: func(cmd *cobra.Command, cmdArgs []string) {
 		statusFilter, _ := cmd.Flags().GetString("status")
 		showAll, _ := cmd.Flags().GetBool("all")
+		showCompleted, _ := cmd.Flags().GetBool("completed")
+		showActive, _ := cmd.Flags().GetBool("active")
+		showIncomplete, _ := cmd.Flags().GetBool("incomplete")
 		parentFilter, _ := cmd.Flags().GetString("parent")
 		pmPath := ".pm"
 
@@ -68,6 +74,37 @@ Examples:
 		}
 		defer db.Close()
 
+		// Load workflow to get state_groups for filtering
+		workflowPath := filepath.Join(pmPath, "config", "workflow.yaml")
+		workflow, err := config.LoadWorkflow(workflowPath)
+		if err != nil {
+			log.Fatalf("Error loading workflow: %v", err)
+		}
+
+		// Determine which states to filter based on flags
+		var includeStates []string
+		var excludeStates []string
+
+		if statusFilter != "" {
+			// Explicit status filter takes precedence
+			includeStates = []string{statusFilter}
+		} else if showCompleted {
+			// Show only completed states
+			includeStates = workflow.GetCompletedStates()
+		} else if showActive {
+			// Show only active states
+			includeStates = workflow.GetStateGroup("active")
+		} else if showIncomplete {
+			// Show only incomplete states
+			includeStates = workflow.GetStateGroup("incomplete")
+		} else if !showAll {
+			// Default: exclude completed states (if defined)
+			if completedStates := workflow.GetCompletedStates(); len(completedStates) > 0 {
+				excludeStates = completedStates
+			}
+		}
+		// If showAll, no filtering on states
+
 		// Validate parent ticket exists if specified
 		var normalizedParent string
 		if parentFilter != "" {
@@ -89,29 +126,65 @@ Examples:
 					SELECT t.id FROM tickets t
 					JOIN subtree s ON UPPER(t.parent) = UPPER(s.id)
 				)
-				SELECT id, title, type, status FROM tickets
+				SELECT id, title, type, status,
+					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
+						THEN 1 ELSE 0 END AS has_children
+				FROM tickets
 				WHERE id IN (SELECT id FROM subtree)`
 			queryArgs = append(queryArgs, normalizedParent)
 		} else if parentFilter != "" {
 			// Direct children only
-			query = "SELECT id, title, type, status FROM tickets WHERE UPPER(parent) = UPPER(?)"
+			query = `
+				SELECT id, title, type, status,
+					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
+						THEN 1 ELSE 0 END AS has_children
+				FROM tickets WHERE UPPER(parent) = UPPER(?)`
 			queryArgs = append(queryArgs, normalizedParent)
 		} else if !showAll {
 			// Default: top-level tickets only (no parent)
-			query = "SELECT id, title, type, status FROM tickets WHERE (parent IS NULL OR parent = '')"
+			query = `
+				SELECT id, title, type, status,
+					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
+						THEN 1 ELSE 0 END AS has_children
+				FROM tickets WHERE (parent IS NULL OR parent = '')`
 		} else {
 			// Show all tickets
-			query = "SELECT id, title, type, status FROM tickets"
+			query = `
+				SELECT id, title, type, status,
+					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
+						THEN 1 ELSE 0 END AS has_children
+				FROM tickets`
 		}
 
-		// Add status filter if specified
-		if statusFilter != "" {
+		// Add status filters
+		if len(includeStates) > 0 {
+			// Include only these states
+			placeholders := strings.Repeat("?,", len(includeStates))
+			placeholders = placeholders[:len(placeholders)-1]
+
 			if strings.Contains(query, "WHERE") {
-				query += " AND status = ?"
+				query += " AND status IN (" + placeholders + ")"
 			} else {
-				query += " WHERE status = ?"
+				query += " WHERE status IN (" + placeholders + ")"
 			}
-			queryArgs = append(queryArgs, statusFilter)
+
+			for _, state := range includeStates {
+				queryArgs = append(queryArgs, state)
+			}
+		} else if len(excludeStates) > 0 {
+			// Exclude these states
+			placeholders := strings.Repeat("?,", len(excludeStates))
+			placeholders = placeholders[:len(placeholders)-1]
+
+			if strings.Contains(query, "WHERE") {
+				query += " AND status NOT IN (" + placeholders + ")"
+			} else {
+				query += " WHERE status NOT IN (" + placeholders + ")"
+			}
+
+			for _, state := range excludeStates {
+				queryArgs = append(queryArgs, state)
+			}
 		}
 
 		query += " ORDER BY updated_at DESC"
@@ -130,12 +203,20 @@ Examples:
 		for rows.Next() {
 			hasResults = true
 			var id, title, ticketType, status string
-			if err := rows.Scan(&id, &title, &ticketType, &status); err != nil {
+			var hasChildren int
+			if err := rows.Scan(&id, &title, &ticketType, &status, &hasChildren); err != nil {
 				log.Printf("Error scanning row: %v", err)
 				continue
 			}
 
-			fmt.Printf("%-20s %-50s %-10s %-15s\n", id, truncate(title, 50), ticketType, status)
+			// Append " (+)" to title if ticket has children
+			displayTitle := title
+			if hasChildren > 0 {
+				displayTitle = title + " (+)"
+			}
+
+			fmt.Printf("%-20s %-50s %-10s %-15s\n",
+				id, truncate(displayTitle, 50), ticketType, status)
 		}
 
 		if err := rows.Err(); err != nil {
@@ -150,8 +231,11 @@ Examples:
 }
 
 func init() {
-	listCmd.Flags().String("status", "", "Filter by status")
-	listCmd.Flags().Bool("all", false, "Show all tickets (default: top-level only)")
-	listCmd.Flags().String("parent", "", "Show children of specified ticket ID")
+	listCmd.Flags().String("status", "", "Filter by specific status")
+	listCmd.Flags().Bool("all", false, "Show all tickets (including completed)")
+	listCmd.Flags().Bool("completed", false, "Show only completed tickets")
+	listCmd.Flags().Bool("active", false, "Show only active tickets (todo, in-progress)")
+	listCmd.Flags().Bool("incomplete", false, "Show only incomplete tickets")
+	listCmd.Flags().String("parent", "", "Show direct children of specified ticket ID")
 	rootCmd.AddCommand(listCmd)
 }

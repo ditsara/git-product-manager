@@ -1,21 +1,22 @@
 ---
-id: GPM-16
-title: "Improve help messages for commands with missing arguments"
-type: task
-status: backlog
-priority: medium
-points: 2
-
-parent: GPM-43
-depends_on: []
+assignee: ""
 blocks: []
-related: []  # Related work (duplicates, see-also)
-
-labels: [ux, cli]  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
 created_at: "2026-02-03T05:34:53Z"
-updated_at: "2026-02-03T05:34:53Z"
+depends_on: []
+id: GPM-16
+labels:
+    - ux
+    - cli
+parent: GPM-43
+points: 2
+priority: medium
+related: []
+status: done
+title: Improve help messages for commands with missing arguments
+type: task
+updated_at: "2026-02-08T09:50:58Z"
 ---
+
 
 # Description
 
@@ -43,17 +44,30 @@ Improve the user experience when commands are run without required arguments or 
 
 ## Implementation Steps
 
-- [ ] Update `cmd/pm/main.go` to customize root command's Run function
-- [ ] Add helpful error messages in `show.go`, `move.go`, `edit.go` for missing args
-- [ ] Use Cobra's `Args` validator functions (e.g., `cobra.ExactArgs(1)`)
-- [ ] Add examples to each command's `Long` description
+- [x] Update `cmd/pm/main.go` to customize root command's Run function
+- [x] Add helpful error messages in `show.go`, `move.go`, `edit.go` for missing args
+- [x] Use Cobra's `Args` validator functions (e.g., `cobra.ExactArgs(1)`)
+- [x] Add examples to each command's `Long` description
 
 ## Acceptance Criteria
 
-- [ ] Running `pm` with no args shows list of available commands
-- [ ] Running `pm show` with no ID shows usage example
-- [ ] Running `pm move` with missing args shows usage example
-- [ ] All error messages are helpful and actionable
+- [x] Running `pm` with no args shows list of available commands
+- [x] Running `pm show` with no ID shows usage example
+- [x] Running `pm move` with missing args shows usage example
+- [x] All error messages are helpful and actionable
+
+## Implementation Notes
+
+**What was done:**
+- Added `Example` field to `move.go` and `history.go` commands
+- Updated `Use` field in move.go to use angle brackets `<id>` instead of square brackets
+- Updated Long description in move.go for clarity
+- Commands already had `cobra.ExactArgs()` validation in place
+- Root command already showed help when run without arguments
+- `show`, `edit`, `assign`, `comment` already had examples in Long or Example fields
+
+**Result:**
+All commands now show clear usage examples when run without required arguments. The "Whoops" error at the end will be fixed in GPM-40.
 
 ## Examples
 
