@@ -7,7 +7,7 @@ priority: medium  # low, medium, high, critical
 points: 0  # Story points for estimation
 
 # Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic (for nested epics)
+parent: "{{.Parent}}"  # Parent epic (for nested epics)
 depends_on: []  # Must complete these first
 blocks: []  # This blocks these tickets
 related: []  # Related work (duplicates, see-also)

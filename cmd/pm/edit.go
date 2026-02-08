@@ -43,7 +43,7 @@ Array updates REPLACE existing values, they do not append.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
-		ticketPath := findTicketByID(ticketID)
+		ticketPath := getTicketPath(ticketID)
 
 		// Check if --field flag is used
 		field, _ := cmd.Flags().GetString("field")

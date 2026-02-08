@@ -46,7 +46,7 @@ func init() {
 
 func runHistory(cmd *cobra.Command, args []string) error {
 	inputID := args[0]
-	ticketPath := findTicketByID(inputID)
+	ticketPath := getTicketPath(inputID)
 	actualTicketID := strings.TrimSuffix(filepath.Base(ticketPath), ".md")
 
 	entries, err := buildHistory(ticketPath)

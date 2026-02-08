@@ -41,7 +41,7 @@ Examples:
 		}
 
 		// Find the ticket file
-		ticketPath := findTicketByID(ticketID)
+		ticketPath := getTicketPath(ticketID)
 
 		// Read the current assignee
 		content, err := os.ReadFile(ticketPath)

@@ -108,12 +108,12 @@ func TestGetNextTicketNumberInvalidFilenames(t *testing.T) {
 
 	// Create files with invalid formats (should be ignored)
 	invalidFiles := []string{
-		"TEST-.md",        // no number
-		"TEST-abc.md",     // non-numeric
-		"TEST-1-2.md",     // multiple dashes
-		"-5.md",           // no prefix
-		"TEST-1",          // no extension
-		"TEST-1.txt",      // wrong extension
+		"TEST-.md",    // no number
+		"TEST-abc.md", // non-numeric
+		"TEST-1-2.md", // multiple dashes
+		"-5.md",       // no prefix
+		"TEST-1",      // no extension
+		"TEST-1.txt",  // wrong extension
 	}
 
 	for _, filename := range invalidFiles {
@@ -128,5 +128,85 @@ func TestGetNextTicketNumberInvalidFilenames(t *testing.T) {
 
 	if nextNum != 1 {
 		t.Errorf("getNextTicketNumber() with invalid files = %d, want 1", nextNum)
+	}
+}
+
+func TestFindTicketID(t *testing.T) {
+	// Save current working directory
+	originalCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+
+	// Create temporary directory structure
+	tempDir := t.TempDir()
+	ticketsDir := filepath.Join(tempDir, ".pm", "tickets")
+	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+		t.Fatalf("Failed to create tickets directory: %v", err)
+	}
+
+	// Create a test ticket
+	parentPath := filepath.Join(ticketsDir, "PARENT-1.md")
+	if err := os.WriteFile(parentPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create parent ticket: %v", err)
+	}
+
+	// Change to temp directory for testing
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+	defer os.Chdir(originalCwd) // Restore original directory
+
+	tests := []struct {
+		name       string
+		ticketID   string
+		shouldFind bool
+		expectedID string
+	}{
+		{
+			name:       "existing ticket",
+			ticketID:   "PARENT-1",
+			shouldFind: true,
+			expectedID: "PARENT-1",
+		},
+		{
+			name:       "existing ticket case-insensitive (lowercase)",
+			ticketID:   "parent-1",
+			shouldFind: true,
+			expectedID: "PARENT-1",
+		},
+		{
+			name:       "existing ticket case-insensitive (mixed)",
+			ticketID:   "Parent-1",
+			shouldFind: true,
+			expectedID: "PARENT-1",
+		},
+		{
+			name:       "non-existing ticket",
+			ticketID:   "PARENT-999",
+			shouldFind: false,
+			expectedID: "",
+		},
+		{
+			name:       "empty ticket ID",
+			ticketID:   "",
+			shouldFind: false,
+			expectedID: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolveTicketID(tt.ticketID)
+			if tt.shouldFind {
+				if result != tt.expectedID {
+					t.Errorf("findTicketID(%q) = %q, want %q", tt.ticketID, result, tt.expectedID)
+				}
+			} else {
+				if result != "" {
+					t.Errorf("findTicketID(%q) = %q, want empty string", tt.ticketID, result)
+				}
+			}
+		})
 	}
 }

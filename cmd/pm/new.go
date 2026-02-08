@@ -21,6 +21,7 @@ var newCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		title := args[0]
 		ticketType, _ := cmd.Flags().GetString("type")
+		parent, _ := cmd.Flags().GetString("parent")
 
 		pmPath := ".pm"
 
@@ -30,6 +31,17 @@ var newCmd = &cobra.Command{
 			fmt.Printf("Error loading project config: %v\n", err)
 			fmt.Println("Make sure you've run 'pm init --prefix YOUR_PREFIX' first")
 			os.Exit(1)
+		}
+
+		// Validate parent ticket if specified
+		if parent != "" {
+			normalizedParent := resolveTicketID(parent)
+			if normalizedParent == "" {
+				fmt.Printf("Error: parent ticket not found: %s\n", parent)
+				os.Exit(1)
+			}
+			// Use the normalized (correct case) parent ID
+			parent = normalizedParent
 		}
 
 		templatePath := filepath.Join(pmPath, "config", "templates", ticketType+".md")
@@ -46,11 +58,13 @@ var newCmd = &cobra.Command{
 		data := struct {
 			ID        string
 			Title     string
+			Parent    string
 			CreatedAt string
 			UpdatedAt string
 		}{
 			ID:        id,
 			Title:     title,
+			Parent:    parent,
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
@@ -69,12 +83,18 @@ var newCmd = &cobra.Command{
 		}
 		defer file.Close()
 
-		if err := tmpl.Execute(file, data); err != nil {
+		err = tmpl.Execute(file, data)
+		if err != nil {
 			fmt.Printf("Error executing template: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("✓ Created new ticket: %s\n", id)
+		// Build output message
+		msg := fmt.Sprintf("✓ Created new ticket: %s", id)
+		if parent != "" {
+			msg += fmt.Sprintf(" (parent: %s)", parent)
+		}
+		fmt.Println(msg)
 
 		// TODO: Open in editor
 		// TODO: Add to git staging area
@@ -113,9 +133,11 @@ func getNextTicketNumber(pmPath string, prefix string) int {
 
 func init() {
 	newCmd.Flags().StringP("type", "t", "story", "Type of the ticket (e.g., story, task, bug, epic)")
+	newCmd.Flags().StringP("parent", "p", "", "Parent ticket ID (optional)")
 
-	// Register completion function for type flag
+	// Register completion functions for flags
 	newCmd.RegisterFlagCompletionFunc("type", completeTicketTypes)
+	newCmd.RegisterFlagCompletionFunc("parent", completeTicketIDs)
 
 	rootCmd.AddCommand(newCmd)
 }

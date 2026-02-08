@@ -44,7 +44,7 @@ var moveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		ticketPath := findTicketByID(ticketID)
+		ticketPath := getTicketPath(ticketID)
 
 		content, err := os.ReadFile(ticketPath)
 		if err != nil {

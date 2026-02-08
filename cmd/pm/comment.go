@@ -57,7 +57,7 @@ func runComment(cmd *cobra.Command, args []string) error {
 	pmDir := ".pm"
 
 	// Verify ticket exists using case-insensitive lookup
-	ticketPath := findTicketByID(ticketID)
+	ticketPath := getTicketPath(ticketID)
 
 	// Extract the actual ticket ID from the file path for use in comment directory
 	actualTicketID := strings.TrimSuffix(filepath.Base(ticketPath), ".md")

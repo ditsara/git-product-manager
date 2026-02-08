@@ -24,7 +24,7 @@ var showCmd = &cobra.Command{
 	Example:           "  pm show PROJ-123",
 	Run: func(cmd *cobra.Command, args []string) {
 		ticketID := args[0]
-		ticketPath := findTicketByID(ticketID)
+		ticketPath := getTicketPath(ticketID)
 
 		content, err := os.ReadFile(ticketPath)
 		if err != nil {

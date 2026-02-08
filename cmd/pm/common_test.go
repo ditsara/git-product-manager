@@ -29,7 +29,7 @@ func TestFindTicketByID_ExactMatch(t *testing.T) {
 	}
 
 	// Test exact match for TEST-1 (should not match TEST-10 or TEST-100)
-	result := findTicketByID("TEST-1")
+	result := getTicketPath("TEST-1")
 	expected := filepath.Join(".pm", "tickets", "TEST-1.md")
 	if result != expected {
 		t.Errorf("Expected %s, got %s", expected, result)
@@ -56,7 +56,7 @@ func TestFindTicketByID_PrefixMatch(t *testing.T) {
 	}
 
 	// Test prefix match: TEST-1 should match TEST-10 when no exact match exists
-	result := findTicketByID("TEST-1")
+	result := getTicketPath("TEST-1")
 	expected := filepath.Join(".pm", "tickets", "TEST-10.md")
 	if result != expected {
 		t.Errorf("Expected %s, got %s", expected, result)
@@ -136,20 +136,20 @@ func TestFindTicketByID_CaseInsensitiveExactMatch(t *testing.T) {
 	}
 
 	// Test lowercase query should find uppercase file
-	result := findTicketByID("gpm-123")
+	result := getTicketPath("gpm-123")
 	expected := filepath.Join(".pm", "tickets", "GPM-123.md")
 	if result != expected {
 		t.Errorf("Lowercase query failed. Expected %s, got %s", expected, result)
 	}
 
 	// Test mixed case query
-	result = findTicketByID("GpM-123")
+	result = getTicketPath("GpM-123")
 	if result != expected {
 		t.Errorf("Mixed case query failed. Expected %s, got %s", expected, result)
 	}
 
 	// Test uppercase query (original behavior)
-	result = findTicketByID("GPM-123")
+	result = getTicketPath("GPM-123")
 	if result != expected {
 		t.Errorf("Uppercase query failed. Expected %s, got %s", expected, result)
 	}
@@ -175,7 +175,7 @@ func TestFindTicketByID_CaseInsensitivePrefixMatch(t *testing.T) {
 	}
 
 	// Test lowercase prefix match: gpm-1 should match GPM-10
-	result := findTicketByID("gpm-1")
+	result := getTicketPath("gpm-1")
 	expected := filepath.Join(".pm", "tickets", "GPM-10.md")
 	if result != expected {
 		t.Errorf("Lowercase prefix match failed. Expected %s, got %s", expected, result)

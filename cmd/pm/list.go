@@ -108,7 +108,7 @@ Examples:
 		// Validate parent ticket exists if specified
 		var normalizedParent string
 		if parentFilter != "" {
-			foundTicketPath := findTicketByID(parentFilter)
+			foundTicketPath := getTicketPath(parentFilter)
 			// Extract just the ticket ID from the path (strip .pm/tickets/ and .md)
 			normalizedParent = strings.TrimSuffix(filepath.Base(foundTicketPath), ".md")
 		}
