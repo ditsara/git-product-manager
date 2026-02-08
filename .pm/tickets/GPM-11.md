@@ -7,7 +7,7 @@ priority: medium
 points: 3
 
 # Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
+parent: GPM-44
 depends_on: [GPM-10]
 blocks: []
 related: [GPM-9]

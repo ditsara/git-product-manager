@@ -7,7 +7,7 @@ priority: medium
 points: 1
 
 # Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
+parent: GPM-44
 depends_on: []
 blocks: []
 related: ["GPM-23"]  # Will be used by pm edit-comment

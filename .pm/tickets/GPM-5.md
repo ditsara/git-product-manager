@@ -5,7 +5,7 @@ type: task
 status: backlog
 priority: medium
 points: 5
-parent: ""
+parent: GPM-44
 depends_on: []
 blocks: []
 related: [GPM-4]
