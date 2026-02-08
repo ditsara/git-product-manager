@@ -13,10 +13,10 @@ points: 1
 priority: low
 related:
     - GPM-7
-status: todo
+status: done
 title: Implement pm assign shorthand command
 type: story
-updated_at: "2026-02-08T08:01:12Z"
+updated_at: "2026-02-08T08:05:12Z"
 ---
 
 
@@ -49,16 +49,16 @@ This is equivalent to `pm edit <ticket-id> --field assignee=<username>`, but:
 
 ## Implementation Steps
 
-- [ ] Create `cmd/pm/assign.go` with cobra command
-- [ ] Accept two arguments: ticket ID and username
-- [ ] Validate ticket exists (use `findTicketByID()`)
-- [ ] Validate username is non-empty
-- [ ] Parse ticket file and check current assignee value
-- [ ] If assignee already equals requested user: show message "Already assigned to {user}" and exit (no changes)
-- [ ] If assignee differs: update the assignee field and `updated_at` timestamp
-- [ ] Validate and write ticket file to disk
-- [ ] Display confirmation message
-- [ ] Add command to root command registration in main.go
+- [x] Create `cmd/pm/assign.go` with cobra command
+- [x] Accept two arguments: ticket ID and username
+- [x] Validate ticket exists (use `findTicketByID()`)
+- [x] Validate username is non-empty
+- [x] Parse ticket file and check current assignee value
+- [x] If assignee already equals requested user: show message "Already assigned to {user}" and exit (no changes)
+- [x] If assignee differs: update the assignee field and `updated_at` timestamp
+- [x] Validate and write ticket file to disk
+- [x] Display confirmation message
+- [x] Add command to root command registration in main.go
 
 ## Command Signature
 
@@ -77,29 +77,29 @@ Examples:
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Test assignee field update
-- [ ] Test ticket ID validation (invalid ID)
-- [ ] Test empty username (error handling)
-- [ ] Test idempotent assignment (same user, no changes)
+- [x] Test assignee field update
+- [x] Test ticket ID validation (invalid ID)
+- [x] Test empty username (error handling)
+- [x] Test idempotent assignment (same user, no changes)
 
 ### Integration Tests
-- [ ] Assign ticket, verify assignee field updated
-- [ ] Verify `updated_at` timestamp changes
-- [ ] Verify confirmation message displayed
-- [ ] Verify no changes when assigning to same user
-- [ ] Verify message printed when assignment is already current
-- [ ] Case-insensitive ticket ID matching
+- [x] Assign ticket, verify assignee field updated
+- [x] Verify `updated_at` timestamp changes
+- [x] Verify confirmation message displayed
+- [x] Verify no changes when assigning to same user
+- [x] Verify message printed when assignment is already current
+- [x] Case-insensitive ticket ID matching
 
 ## Acceptance Criteria
 
-- [ ] `pm assign <id> <user>` updates assignee field
-- [ ] Updated timestamp is automatically set
-- [ ] Confirmation message printed (e.g., "Assigned GPM-123 to alice")
-- [ ] Error message for invalid ticket ID
-- [ ] Error message for missing username
-- [ ] Works with case-insensitive ticket IDs (e.g., `gpm-123`)
-- [ ] No changes made if assignee is already that user
-- [ ] All tests pass
+- [x] `pm assign <id> <user>` updates assignee field
+- [x] Updated timestamp is automatically set
+- [x] Confirmation message printed (e.g., "Assigned GPM-123 to alice")
+- [x] Error message for invalid ticket ID
+- [x] Error message for missing username
+- [x] Works with case-insensitive ticket IDs (e.g., `gpm-123`)
+- [x] No changes made if assignee is already that user
+- [x] All tests pass
 
 ## Edge Cases
 
