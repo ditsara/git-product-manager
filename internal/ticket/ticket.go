@@ -54,6 +54,32 @@ func (t *Ticket) Validate() error {
 	return nil
 }
 
+// Normalize de-duplicates all array fields to maintain data integrity.
+// Silent normalization - no errors, just cleans the data.
+// Should be called before every save operation.
+func (t *Ticket) Normalize() {
+	t.DependsOn = dedup(t.DependsOn)
+	t.Blocks = dedup(t.Blocks)
+	t.Related = dedup(t.Related)
+	t.Labels = dedup(t.Labels)
+}
+
+// dedup removes duplicate strings from a slice while preserving order.
+func dedup(items []string) []string {
+	if len(items) == 0 {
+		return items
+	}
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
 func Parse(content []byte) (*Ticket, error) {
 	// Split YAML front matter from Markdown body
 	// Expected format for markdown files:

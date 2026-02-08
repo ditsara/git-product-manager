@@ -2,7 +2,7 @@
 id: GPM-45
 title: "Implement pm link and pm unlink with automatic symmetry"
 type: task
-status: backlog  # Current workflow state
+status: done
 priority: high  # low, medium, high, critical
 points: 5  # Story points for estimation
 
@@ -15,7 +15,7 @@ related: [GPM-46]  # Related work (duplicates, see-also)
 labels: [relationships, cli]  # Tags from labels.yaml
 assignee: ""  # GitHub username or email
 created_at: "2026-02-08T14:38:49Z"
-updated_at: "2026-02-08T14:38:49Z"
+updated_at: "2026-02-08T16:45:00Z"
 ---
 
 # Description
@@ -65,32 +65,32 @@ Follow the existing pattern from `pm edit` and `pm assign`:
 5. Serialize: Marshal YAML, update `updated_at`, reconstruct file
 6. Write: `os.WriteFile(ticketPath, newContent, 0644)`
 
-- [ ] Create `cmd/pm/link.go` with link command
-- [ ] Create `cmd/pm/unlink.go` with unlink command
-- [ ] Add `Normalize()` method to ticket struct in internal/ticket/ticket.go:
-  - [ ] De-duplicate all array fields (depends_on, blocks, related, labels)
-  - [ ] Call during serialization before file write
-- [ ] Create `internal/ticket/relationships.go` with helper function:
-  - [ ] `func updateRelationshipWithSymmetry(sourceID, targetID, relType string, add bool) error`
-  - [ ] Handles load, modify, save for both tickets
-  - [ ] Implements symmetry logic internally (depends-on ↔ blocks)
-  - [ ] For `related`, only updates source ticket (unidirectional)
-- [ ] In link command:
-  - [ ] Check if relationship already exists (Option A: return "Already linked" message)
-  - [ ] Validate both ticket IDs exist and aren't self-reference before any file operations
-  - [ ] Call `updateRelationshipWithSymmetry(..., true)` to add
-- [ ] In unlink command:
-  - [ ] Validate ticket IDs exist before any file operations
-  - [ ] Call `updateRelationshipWithSymmetry(..., false)` to remove
-- [ ] Add validation layer (before any file modifications):
-  - [ ] Both ticket IDs must exist
-  - [ ] No self-reference (GPM-5 cannot depend on GPM-5)
-  - [ ] Type must be valid (depends-on, blocks, related)
-  - [ ] Exit immediately on validation failure
-- [ ] Print informative output with consistent format
-- [ ] Add shell completion:
-  - [ ] Ticket IDs: Use existing `completeTicketIDs` function
-  - [ ] Type flag: Return static list `["depends-on", "blocks", "related"]`
+- [x] Create `cmd/pm/link.go` with link command
+- [x] Create `cmd/pm/unlink.go` with unlink command
+- [x] Add `Normalize()` method to ticket struct in internal/ticket/ticket.go:
+  - [x] De-duplicate all array fields (depends_on, blocks, related, labels)
+  - [x] Call during serialization before file write
+- [x] Create `internal/ticket/relationships.go` with helper function:
+  - [x] `func updateRelationshipWithSymmetry(sourceID, targetID, relType string, add bool) (bool, error)`
+  - [x] Handles load, modify, save for both tickets
+  - [x] Implements symmetry logic internally (depends-on ↔ blocks)
+  - [x] For `related`, only updates source ticket (unidirectional)
+- [x] In link command:
+  - [x] Check if relationship already exists (Option A: return "Already linked" message)
+  - [x] Validate both ticket IDs exist and aren't self-reference before any file operations
+  - [x] Call `updateRelationshipWithSymmetry(..., true)` to add
+- [x] In unlink command:
+  - [x] Validate ticket IDs exist before any file operations
+  - [x] Call `updateRelationshipWithSymmetry(..., false)` to remove
+- [x] Add validation layer (before any file modifications):
+  - [x] Both ticket IDs must exist
+  - [x] No self-reference (GPM-5 cannot depend on GPM-5)
+  - [x] Type must be valid (depends-on, blocks, related)
+  - [x] Exit immediately on validation failure
+- [x] Print informative output with consistent format
+- [x] Add shell completion:
+  - [x] Ticket IDs: Use existing `completeTicketIDs` function
+  - [x] Type flag: Return static list `["depends-on", "blocks", "related"]`
 
 ## Examples
 
