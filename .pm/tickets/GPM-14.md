@@ -50,10 +50,11 @@ In GitLab, milestones allow you to:
 
 ### Data Model
 
-Milestones stored as YAML files in `.pm/milestones/`:
+Milestones stored as Markdown with YAML front-matter in `.pm/milestones/`. Milestones must be valid filenames, ending in `.md`.
 
-```yaml
-# .pm/milestones/v1-0-release.yaml
+```markdown
+# .pm/milestones/v1-0-release.md
+---
 id: v1-0-release
 title: "Version 1.0 Release"
 description: "First stable release with core features"
@@ -61,17 +62,22 @@ due_date: "2026-02-28"
 state: active  # active, closed
 created_at: "2026-01-15T10:00:00Z"
 closed_at: null  # Set when milestone is closed
+---
+
+# Title
+
+Some text describing our milestone.
 ```
 
 ### Ticket Integration
 
-Add `milestone` field to ticket YAML:
+Add `milestones` field to ticket YAML. A ticket can belong to many milestones:
 
 ```yaml
 ---
 id: GPM-1
 title: "Stage 2: Collaboration and History"
-milestone: v1-0-release  # Links to milestone ID
+milestones: [v1-0-release]  # Links to milestone ID
 # ... other fields
 ---
 ```
@@ -109,18 +115,18 @@ pm milestone burndown v1-0-release
 Calculate progress automatically:
 - Total tickets assigned to milestone
 - Tickets in "done" state
-- Percentage complete
+- Percentage complete in ticket count and in points
 - Days remaining until due date
-- Burndown chart (optional visualization)
+- (future) Burndown chart (optional visualization)
 
 ## File Structure
 
 ```
 .pm/
 ├── milestones/
-│   ├── v1-0-release.yaml
-│   ├── sprint-3.yaml
-│   └── mvp-launch.yaml
+│   ├── v1-0-release.md
+│   ├── sprint-3.md
+│   └── mvp-launch.md
 ├── tickets/
 │   ├── GPM-1.md  (contains: milestone: v1-0-release)
 │   └── GPM-2.md  (contains: milestone: mvp-launch)

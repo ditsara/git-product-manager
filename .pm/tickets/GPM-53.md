@@ -1,0 +1,102 @@
+---
+id: GPM-53
+title: "Implement pm milestone create/list/show commands"
+type: task
+status: backlog
+priority: medium
+points: 5
+
+parent: GPM-14
+depends_on: [GPM-52]
+blocks: [GPM-56]
+related: []
+
+labels: [milestone, cli]
+assignee: ""
+created_at: "2026-02-08T15:04:51Z"
+updated_at: "2026-02-08T15:04:51Z"
+---
+
+# Description
+
+[Claude Haiku 4.5]
+
+**Task:** Implement the core milestone CLI commands for creating, listing, and displaying milestones.
+
+## Overview
+
+This task delivers three essential user-facing commands for milestone management. These commands enable users to create milestones, view all milestones in a table, and inspect individual milestone details.
+
+## Implementation Steps
+
+- [ ] Implement `pm milestone create "Title" [--due YYYY-MM-DD] [--description TEXT]`
+  - Generate new milestone ID (kebab-case, auto-generated from title slug)
+  - Set state to "active"
+  - Set created_at to current UTC timestamp
+  - Write `.pm/milestones/{id}.md` with YAML front-matter
+  - Auto-stage file in git
+  - Output: `✓ Created milestone: {id}`
+- [ ] Implement `pm milestone list [--state active|closed]`
+  - Query SQLite cache for all milestones (or generate from filesystem if cache stale)
+  - Display table with columns: ID, Title, Due Date, State, Days Until/Days Overdue
+  - Color-code: green for active/not-overdue, yellow for approaching due date, red for overdue
+  - Sort by due_date ascending (null dates last)
+  - Output sample:
+    ```
+    ID              Title                 Due Date   State   Status
+    v1-0-release    Version 1.0 Release   Feb 28     active  32 days
+    sprint-3        Sprint 3              Feb 14     active  ⚠ 6 days
+    mvp-launch      MVP Launch            Jan 31     active  ⚠ OVERDUE (8 days ago)
+    beta-complete   Beta Program Close    Jan 15     closed  -
+    ```
+- [ ] Implement `pm milestone show <milestone-id>`
+  - Parse milestone YAML file
+  - Display formatted milestone info (title, description, due_date, state, created_at, closed_at)
+  - Calculate and display days remaining
+  - Show count of associated tickets (from `pm list --milestone <id>` query)
+  - Render markdown description with terminal formatting
+  - Example output:
+    ```
+    ID:            v1-0-release
+    Title:         Version 1.0 Release
+    Description:   First stable release with core features
+    State:         active
+    Due Date:      Feb 28, 2026
+    Days Until:    32
+    
+    Associated Tickets: 5
+    
+    (description rendered below)
+    ```
+- [ ] Implement editor integration (optional) for creating milestones interactively
+  - If no title provided: `pm milestone create` opens $EDITOR with template
+  - Template shows example fields: title, description, due_date
+  - Parse editor output to extract values
+- [ ] Implement `pm milestone close <milestone-id> [--reason TEXT]`
+  - Update state from "active" to "closed"
+  - Set closed_at to current UTC timestamp
+  - Optional reason added to markdown body
+  - Auto-commit with message: `chore(pm): Close milestone {id}`
+- [ ] Update SQLite cache:
+  - Sync milestones table from filesystem
+  - Keep milestones in cache for fast list/show queries
+  - Index on state for filtering
+
+## Acceptance Criteria
+
+- [ ] `pm milestone create "v1.0"` creates `.pm/milestones/v1-0.md` with proper YAML
+- [ ] `pm milestone list` displays all milestones with proper formatting
+- [ ] `pm milestone list --state closed` filters to closed milestones only
+- [ ] `pm milestone show v1-0` renders complete milestone details
+- [ ] Overdue milestones display warning indicator
+- [ ] `pm milestone close v1-0` updates state and closed_at
+- [ ] All commands update SQLite cache
+- [ ] Integration tests for full workflow: create → list → show → close
+
+## Code Output
+
+- `cmd/pm/milestone.go`: Main milestone commands (create, list, show, close)
+- `internal/milestone/operations.go`: Core logic for milestone management
+- Unit tests in `internal/milestone/milestone_test.go`
+- Integration tests in `integration_test.go`
+
