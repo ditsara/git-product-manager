@@ -15,7 +15,7 @@ related: []
 labels: [git-history, auditing, stage-2]
 assignee: ""
 created_at: "2026-02-03T14:22:54Z"
-updated_at: "2026-02-03T14:22:54Z"
+updated_at: "2026-02-08T00:12:00Z"
 ---
 
 # Description
@@ -37,6 +37,8 @@ Parse git history for the ticket file and extract state transitions:
 3. **Build timeline** of state transitions
 4. **Display** with author, timestamp, and optional commit message
 
+Created status log: parse the first commit that adds the file and read status from that file content (not a diff).
+
 ## Display Format
 
 ```bash
@@ -55,27 +57,34 @@ State Change History for GPM-123:
 
 ## Implementation Steps
 
-- [ ] Create `internal/git/history.go` for git operations
-- [ ] Implement `getGitLog(ticketPath)` - shell out to git or use go-git
+- [ ] Implement `getGitLog(ticketPath)` in `cmd/pm/history.go` (shell out to git)
 - [ ] Implement `parseCommitDiff()` - extract status field from diff
 - [ ] Create `cmd/pm/history.go` with cobra command
+- [ ] Resolve ticket path with `findTicketByID()` (case-insensitive)
 - [ ] Build timeline of state changes with author and timestamp
 - [ ] Format and display history (chronological order, oldest first)
 - [ ] Include commit messages for context
 - [ ] Handle special case: ticket creation (initial status)
 - [ ] Handle case: no git history (ticket not committed)
 - [ ] Handle case: no state changes (status never modified)
+- [ ] Handle errors: git not installed or not a git repo
 
 ## Git Operations
 
-### Option 1: Shell Out (Simpler)
+### Chosen Option: Shell Out (Simpler)
+
+Start with shell out for simplicity, can refactor to go-git later.
+
 ```go
 cmd := exec.Command("git", "log", "--follow", "--format=%H|%an|%at|%s", ticketPath)
 output, _ := cmd.Output()
 // Parse output and for each commit, get diff
 ```
 
-### Option 2: go-git Library (Pure Go)
+### Alternative: go-git Library (Pure Go)
+
+We did not choose to do this; just for reference.
+
 ```go
 import "github.com/go-git/go-git/v5"
 repo, _ := git.PlainOpen(".")
@@ -83,13 +92,11 @@ log, _ := repo.Log(&git.LogOptions{FileName: ticketPath})
 // Iterate through commits
 ```
 
-**Recommendation**: Start with shell out for simplicity, can refactor to go-git later.
-
 ## Parsing Strategy
 
 For each commit:
 1. Get the commit diff: `git show {commit_hash} -- {ticketPath}`
-2. Look for lines matching: `-status: <old_value>` and `+status: <new_value>`
+2. Look for lines matching: `-status: <old_value>` and `+status: <new_value>` (trim whitespace and optional quotes)
 3. Extract old and new status values
 4. Build transition record
 
@@ -108,12 +115,13 @@ For each commit:
 - [ ] Ticket with multiple state changes
 - [ ] Ticket never committed (error handling)
 - [ ] Ticket never moved (only shows creation)
+- [ ] Error handling: git not installed / not a git repo
 
 ## Acceptance Criteria
 
 - [ ] `pm history <id>` shows all state changes chronologically
 - [ ] Each entry shows date, author, and state transition
-- [ ] Commit messages included for context
+- [ ] Commit messages included for context (commit subject line only)
 - [ ] Creation event shown (initial status)
 - [ ] Works with tickets that have never changed status
 - [ ] Error message if ticket file not in git history
@@ -124,7 +132,7 @@ For each commit:
 
 - **Ticket file not committed**: Error message "Ticket not in git history"
 - **No status changes**: Show only creation event
-- **Status changed multiple times in one commit**: Show all transitions
 - **Ticket file moved/renamed**: Use `--follow` to track history
 - **Non-standard diff format**: Gracefully skip unparseable commits
-- **Very long history**: Consider pagination or limiting to recent N changes
+- **Very long history**: Handle later; for now user can pipe through `less`
+- **Git not available / not a repo**: Print error message and exit
