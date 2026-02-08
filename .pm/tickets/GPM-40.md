@@ -2,7 +2,7 @@
 id: GPM-40
 title: "Error messages missing trailing newline"
 type: bug
-status: backlog
+status: done
 priority: low
 points: 1
 
@@ -14,7 +14,7 @@ related: []
 labels: [ux, cli, polish]
 assignee: ""
 created_at: "2026-02-08T09:26:21Z"
-updated_at: "2026-02-08T09:26:21Z"
+updated_at: "2026-02-08T11:10:00Z"
 ---
 
 # Description
@@ -127,8 +127,22 @@ For each, verify:
 
 ## Acceptance Criteria
 
-- [ ] All error messages end with a newline
-- [ ] Shell prompt always appears on its own line after errors
-- [ ] No regression in error message clarity or formatting
-- [ ] All common error paths tested manually
+- [x] All error messages end with a newline
+- [x] Shell prompt always appears on its own line after errors
+- [x] No regression in error message clarity or formatting
+- [x] All common error paths tested manually
 
+## Implementation Notes
+
+**What was done:**
+- Audited error message output paths in `cmd/pm/main.go`
+- Found the root cause: missing `\n` in the error handler's `Fprintf` call (line 22)
+- Added trailing newline to the error message format string
+- Tested with various error conditions:
+  - Missing required arguments (`pm comment`, `pm move`)
+  - Invalid flags (`pm list --invalid`)
+  - Missing title (`pm new`)
+- All 239 tests passing
+
+**Result:**
+Error messages now end with a newline, so shell prompts appear on their own line. The fix was minimal and focused - just one character (`\n`) added to the error handler in main.go.
