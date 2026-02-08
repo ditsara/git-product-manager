@@ -237,13 +237,14 @@ states:
   - todo
   - in-progress
   - done
+  - canceled
 
 initial_state: backlog
 
 # Optional: Semantic groupings for filtering and reporting
 state_groups:
   active: [todo, in-progress]
-  completed: [done]
+  completed: [done, canceled]
   incomplete: [backlog, todo, in-progress]
 ```
 
@@ -377,7 +378,7 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
   * **PATH:** Optional directory path (defaults to current directory `.`)
   * Creates `.pm/` directory structure at specified location
   * Generates default configuration files:
-    - `.pm/config/workflow.yaml` with standard states (backlog, todo, in-progress, done)
+    - `.pm/config/workflow.yaml` with standard states (backlog, todo, in-progress, done, canceled)
     - `.pm/config/labels.yaml` with common labels (backend, frontend, bug, feature, etc.)
     - `.pm/config/templates/` with story, task, bug, and epic templates
   * Creates `.pm/.gitignore` to exclude `.cache.db` and temporary files
@@ -391,7 +392,7 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
   * **Output:** Confirmation message with next steps:
     ```
     ✓ Initialized .pm directory
-    ✓ Created default workflow with 4 states
+    ✓ Created default workflow with 5 states
     ✓ Created 15 default labels
     ✓ Created 4 ticket templates
     

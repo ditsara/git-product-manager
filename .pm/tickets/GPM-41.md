@@ -2,7 +2,7 @@
 id: GPM-41
 title: "Add 'canceled' state to default workflow template"
 type: task
-status: backlog
+status: done
 priority: medium
 points: 1
 
@@ -14,7 +14,7 @@ related: [GPM-7, GPM-39]
 labels: [workflow, templates]
 assignee: ""
 created_at: "2026-02-08T09:32:20Z"
-updated_at: "2026-02-08T09:32:20Z"
+updated_at: "2026-02-08T10:00:00Z"
 ---
 
 # Description
@@ -36,13 +36,13 @@ Currently, the default workflow has 4 states (backlog, todo, in-progress, done),
 
 ## Implementation Tasks
 
-- [ ] Update `cmd/pm/templates/workflow.yaml` to include "canceled" state
-- [ ] Add "canceled" to the "completed" state group
-- [ ] Add explanatory comments to the template
-- [ ] Update workflow comments to explain use cases for each state
-- [ ] Update AGENTS.md if needed (default states section)
-- [ ] Test that new projects get the updated template
-- [ ] Verify validation accepts "canceled" as a valid state
+- [x] Update `cmd/pm/templates/workflow.yaml` to include "canceled" state
+- [x] Add "canceled" to the "completed" state group
+- [x] Add explanatory comments to the template
+- [x] Update workflow comments to explain use cases for each state
+- [x] Update AGENTS.md if needed (default states section)
+- [x] Test that new projects get the updated template
+- [x] Verify validation accepts "canceled" as a valid state
 
 ## Template Changes
 
@@ -75,16 +75,16 @@ state_groups:
 
 ## Testing
 
-- [ ] Run `pm init` in a new directory and verify workflow.yaml has "canceled" state
-- [ ] Create a ticket and move it to canceled: `pm move TICKET-1 canceled`
-- [ ] Verify `pm list` hides canceled tickets (after GPM-39 is implemented)
-- [ ] Verify validation passes with canceled state
+- [x] Run `pm init` in a new directory and verify workflow.yaml has "canceled" state
+- [x] Create a ticket and move it to canceled: `pm move TICKET-1 canceled`
+- [x] Verify `pm list` hides canceled tickets (after GPM-39 is implemented)
+- [x] Verify validation passes with canceled state
 
 ## Acceptance Criteria
 
-- [ ] Default workflow.yaml template includes "canceled" state
-- [ ] "canceled" is in the "completed" state_group
-- [ ] Template has clear comments explaining when to use each state
-- [ ] New projects initialized with `pm init` get the updated template
-- [ ] Existing projects continue to work (backward compatible)
-- [ ] All tests pass
+- [x] Default workflow.yaml template includes "canceled" state
+- [x] "canceled" is in the "completed" state_group
+- [x] Template has clear comments explaining when to use each state
+- [x] New projects initialized with `pm init` get the updated template
+- [x] Existing projects continue to work (backward compatible)
+- [x] All tests pass
