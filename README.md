@@ -2,6 +2,8 @@
 
 A Git-native project management system that stores tickets as structured YAML + Markdown files within your repository, eliminating context-switching between code and project management.
 
+This is experimental; do not use for production.
+
 ## Philosophy
 
 **Single Source of Truth:** Keep tasks and code together in one repository. No context switching between JIRA tabs and your IDE. Everything you need to understand what to build and why lives alongside the code itself.
@@ -13,7 +15,9 @@ A Git-native project management system that stores tickets as structured YAML + 
 **Additional Benefits:**
 - **GitOps Workflow:** All ticket operations are git commits
 - **Process as Code:** Workflows and labels are version-controlled
-- **Auditability:** Git history is the immutable audit trail
+- **Auditability:** Git history is the immutable audit trail; rely on audit and
+  team conventions instead of restrictions (e.g., valid state transitions and
+  permissions)
 
 ## Quick Start
 
