@@ -1,21 +1,26 @@
 ---
-id: GPM-29
-title: "Add optional domain suffix configuration for assignees"
-type: task
-status: backlog
-priority: low
-points: 2
-
-parent: "GPM-1"
-depends_on: ["GPM-22"]
-blocks: []
-related: ["GPM-22"]
-
-labels: [cli, config, ux, stage-2]
 assignee: ""
+blocks: []
 created_at: "2026-02-08T07:57:09Z"
-updated_at: "2026-02-08T07:57:09Z"
+depends_on:
+    - GPM-22
+id: GPM-29
+labels:
+    - cli
+    - config
+    - ux
+    - stage-2
+parent: ""
+points: 2
+priority: low
+related:
+    - GPM-22
+status: backlog
+title: Add optional domain suffix configuration for assignees
+type: task
+updated_at: "2026-02-08T08:11:20Z"
 ---
+
 
 # Description
 
