@@ -39,8 +39,8 @@ Implement `pm link` and `pm unlink` commands to manage array-based ticket relati
 - **Automatic Symmetry**: If type is `depends-on` or `blocks`, also updates the inverse relationship:
   - `link A B --type depends-on` → Adds B to A's depends_on AND adds A to B's blocks
   - `link A B --type blocks` → Adds B to A's blocks AND adds A to B's depends_on
-- **Idempotent**: Won't duplicate if relationship already exists
-- **No auto-commit**: Modifies files, user commits when ready
+- **Idempotent**: Arrays are de-duplicated on write (safe to link multiple times)
+- **No auto-commit**: Modifies files, let user commit manually
 - **Output**: `✓ Linked GPM-5 -> GPM-10 (depends-on) [modified 2 files]`
 
 ### `pm unlink <id> <target-id> [--type TYPE]`
@@ -55,18 +55,42 @@ Implement `pm link` and `pm unlink` commands to manage array-based ticket relati
 
 ## Implementation Steps
 
+### File I/O Pattern
+
+Follow the existing pattern from `pm edit` and `pm assign`:
+1. Read file: `content, err := os.ReadFile(ticketPath)`
+2. Parse: Split on `---`, unmarshal YAML front-matter with `yaml.v3`
+3. Modify: Update array fields
+4. Normalize: Call `ticket.Normalize()` to de-duplicate arrays
+5. Serialize: Marshal YAML, update `updated_at`, reconstruct file
+6. Write: `os.WriteFile(ticketPath, newContent, 0644)`
+
 - [ ] Create `cmd/pm/link.go` with link command
 - [ ] Create `cmd/pm/unlink.go` with unlink command
-- [ ] Add helper function `updateRelationship(ticketID, targetID, relType, add bool)` in internal/ticket/
-- [ ] Implement automatic symmetry logic:
-  - [ ] Map depends-on ↔ blocks as inverse pairs
-  - [ ] For related, only update source ticket (unidirectional)
-- [ ] Add validation:
+- [ ] Add `Normalize()` method to ticket struct in internal/ticket/ticket.go:
+  - [ ] De-duplicate all array fields (depends_on, blocks, related, labels)
+  - [ ] Call during serialization before file write
+- [ ] Create `internal/ticket/relationships.go` with helper function:
+  - [ ] `func updateRelationshipWithSymmetry(sourceID, targetID, relType string, add bool) error`
+  - [ ] Handles load, modify, save for both tickets
+  - [ ] Implements symmetry logic internally (depends-on ↔ blocks)
+  - [ ] For `related`, only updates source ticket (unidirectional)
+- [ ] In link command:
+  - [ ] Check if relationship already exists (Option A: return "Already linked" message)
+  - [ ] Validate both ticket IDs exist and aren't self-reference before any file operations
+  - [ ] Call `updateRelationshipWithSymmetry(..., true)` to add
+- [ ] In unlink command:
+  - [ ] Validate ticket IDs exist before any file operations
+  - [ ] Call `updateRelationshipWithSymmetry(..., false)` to remove
+- [ ] Add validation layer (before any file modifications):
   - [ ] Both ticket IDs must exist
   - [ ] No self-reference (GPM-5 cannot depend on GPM-5)
   - [ ] Type must be valid (depends-on, blocks, related)
-- [ ] Print informative output showing files modified
-- [ ] Add shell completion for ticket IDs and types
+  - [ ] Exit immediately on validation failure
+- [ ] Print informative output with consistent format
+- [ ] Add shell completion:
+  - [ ] Ticket IDs: Use existing `completeTicketIDs` function
+  - [ ] Type flag: Return static list `["depends-on", "blocks", "related"]`
 
 ## Examples
 
@@ -78,6 +102,7 @@ pm link GPM-5 GPM-10 --type depends-on
 # GPM-10.md: blocks: [GPM-5]
 
 # Create blocking relationship (same as above, inverse direction)
+# no need to list the exact filenames, it is obvious by the ticket IDs
 pm link GPM-10 GPM-5 --type blocks
 ✓ Linked GPM-10 -> GPM-5 (blocks) [modified 2 files]
 
@@ -87,6 +112,12 @@ pm link GPM-5 GPM-99 --type related
 # GPM-5.md: related: [GPM-99]
 # GPM-99.md: unchanged
 
+# Link twice (idempotent - first time adds, second time already exists)
+pm link GPM-5 GPM-10 --type depends-on
+✓ Linked GPM-5 -> GPM-10 (depends-on) [modified 2 files]
+pm link GPM-5 GPM-10 --type depends-on
+✓ Already linked: GPM-5 -> GPM-10 (depends-on)
+
 # Remove dependency (removes inverse too)
 pm unlink GPM-5 GPM-10 --type depends-on
 ✓ Unlinked GPM-5 -> GPM-10 (depends-on) [modified 2 files]
@@ -94,16 +125,51 @@ pm unlink GPM-5 GPM-10 --type depends-on
 # Remove from all relationships (source only)
 pm unlink GPM-5 GPM-99
 ✓ Removed GPM-99 from all relationships in GPM-5 [modified 1 file]
+
+# Error handling
+pm link GPM-5 GPM-5 --type depends-on
+Error: Cannot link ticket to itself (GPM-5)
+
+pm link GPM-5 NONEXISTENT --type depends-on
+Error: Target ticket not found: NONEXISTENT
 ```
 
 ## Edge Cases
 
 - **Target ticket doesn't exist**: Error with helpful message
-- **Relationship already exists**: No-op, print message "Already linked"
-- **Unlink non-existent relationship**: No-op, print message "Not linked"
-- **Self-reference attempt**: Error "Cannot link ticket to itself"
-- **Invalid type**: Error "Invalid type: must be depends-on, blocks, or related"
+- **Relationship already exists**: No-op, print message `✓ Already linked: GPM-5 -> GPM-10 (depends-on)`
+- **Unlink non-existent relationship**: No-op, print message `✓ Not linked: GPM-5 -> GPM-10 (depends-on)`
+- **Self-reference attempt**: Error `Error: Cannot link ticket to itself (GPM-5)`
+- **Invalid type**: Error `Error: Invalid type 'foo' - must be depends-on, blocks, or related`
 - **File parse errors**: Gracefully handle and report YAML errors
+- **Array uniqueness**: Arrays are automatically de-duplicated on write (silent normalization)
+  - If user manually adds duplicates in YAML, next command that saves the file will fix it
+  - Commands become naturally idempotent without explicit duplicate checks
+
+## Error Handling
+
+### Validation-First Pattern
+
+- **Validate before any file modifications**: Check both tickets exist, no self-reference, valid type
+- **Exit immediately on error**: Stop execution, don't proceed to modify files
+- **Clear error messages**: Include ticket ID and helpful context
+
+### Atomic Symmetry Operations
+
+- **All-or-nothing**: If modifying both source and target (symmetry), either both succeed or neither
+- **Rollback on failure**:
+  - Update source ticket ✓
+  - Update target ticket ✗ (file permission, parse error, etc.)
+  - **Action**: Revert source ticket to original state
+  - **Report**: `Error: Failed to link GPM-5 -> GPM-10 (couldn't write GPM-10). Reverted changes to GPM-5.`
+- **Unidirectional operations** (e.g., `related`) can fail safely: only one file involved
+
+### Output Format (Consistent)
+
+- **Success**: `✓ Linked GPM-5 -> GPM-10 (depends-on) [modified 2 files]`
+- **Already linked**: `✓ Already linked: GPM-5 -> GPM-10 (depends-on)`
+- **Not linked**: `✓ Not linked: GPM-5 -> GPM-10 (depends-on)`
+- **Error**: `Error: <specific reason>`
 
 ## Testing
 
