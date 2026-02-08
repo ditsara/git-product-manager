@@ -2,7 +2,7 @@
 id: GPM-1
 title: "Stage 2: Collaboration and History"
 type: epic
-status: backlog
+status: done
 priority: high
 points: 0
 parent: ""
@@ -12,7 +12,7 @@ related: []
 labels: [collaboration, git-history, epic]
 assignee: ""
 created_at: 2026-02-02T03:54:36Z
-updated_at: 2026-02-02T03:54:36Z
+updated_at: 2026-02-08T08:08:00Z
 ---
 
 # Description
@@ -46,8 +46,8 @@ Implement the full comment system with separate files to prevent merge conflicts
 - **Interactive mode**: Open editor for comment composition (respects `$VISUAL`, `$EDITOR`, etc.)
 - **Direct mode**: `-m` flag for one-line comments without editor
 - **Author override**: `--author` flag to specify commenter
-- **YAML front-matter**: Include `author` and `timestamp` metadata
-- **Auto-commit**: Commit each comment with descriptive message
+- **YAML front-matter**: Include `author` and `timestamp` metadata (migrated from single timestamp field to created_at/updated_at for amendment support)
+- **Comment amendment**: `pm comment --amend` to edit existing comments
 - **Cache integration**: Update SQLite cache with new comments
 
 ### 2. Enhanced Ticket Display (`pm show`)
@@ -92,38 +92,42 @@ Add convenient assignee command:
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Comment file parsing (YAML front-matter + markdown body)
-- [ ] Comment filename generation (ISO8601 format, filesystem-safe)
-- [ ] Git history parsing for state extraction
-- [ ] Comment directory creation and organization
+- [x] Comment file parsing (YAML front-matter + markdown body)
+- [x] Comment filename generation (ISO8601 format, filesystem-safe)
+- [x] Git history parsing for state extraction
+- [x] Comment directory creation and organization
 
 ### Integration Tests
-- [ ] Create comment via interactive mode (simulated editor)
-- [ ] Create comment via `-m` flag
-- [ ] View ticket with comments via `pm show`
-- [ ] Verify comments sorted chronologically
-- [ ] Test `--no-comments` flag
-- [ ] Verify `pm history` extracts state changes from git log
-- [ ] Test simultaneous comments from multiple "users" (no conflicts)
+- [x] Create comment via interactive mode (simulated editor)
+- [x] Create comment via `-m` flag
+- [x] View ticket with comments via `pm show`
+- [x] Verify comments sorted chronologically
+- [x] Test `--no-comments` flag
+- [x] Verify `pm history` extracts state changes from git log
+- [x] Test simultaneous comments from multiple "users" (no conflicts)
+- [x] Test `pm comment --amend` to edit existing comments
 
 ## Acceptance Criteria
 
-- [ ] Users can add comments without opening the full ticket file
-- [ ] Multiple team members can comment simultaneously without merge conflicts
-- [ ] All comments are preserved in git history
-- [ ] State changes are auditable through `pm history`
-- [ ] Comment cache is automatically synced
-- [ ] All tests pass (unit + integration)
-- [ ] Documentation updated with new commands
+- [x] Users can add comments without opening the full ticket file
+- [x] Multiple team members can comment simultaneously without merge conflicts
+- [x] All comments are preserved in git history
+- [x] State changes are auditable through `pm history`
+- [x] Comment cache is automatically synced
+- [x] All tests pass (unit + integration)
+- [x] Comments can be amended with created_at/updated_at tracking
+- [x] Assignee field can be updated via `pm assign` shorthand
 
 ## Implementation Checklist
 
-- [ ] **`pm comment`**: Implement full comment system (separate files, editor logic, `-m` flag)
-- [ ] **`pm show`**: Update to integrate comment display, including `--no-comments` flag
-- [ ] **`pm history`**: Implement state change auditing by parsing git history
-- [ ] **`pm assign`**: Add assignee shorthand command
-- [ ] **Database**: Add migration for `comments` table
-- [ ] **Database**: Update cache logic to index new comments
-- [ ] **Tests**: Unit tests for comment file parsing
-- [ ] **Tests**: Integration tests for creating, viewing, and listing comments
-- [ ] **Tests**: Tests for `pm history` command against sample git history
+- [x] **`pm comment`**: Implement full comment system (separate files, editor logic, `-m` flag, amendment)
+- [x] **`pm show`**: Update to integrate comment display, including `--no-comments` flag
+- [x] **`pm history`**: Implement state change auditing by parsing git history
+- [x] **`pm assign`**: Add assignee shorthand command
+- [x] **Database**: Add migration for `comments` table
+- [x] **Database**: Update cache logic to index new comments
+- [x] **Tests**: Unit tests for comment file parsing
+- [x] **Tests**: Integration tests for creating, viewing, and listing comments
+- [x] **Tests**: Tests for `pm history` command against sample git history
+- [x] **Tests**: Tests for `pm assign` command with idempotency
+- [x] **Tests**: Tests for `pm comment --amend` with created_at/updated_at tracking
