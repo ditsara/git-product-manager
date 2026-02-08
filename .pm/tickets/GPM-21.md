@@ -2,7 +2,7 @@
 id: GPM-21
 title: "Implement pm history for state change auditing"
 type: story
-status: backlog
+status: done
 priority: medium
 points: 3
 
@@ -15,7 +15,7 @@ related: []
 labels: [git-history, auditing, stage-2]
 assignee: ""
 created_at: "2026-02-03T14:22:54Z"
-updated_at: "2026-02-08T00:12:00Z"
+updated_at: "2026-02-08T01:55:42Z"
 ---
 
 # Description
@@ -57,17 +57,17 @@ State Change History for GPM-123:
 
 ## Implementation Steps
 
-- [ ] Implement `getGitLog(ticketPath)` in `cmd/pm/history.go` (shell out to git)
-- [ ] Implement `parseCommitDiff()` - extract status field from diff
-- [ ] Create `cmd/pm/history.go` with cobra command
-- [ ] Resolve ticket path with `findTicketByID()` (case-insensitive)
-- [ ] Build timeline of state changes with author and timestamp
-- [ ] Format and display history (chronological order, oldest first)
-- [ ] Include commit messages for context
-- [ ] Handle special case: ticket creation (initial status)
-- [ ] Handle case: no git history (ticket not committed)
-- [ ] Handle case: no state changes (status never modified)
-- [ ] Handle errors: git not installed or not a git repo
+- [x] Implement `getGitLog(ticketPath)` in `cmd/pm/history.go` (shell out to git)
+- [x] Implement `parseCommitDiff()` - extract status field from diff
+- [x] Create `cmd/pm/history.go` with cobra command
+- [x] Resolve ticket path with `findTicketByID()` (case-insensitive)
+- [x] Build timeline of state changes with author and timestamp
+- [x] Format and display history (chronological order, oldest first)
+- [x] Include commit messages for context
+- [x] Handle special case: ticket creation (initial status)
+- [x] Handle case: no git history (ticket not committed)
+- [x] Handle case: no state changes (status never modified)
+- [x] Handle errors: git not installed or not a git repo
 
 ## Git Operations
 
@@ -103,30 +103,30 @@ For each commit:
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] Parse git log output format
-- [ ] Extract status field from diff
-- [ ] Build state change timeline
-- [ ] Handle creation (no previous status)
-- [ ] Handle no state changes
+- [x] Parse git log output format
+- [x] Extract status field from diff
+- [x] Build state change timeline
+- [x] Handle creation (no previous status)
+- [x] Handle no state changes
 
 ### Integration Tests  
-- [ ] Create ticket, commit, move through states, verify history
-- [ ] Ticket with single state change
-- [ ] Ticket with multiple state changes
-- [ ] Ticket never committed (error handling)
-- [ ] Ticket never moved (only shows creation)
-- [ ] Error handling: git not installed / not a git repo
+- [x] Create ticket, commit, move through states, verify history
+- [x] Ticket with single state change
+- [x] Ticket with multiple state changes
+- [x] Ticket never committed (error handling)
+- [x] Ticket never moved (only shows creation)
+- [x] Error handling: git not installed / not a git repo
 
 ## Acceptance Criteria
 
-- [ ] `pm history <id>` shows all state changes chronologically
-- [ ] Each entry shows date, author, and state transition
-- [ ] Commit messages included for context (commit subject line only)
-- [ ] Creation event shown (initial status)
-- [ ] Works with tickets that have never changed status
-- [ ] Error message if ticket file not in git history
-- [ ] Timestamps displayed in human-readable format
-- [ ] All tests pass
+- [x] `pm history <id>` shows all state changes chronologically
+- [x] Each entry shows date, author, and state transition
+- [x] Commit messages included for context (commit subject line only)
+- [x] Creation event shown (initial status)
+- [x] Works with tickets that have never changed status
+- [x] Error message if ticket file not in git history
+- [x] Timestamps displayed in human-readable format
+- [x] All tests pass
 
 ## Edge Cases
 
