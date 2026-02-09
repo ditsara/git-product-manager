@@ -1,22 +1,23 @@
 ---
-id: GPM-58
-title: "Fix migration files not found after go install"
-type: bug
-status: backlog  # Current workflow state
-priority: high  # low, medium, high, critical
-points: 5  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: [build, installation, migration]  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-02-09T15:48:29Z"
-updated_at: "2026-02-09T15:48:29Z"
+depends_on: []
+id: GPM-58
+labels:
+    - build
+    - installation
+    - migration
+parent: ""
+points: 5
+priority: high
+related: []
+status: done
+title: Fix migration files not found after go install
+type: bug
+updated_at: "2026-02-09T16:08:01Z"
 ---
+
 
 # Description
 
