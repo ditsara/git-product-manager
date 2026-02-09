@@ -12,6 +12,7 @@ import (
 var linkCmd = &cobra.Command{
 	Use:   "link <id> <target-id>",
 	Short: "Create a relationship between two tickets",
+	Aliases: []string{"ln"},
 	Long: `Create a relationship between tickets with optional symmetry.
 
 Supported relationship types:

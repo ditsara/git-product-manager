@@ -29,6 +29,7 @@ func truncate(s string, maxLen int) string {
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tickets",
+	Aliases: []string{"ls"},
 	Long: `Lists tickets from the .pm/tickets directory with optional filtering.
 
 By default, shows only top-level incomplete tickets (hides completed work).
