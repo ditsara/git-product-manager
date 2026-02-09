@@ -1,4 +1,4 @@
-.PHONY: build test install clean test-local
+.PHONY: build test install clean sandbox
 
 build:
 	@./scripts/build.sh
@@ -6,8 +6,8 @@ build:
 test:
 	@go test ./...
 
-test-local: build
-	@./scripts/test-local.sh
+sandbox: build
+	@./scripts/sandbox.sh
 
 install:
 	@go install ./cmd/pm
