@@ -17,12 +17,10 @@ func TestShouldSync(t *testing.T) {
 		t.Fatalf("Failed to create test directories: %v", err)
 	}
 
-	// Initialize database with migration
-	projectRoot := getProjectRoot(t)
-	migrationPath := filepath.Join(projectRoot, "migrations")
+	// Initialize database with embedded migrations
 	dbPath := filepath.Join(pmPath, ".cache.db")
 	
-	if err := RunMigrations(dbPath, migrationPath); err != nil {
+	if err := RunMigrations(dbPath); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -94,12 +92,10 @@ func TestSyncCache(t *testing.T) {
 		t.Fatalf("Failed to create test directories: %v", err)
 	}
 
-	// Initialize database
-	projectRoot := getProjectRoot(t)
-	migrationPath := filepath.Join(projectRoot, "migrations")
+	// Initialize database with embedded migrations
 	dbPath := filepath.Join(pmPath, ".cache.db")
 	
-	if err := RunMigrations(dbPath, migrationPath); err != nil {
+	if err := RunMigrations(dbPath); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 

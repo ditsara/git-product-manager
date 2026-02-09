@@ -70,14 +70,7 @@ var initCmd = &cobra.Command{
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")
 
-		// Find migration directory - try both installed and development locations
-		migrationPath := cache.FindMigrationPath()
-		if migrationPath == "" {
-			fmt.Println("Error: could not find migration files")
-			os.Exit(1)
-		}
-
-		if err := cache.RunMigrations(dbPath, migrationPath); err != nil {
+		if err := cache.RunMigrations(dbPath); err != nil {
 			fmt.Printf("Error initializing database: %v\n", err)
 			os.Exit(1)
 		}
