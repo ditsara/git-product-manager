@@ -83,19 +83,59 @@ Blocking 5 tickets (all unresolved)
 
 ## Implementation Approach
 
+### Database Schema Enhancement
+
+**New Migration Required**: `000004_add_relationships_table`
+
+Add a relationships table to cache for efficient reverse dependency lookups:
+```sql
+CREATE TABLE relationships (
+  from_ticket TEXT NOT NULL,
+  to_ticket TEXT NOT NULL,
+  relationship_type TEXT NOT NULL,  -- 'depends-on', 'blocks', 'related'
+  PRIMARY KEY (from_ticket, to_ticket, relationship_type)
+);
+
+CREATE INDEX idx_from ON relationships(from_ticket);
+CREATE INDEX idx_to ON relationships(to_ticket);
+CREATE INDEX idx_type ON relationships(relationship_type);
+```
+
+**Rationale**: Enables efficient "what depends on me" queries without scanning all tickets.
+
+### Cache Sync Enhancement
+
+Update `internal/cache/sync.go` to populate relationships table:
+1. Clear relationships table before sync
+2. For each ticket, read DependsOn/Blocks/Related arrays
+3. Insert rows: `(ticket_id, dependency_id, 'depends-on')` for each dependency
+
 ### Query Logic
 
 **For global view (no ID):**
-1. Read all tickets from cache
-2. Filter tickets with non-empty `depends_on` arrays
-3. For each dependency, check if the blocking ticket is in a "completed" state
-4. Show only tickets with at least one unresolved dependency
+```sql
+SELECT DISTINCT t.id, t.title, t.status,
+  GROUP_CONCAT(r.to_ticket || ':' || dep.title || ':' || dep.status) as blockers
+FROM tickets t
+JOIN relationships r ON r.from_ticket = t.id AND r.relationship_type = 'depends-on'
+JOIN tickets dep ON dep.id = r.to_ticket
+GROUP BY t.id
+HAVING COUNT(CASE WHEN dep.status NOT IN (completed_states) THEN 1 END) > 0
+ORDER BY t.updated_at DESC
+```
 
 **For specific ticket view (with ID):**
-1. Read the specified ticket
-2. Show its `depends_on` array (what blocks it)
-3. Query all tickets to find which have this ticket in their `depends_on` array (what it blocks)
-4. Display both directions with status information
+```sql
+-- What this ticket depends on
+SELECT to_ticket, title, status FROM relationships r
+JOIN tickets t ON t.id = r.to_ticket
+WHERE from_ticket = ? AND relationship_type = 'depends-on'
+
+-- What depends on this ticket (reverse lookup)
+SELECT from_ticket, title, status FROM relationships r
+JOIN tickets t ON t.id = r.from_ticket
+WHERE to_ticket = ? AND relationship_type = 'depends-on'
+```
 
 ### Using State Groups
 
@@ -111,20 +151,50 @@ A dependency is "unresolved" if the blocking ticket is NOT in a completed state.
 
 ## Implementation Steps
 
-- [ ] Create `cmd/pm/blocked.go`
+### Database Schema
+- [ ] Create migration `000004_add_relationships_table.up.sql`
+- [ ] Create migration `000004_add_relationships_table.down.sql`
+- [ ] Verify migration auto-embeds in `internal/migrations/embed.go`
+
+### Cache Sync
+- [ ] Update `internal/cache/sync.go` to populate relationships table
+- [ ] Extract relationships from ticket DependsOn/Blocks/Related arrays
+- [ ] Clear and rebuild relationships table on each sync
+- [ ] Test sync with existing tickets containing dependencies
+
+### Command Implementation
+- [ ] Create `cmd/pm/blocked.go` with cobra command structure
 - [ ] Implement global view (no arguments):
-  - [ ] Query all tickets with dependencies
-  - [ ] Filter to show only unresolved blocks
-  - [ ] Format output with ticket ID, title, and blockers
+  - [ ] Query tickets with unresolved dependencies using relationships table
+  - [ ] Filter using workflow.IsCompleted() for state group checking
+  - [ ] Format output with ticket ID, title, status, and blockers
+  - [ ] Add summary statistics (X tickets blocked by Y dependencies)
 - [ ] Implement specific ticket view (with ticket ID):
-  - [ ] Show what this ticket depends on
-  - [ ] Query reverse: what depends on this ticket
-  - [ ] Display summary statistics
+  - [ ] Query what this ticket depends on (forward lookup)
+  - [ ] Query what depends on this ticket (reverse lookup via relationships table)
+  - [ ] Display both directions with status indicators
+  - [ ] Show summary line with counts
 - [ ] Add color coding:
-  - [ ] Red for unresolved dependencies
-  - [ ] Green for completed dependencies
+  - [ ] Green ✓ for completed dependencies
+  - [ ] Red ✗ for unresolved dependencies
+  - [ ] Red "MISSING" for referenced tickets that don't exist
 - [ ] Add shell completion for ticket IDs
-- [ ] Handle edge cases gracefully
+- [ ] Handle all edge cases gracefully
+
+### Integration
+- [ ] Register blocked command in `cmd/pm/main.go`
+- [ ] Ensure lazy migration runs on first use
+- [ ] Test with real GPM tickets (GPM-5, GPM-10, etc.)
+
+### Testing
+- [ ] Unit tests in `cmd/pm/blocked_test.go`
+- [ ] Integration test in `integration_blocked_test.go`:
+  - [ ] Create tickets with dependency chains
+  - [ ] Verify global view shows only unresolved blocks
+  - [ ] Verify specific view shows both directions
+  - [ ] Test with completed dependencies (should be marked resolved)
+  - [ ] Test with missing ticket references
+  - [ ] Test with no blocked tickets (empty result)
 
 ## Examples
 
@@ -190,16 +260,23 @@ Blocking 3 tickets
 
 ## Acceptance Criteria
 
+- [ ] Migration 000004 creates relationships table with proper indexes
+- [ ] Cache sync populates relationships table from ticket arrays
 - [ ] `pm blocked` (no args) lists all tickets with unresolved dependencies
 - [ ] `pm blocked <id>` shows what blocks the ticket and what it blocks
-- [ ] Resolved dependencies are clearly indicated
-- [ ] Output is readable and well-formatted
+- [ ] Resolved dependencies are clearly indicated with green ✓
+- [ ] Unresolved dependencies show with red ✗
+- [ ] Missing ticket references show as "MISSING" in red
+- [ ] Output is readable and well-formatted with proper truncation
 - [ ] Color coding helps distinguish resolved/unresolved
 - [ ] Shell completion works for ticket IDs
-- [ ] All tests pass
+- [ ] All unit tests pass
+- [ ] All integration tests pass
+- [ ] Relationships table enables efficient reverse lookups
 
 ## Dependencies
 
-- Requires GPM-45 (`pm link`) to be implemented first (to create dependency relationships)
-- Uses state_groups from workflow.yaml (already implemented)
-- Uses cache database for efficient queries
+- Requires GPM-45 (`pm link`) to be implemented first (to create dependency relationships) ✅ COMPLETED
+- Uses state_groups from workflow.yaml (already implemented) ✅ AVAILABLE
+- Uses cache database for efficient queries ✅ AVAILABLE
+- Requires new migration (000004) for relationships table
