@@ -68,6 +68,9 @@ Test content
 
 	// Test 3: After sync, should not need sync again
 	t.Run("after_sync", func(t *testing.T) {
+		// Sleep before sync to ensure file mtime is older than sync timestamp
+		time.Sleep(1100 * time.Millisecond)
+		
 		if err := SyncCache(pmPath); err != nil {
 			t.Fatalf("SyncCache() error = %v", err)
 		}

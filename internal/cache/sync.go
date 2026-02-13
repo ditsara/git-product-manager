@@ -66,10 +66,14 @@ func ShouldSync(pmPath string) (bool, error) {
 		// nanosecond precision. Truncating both times to seconds ensures we don't get false
 		// positives from subsecond differences between when we record the sync time and when
 		// the filesystem actually stored the file's mtime.
+		//
+		// We use !Before (>=) instead of After (>) to catch the edge case where a file is
+		// modified in the same second as the sync timestamp. This ensures files changed during
+		// rapid operations (tests, scripts) are properly detected and re-synced.
 		fileTime := info.ModTime().Truncate(time.Second)
 		syncTime := lastSync.Truncate(time.Second)
 
-		if fileTime.After(syncTime) {
+		if !fileTime.Before(syncTime) {
 			return true, nil
 		}
 	}
@@ -108,6 +112,12 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to clear comments table: %w", err)
 	}
 
+	// Clear existing relationships
+	_, err = tx.Exec("DELETE FROM relationships")
+	if err != nil {
+		return fmt.Errorf("failed to clear relationships table: %w", err)
+	}
+
 	// Scan tickets directory
 	ticketsPath := filepath.Join(pmPath, "tickets")
 	files, err := os.ReadDir(ticketsPath)
@@ -137,6 +147,15 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to prepare comment insert statement: %w", err)
 	}
 	defer commentStmt.Close()
+
+	relationshipStmt, err := tx.Prepare(`
+		INSERT INTO relationships (from_ticket, to_ticket, relationship_type)
+		VALUES (?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare relationship insert statement: %w", err)
+	}
+	defer relationshipStmt.Close()
 
 	// Process each ticket file
 	for _, file := range files {
@@ -175,6 +194,22 @@ func SyncCache(pmPath string) error {
 			)
 			if err != nil {
 				return fmt.Errorf("failed to insert ticket %s: %w", t.ID, err)
+			}
+
+			// Insert relationships from depends_on array
+			for _, depID := range t.DependsOn {
+				_, err = relationshipStmt.Exec(t.ID, depID, "depends-on")
+				if err != nil {
+					return fmt.Errorf("failed to insert depends-on relationship for %s -> %s: %w", t.ID, depID, err)
+				}
+			}
+
+			// Insert relationships from blocks array
+			for _, blockedID := range t.Blocks {
+				_, err = relationshipStmt.Exec(t.ID, blockedID, "blocks")
+				if err != nil {
+					return fmt.Errorf("failed to insert blocks relationship for %s -> %s: %w", t.ID, blockedID, err)
+				}
 			}
 		} else if file.IsDir() {
 			// This might be a comment directory - skip it here, we'll handle it below
@@ -235,6 +270,9 @@ func SyncCache(pmPath string) error {
 
 // updateSyncTimestamp updates the last_sync_timestamp in cache_metadata
 func updateSyncTimestamp(tx *sql.Tx) error {
+	// Record current time. Note: We use !Before (>=) comparison in ShouldSync,
+	// which means files with mtime >= sync_time will trigger a sync.
+	// This is intentional to catch files modified in the same second as the sync.
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := tx.Exec(`
 		INSERT OR REPLACE INTO cache_metadata (key, value)
