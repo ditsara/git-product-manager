@@ -122,6 +122,16 @@ LLM: [Updates GPM-12 to focus on Option 1
 
 This project uses GPM to manage its own development (dogfooding). All tickets are in `.pm/tickets/`. Use `pm list` to see current work, `pm show TICKET-ID` to read specifications, and create new tickets for any work you're doing.
 
+### Planning Documentation
+
+When creating implementation plans or evaluations:
+- **For ticket-specific work:** Document planning notes directly in the ticket's markdown file
+  - Add a new section (e.g., `## Implementation Planning`, `## Dev Readiness Evaluation`) after the description
+  - Keep the plan co-located with the specification for future reference
+- **For cross-ticket analysis or project-wide initiatives:** Use session folder plans
+  - Example: Comparing multiple approaches across tickets, architectural decisions affecting multiple areas
+- **Rationale:** Tickets are the single source of truth; planning details belong with the ticket they analyze
+
 ---
 
 ## 2. File Architecture

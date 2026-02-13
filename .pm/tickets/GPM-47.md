@@ -103,26 +103,42 @@ CREATE INDEX idx_type ON relationships(relationship_type);
 
 **Rationale**: Enables efficient "what depends on me" queries without scanning all tickets.
 
+**Scope**: The relationships table stores `depends-on` and `blocks` relationships only. The `related` field remains unidirectional (stored in source ticket only, not indexed). The `parent` field is NOT stored in relationships table as it's already indexed in the tickets table.
+
 ### Cache Sync Enhancement
 
 Update `internal/cache/sync.go` to populate relationships table:
-1. Clear relationships table before sync
-2. For each ticket, read DependsOn/Blocks/Related arrays
-3. Insert rows: `(ticket_id, dependency_id, 'depends-on')` for each dependency
+1. Clear relationships table before sync (at start of SyncCache transaction)
+2. For each ticket, read DependsOn and Blocks arrays from parsed YAML
+3. Insert rows for bidirectional relationships:
+   - For each ID in `depends_on`: Insert `(ticket.ID, dependency_id, 'depends-on')`
+   - For each ID in `blocks`: Insert `(ticket.ID, blocked_id, 'blocks')`
+4. Note: Use relationship type `'depends-on'` (with hyphen) to match GPM-45 link command format
 
 ### Query Logic
 
 **For global view (no ID):**
+
+First, get completed states from workflow config in Go:
+```go
+workflow, _ := config.LoadWorkflow(workflowPath)
+completedStates := workflow.GetCompletedStates() // e.g., ["done", "canceled"]
+```
+
+Then build SQL with dynamic placeholders for completed states:
 ```sql
+-- Example with completed states: "done", "canceled"
 SELECT DISTINCT t.id, t.title, t.status,
   GROUP_CONCAT(r.to_ticket || ':' || dep.title || ':' || dep.status) as blockers
 FROM tickets t
 JOIN relationships r ON r.from_ticket = t.id AND r.relationship_type = 'depends-on'
 JOIN tickets dep ON dep.id = r.to_ticket
 GROUP BY t.id
-HAVING COUNT(CASE WHEN dep.status NOT IN (completed_states) THEN 1 END) > 0
+HAVING COUNT(CASE WHEN dep.status NOT IN ('done', 'canceled') THEN 1 END) > 0
 ORDER BY t.updated_at DESC
 ```
+
+**Implementation Note:** Build the `NOT IN` clause dynamically in Go based on `completedStates` array.
 
 **For specific ticket view (with ID):**
 ```sql
@@ -154,24 +170,29 @@ A dependency is "unresolved" if the blocking ticket is NOT in a completed state.
 ### Database Schema
 - [ ] Create migration `000004_add_relationships_table.up.sql`
 - [ ] Create migration `000004_add_relationships_table.down.sql`
-- [ ] Verify migration auto-embeds in `internal/migrations/embed.go`
+- [ ] Verify migration auto-embeds in `internal/migrations/embed.go` (using go:embed directive)
+- [ ] Confirm relationship_type values use hyphenated format: 'depends-on', 'blocks' (matching pm link)
 
 ### Cache Sync
 - [ ] Update `internal/cache/sync.go` to populate relationships table
-- [ ] Extract relationships from ticket DependsOn/Blocks/Related arrays
-- [ ] Clear and rebuild relationships table on each sync
-- [ ] Test sync with existing tickets containing dependencies
+- [ ] Add DELETE FROM relationships at start of transaction (alongside tickets/comments)
+- [ ] Extract DependsOn and Blocks arrays from parsed ticket YAML
+- [ ] Insert relationships using 'depends-on' and 'blocks' types (hyphenated format)
+- [ ] Do NOT insert 'related' or 'parent' into relationships table (out of scope)
+- [ ] Test sync with existing tickets containing dependencies (use GPM tickets as test data)
 
 ### Command Implementation
 - [ ] Create `cmd/pm/blocked.go` with cobra command structure
 - [ ] Implement global view (no arguments):
+  - [ ] Load workflow config and get completed states using `workflow.GetCompletedStates()`
+  - [ ] Build SQL query dynamically with completed states in NOT IN clause
   - [ ] Query tickets with unresolved dependencies using relationships table
-  - [ ] Filter using workflow.IsCompleted() for state group checking
   - [ ] Format output with ticket ID, title, status, and blockers
   - [ ] Add summary statistics (X tickets blocked by Y dependencies)
 - [ ] Implement specific ticket view (with ticket ID):
-  - [ ] Query what this ticket depends on (forward lookup)
-  - [ ] Query what depends on this ticket (reverse lookup via relationships table)
+  - [ ] Query what this ticket depends on (forward lookup from relationships table)
+  - [ ] Query what depends on this ticket (reverse lookup: where to_ticket = ?)
+  - [ ] Use workflow.IsCompleted() to mark resolved vs unresolved dependencies
   - [ ] Display both directions with status indicators
   - [ ] Show summary line with counts
 - [ ] Add color coding:
@@ -280,3 +301,102 @@ Blocking 3 tickets
 - Uses state_groups from workflow.yaml (already implemented) ✅ AVAILABLE
 - Uses cache database for efficient queries ✅ AVAILABLE
 - Requires new migration (000004) for relationships table
+
+---
+
+## Dev Readiness Evaluation
+
+**Evaluated by:** [Claude Sonnet 4.5]  
+**Date:** 2026-02-13  
+**Verdict:** ✅ **READY FOR IMPLEMENTATION** with minor clarifications below
+
+### Summary
+
+This ticket is well-specified and ready for implementation. All core requirements are clear, examples are comprehensive, and the technical approach is sound. The specification follows GPM best practices with detailed edge cases, acceptance criteria, and implementation steps.
+
+### Strengths
+
+1. **Clear Command Specifications**: Both command variants (with/without ticket ID) are precisely defined with expected output examples
+2. **Complete Database Design**: Migration schema is fully specified with proper indexes
+3. **Excellent Examples**: Multiple realistic examples using actual GPM tickets
+4. **Edge Cases Well-Covered**: Missing tickets, empty results, circular dependencies all addressed
+5. **Dependencies Verified**: GPM-45 is complete (status: done), state_groups infrastructure exists and is functional
+6. **Technical Feasibility Confirmed**: 
+   - Migration numbering is correct (next is 000004)
+   - `workflow.IsCompleted()` method exists and works as specified
+   - Cache sync pattern is established and understood
+7. **Testability**: Acceptance criteria are specific and measurable
+
+### Issues Found
+
+#### Blocker Issues
+**None** - Specification is implementable as-is.
+
+#### Should-Fix Issues
+
+**1. SQL Query Syntax Error**
+- **Location:** Section "Query Logic" → "For global view"
+- **Issue:** The SQL uses pseudo-code `completed_states` variable that doesn't exist in SQL
+- **Current:**
+  ```sql
+  HAVING COUNT(CASE WHEN dep.status NOT IN (completed_states) THEN 1 END) > 0
+  ```
+- **Should be:**
+  ```sql
+  -- In Go code, get completed states from workflow config first:
+  completedStates := workflow.GetCompletedStates() // Returns []string{"done", "canceled"}
+  
+  -- Then build SQL dynamically or use placeholders
+  HAVING COUNT(CASE WHEN dep.status NOT IN ('done', 'canceled') THEN 1 END) > 0
+  ```
+- **Recommendation:** Add a note that the query needs to incorporate `workflow.GetCompletedStates()` results dynamically
+
+**2. Relationship Type Naming Inconsistency**
+- **Location:** Database schema and queries
+- **Issue:** GPM-45 uses `depends-on` (with hyphen), but SQL examples use `depends_on` (underscore)
+- **Impact:** Database will store either `depends-on` or `depends_on` - needs to be consistent
+- **Recommendation:** Verify which format is actually stored by GPM-45 and use that consistently
+- **Note:** Based on YAML field names (`depends_on`), likely stored as `depends-on` in relationships table
+
+**3. Missing Detail: Relationship Table Population**
+- **Location:** Section "Cache Sync Enhancement"
+- **Issue:** Says "Update internal/cache/sync.go" but doesn't specify:
+  - Should `related` field be indexed? (spec says 'depends-on', 'blocks', 'related')
+  - What about `parent` field - should it go in relationships table?
+- **Current behavior:** `pm list --parent GPM-2` already works, suggesting parent might not need relationships table
+- **Recommendation:** Clarify if relationships table is ONLY for depends-on/blocks or also includes related/parent
+
+#### Nice-to-Have Enhancements
+
+**1. Color Indicator Symbols**
+- The spec mentions "Red ✗" and "Green ✓" but doesn't specify terminal color codes
+- **Suggestion:** Reference existing color usage in `pm list` or `pm show` for consistency
+
+**2. Shell Completion Mention**
+- Acceptance criteria mentions "Shell completion works for ticket IDs" but implementation steps don't detail this
+- **Suggestion:** This likely just means using existing `completeTicketIDs` helper (same as other commands)
+
+**3. Truncation Reference**
+- Mentions "Use consistent truncation (40 chars)" but this is implemented inconsistently in the codebase
+- **Suggestion:** If GPM has a standard truncate function now, reference it; otherwise this is fine as a guideline
+
+### Recommendations for Implementation
+
+1. **Before starting:** Verify the relationship_type values stored by GPM-45 (run `pm link` and check the database)
+2. **SQL queries:** Use `workflow.GetCompletedStates()` to dynamically build the completed states list
+3. **Relationship table scope:** Confirm whether to include `parent` and `related` or just `depends-on`/`blocks`
+4. **Follow existing patterns:** The ticket correctly references `pm list` and `pm show` - follow their color/formatting conventions
+
+### Implementation Checklist Status
+
+All checklist items are actionable and clear:
+- ✅ Database migration steps are specific
+- ✅ Cache sync steps reference the right file
+- ✅ Command implementation steps are detailed
+- ✅ Test requirements are comprehensive
+
+### Conclusion
+
+This is one of the most thorough ticket specifications in the GPM project. The three "Should-Fix" issues are clarifications rather than blockers - an experienced developer could reasonably infer the correct behavior. However, making these explicit will prevent implementation drift.
+
+**Recommended Action:** Update the SQL query example and clarify relationship table scope, then proceed with implementation.
