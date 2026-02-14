@@ -1,16 +1,25 @@
 # Git Product Manager (GPM)
 
-A Git-native project management system that stores tickets as structured YAML + Markdown files within your repository, eliminating context-switching between code and project management.
+A Git-native project management system that stores tickets as structured YAML +
+Markdown files within your repository, eliminating context-switching between
+code and project management.
 
 This is experimental; do not use for production.
 
 ## Philosophy
 
-**Single Source of Truth:** Keep tasks and code together in one repository. No context switching between JIRA tabs and your IDE. Everything you need to understand what to build and why lives alongside the code itself.
+**Single Source of Truth:** Keep tasks and code together in one repository. No
+context switching between JIRA tabs and your IDE. Everything you need to
+understand what to build and why lives alongside the code itself.
 
-**LLM-Native Design:** AI code assistants can read tickets directly from your repository—no API keys, no integrations, no external services. Your LLM has full context of requirements, acceptance criteria, and implementation status without leaving your codebase.
+**LLM-Native Design:** AI code assistants can read tickets directly from your
+repository—no API keys, no integrations, no external services. Your LLM has
+full context of requirements, acceptance criteria, and implementation status
+without leaving your codebase.
 
-**Familiar Workflow:** Uses the same concepts developers already know from JIRA—epics, stories, tasks, bugs, status workflows, assignees. The only difference: it's all version-controlled files instead of a web UI.
+**Familiar Workflow:** Uses the same concepts developers already know from
+JIRA—epics, stories, tasks, bugs, status workflows, assignees. The only
+difference: it's all version-controlled files instead of a web UI.
 
 **Additional Benefits:**
 - **GitOps Workflow:** All ticket operations are git commits
@@ -68,7 +77,8 @@ go install github.com/yourusername/git-product-manager/cmd/pm@latest
 
 ## Shell Completion
 
-Enable tab completion for ticket IDs, commands, and flags. The completion system supports:
+Enable tab completion for ticket IDs, commands, and flags. The completion
+system supports:
 - **Ticket IDs**: `pm show GPM-<TAB>` lists all matching tickets (case-insensitive)
 - **Commands**: `pm li<TAB>` completes to `pm list`
 - **Status values**: `pm move GPM-1 <TAB>` shows valid states from workflow.yaml
@@ -106,6 +116,8 @@ pm completion powershell | Out-String | Invoke-Expression
 
 ## Development
 
+### Local Development
+
 ```bash
 # Build
 make build
@@ -119,6 +131,52 @@ make test-local
 # Clean build artifacts
 make clean
 ```
+
+### Development with DevContainer (Isolated Copilot CLI)
+
+This project supports containerized development with GitHub Copilot CLI for
+safe AI assistance. The container provides isolation - Copilot can only access
+your project directory, not your entire system.
+
+#### Setup (one-time)
+
+```bash
+# Build and start the container
+./scripts/dev-start.sh
+
+# Authenticate Copilot (first time only)
+./scripts/dev-shell.sh
+copilot
+# Follow interactive authentication flow...
+exit
+```
+
+#### Workflow
+
+```bash
+# 1. Start container (if not running)
+./scripts/dev-start.sh
+
+# 2. Edit code with your system editor (Neovim, VS Code, etc.)
+nvim cmd/pm/list.go
+
+# 3. Use Copilot from inside container
+./scripts/dev-copilot.sh
+
+# 4. Build and test inside container
+./scripts/dev-shell.sh
+make build
+pm list
+go test ./...
+exit
+
+# 5. Stop container when done (or leave running)
+./scripts/dev-stop.sh
+```
+
+**Architecture:** Your editor runs on the host, the codebase is mounted into
+the container, and Copilot CLI runs inside the container. The `dev-copilot.sh`
+wrapper script bridges commands from host to container.
 
 ## Documentation
 

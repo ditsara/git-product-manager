@@ -1,0 +1,11 @@
+{
+  "name": "GPM Dev Container",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": ["golang.go", "GitHub.copilot"]
+    }
+  }
+}

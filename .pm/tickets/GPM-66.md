@@ -1,22 +1,22 @@
 ---
-id: GPM-66
-title: "Setup DevContainer for isolated Copilot CLI"
-type: task
-status: backlog
-priority: high
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: []
-related: []
-
-labels: [infrastructure, devops]
 assignee: ""
+blocks: []
 created_at: "2026-02-14T08:49:08Z"
-updated_at: "2026-02-14T08:49:08Z"
+depends_on: []
+id: GPM-66
+labels:
+    - infrastructure
+    - devops
+parent: ""
+points: 3
+priority: high
+related: []
+status: done
+title: Setup DevContainer for isolated Copilot CLI
+type: task
+updated_at: "2026-02-14T09:18:42Z"
 ---
+
 
 # Description
 
@@ -46,7 +46,7 @@ We want to use GitHub Copilot CLI with "yolo permissions" (let it run commands, 
 │  ┌──────────────┐                   │                  │
 │  │ Wrapper      │                   │                  │
 │  │ Script       │───────────────────┼─────────────┐    │
-│  │ `gpm-copilot`│   docker exec     │             │    │
+│  │ `dev-copilot`│   docker exec     │             │    │
 │  └──────────────┘                   │             │    │
 │                                      │             │    │
 │        │                             ▼             ▼    │
@@ -77,16 +77,11 @@ We want to use GitHub Copilot CLI with "yolo permissions" (let it run commands, 
 - Add `pm` to $PATH inside container (points to `/workspace/bin/pm`)
 
 **Phase 2: Copilot CLI Inside Container**
-- Install GitHub CLI and Copilot extension in container
+- Install GitHub Copilot CLI via npm (`@github/copilot`) in container
 - Authenticate once (persists in container volume)
 - All Copilot commands run inside container context
 
-**Phase 3: Host-to-Container Bridge**
-- Create `scripts/gpm-copilot` wrapper script
-- Wrapper executes `gh copilot` inside running container
-- User invokes from host: `gpm-copilot suggest "how to..."`
-
-**Phase 4: Editor Workflow**
+**Phase 3: Editor Workflow**
 - Edit files with system Neovim (on host)
 - Changes instantly visible in container (volume mount)
 - Run tests/builds inside container
@@ -110,47 +105,9 @@ We want to use GitHub Copilot CLI with "yolo permissions" (let it run commands, 
 
 ### How Do You Use It?
 
-**Option 1: Wrapper Script (Recommended)**
+**Wrapper Scripts (Recommended)**
 
-Create `scripts/gpm-copilot`:
-```bash
-#!/bin/bash
-# Wrapper to run Copilot CLI inside container
-
-docker-compose -f .devcontainer/docker-compose.yml exec \
-    -T dev \
-    gh copilot "$@"
-```
-
-Usage from host:
-```bash
-# Ask Copilot a question
-gpm-copilot suggest "how to implement a SQL query builder"
-
-# Explain code
-gpm-copilot explain "what does this function do"
-
-# Let Copilot run commands (safely in container)
-gpm-copilot --exec
-```
-
-**Option 2: Direct Docker Exec**
-
-```bash
-# Manually exec into container to run Copilot
-docker-compose -f .devcontainer/docker-compose.yml exec dev bash
-
-# Inside container:
-gh copilot suggest "refactor this function"
-```
-
-**Option 3: Neovim Integration (Future)**
-
-Install a Neovim plugin that calls the wrapper script:
-```lua
--- In your Neovim config
-vim.keymap.set('n', '<leader>cs', ':!gpm-copilot suggest <C-r><C-w><CR>')
-```
+Create `scripts/dev-copilot.sh`
 
 ### Authentication Flow
 
@@ -160,37 +117,31 @@ vim.keymap.set('n', '<leader>cs', ':!gpm-copilot suggest <C-r><C-w><CR>')
 # Start container
 docker-compose -f .devcontainer/docker-compose.yml up -d
 
-# Exec into it
-docker-compose -f .devcontainer/docker-compose.yml exec dev bash
-
-# Authenticate (opens browser)
-gh auth login
-# Follow browser flow...
-
-# Verify
-gh copilot --version
+# Exec into it and authenticate
+docker-compose -f .devcontainer/docker-compose.yml exec dev copilot
+# Follow interactive authentication flow...
 
 # Exit container
 exit
 
 # Now you can use the wrapper from host!
-gpm-copilot suggest "..."
+./scripts/dev-copilot.sh
 ```
 
 **Authentication persists because:**
-- Docker Compose uses a named volume for `/home/vscode`
-- GitHub CLI stores auth in `~/.config/gh/`
+- Docker Compose uses a named volume for `/home/vscode/.copilot`
+- GitHub Copilot CLI stores auth in `~/.copilot/`
 - Volume survives `docker-compose down` (but not `docker-compose down -v`)
 
 ## Edge Cases
 
 **What if I want to use Copilot on host too?**
-- Install `gh` and `gh copilot` separately on host
-- Use `gpm-copilot` for container-isolated work
-- Use `gh copilot` for general host work
+- Install `@github/copilot` via npm separately on host
+- Use `./scripts/dev-copilot.sh` for container-isolated work
+- Use `copilot` for general host work
 
 **What if authentication expires?**
-- Just re-run `gh auth login` inside container
+- Just re-run `copilot` inside container to re-authenticate
 - Or delete container volume and start fresh
 
 **What if I'm editing a file and Copilot modifies it?**
@@ -211,7 +162,7 @@ gpm-copilot suggest "..."
 
 ### Step 1: Create DevContainer Files
 
-- [ ] Create `.devcontainer/devcontainer.json`
+- [x] Create `.devcontainer/devcontainer.json`
   ```json
   {
     "name": "GPM Dev Container",
@@ -226,21 +177,23 @@ gpm-copilot suggest "..."
   }
   ```
 
-- [ ] Create `.devcontainer/Dockerfile`
+- [x] Create `.devcontainer/Dockerfile`
   ```dockerfile
   FROM golang:1.24.4-bookworm
 
   # Install dependencies
   RUN apt-get update && apt-get install -y \
       git sqlite3 make curl sudo \
+      ca-certificates gnupg \
       && rm -rf /var/lib/apt/lists/*
 
-  # Install GitHub CLI
-  RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
-      dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
-      echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > \
-      /etc/apt/sources.list.d/github-cli.list && \
-      apt-get update && apt-get install -y gh
+  # Install NodeJS 22.x using the official NodeSource setup
+  RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+      && apt-get install -y nodejs \
+      && rm -rf /var/lib/apt/lists/*
+
+  # Install GitHub Copilot CLI globally
+  RUN npm install -g @github/copilot
 
   # Create non-root user
   ARG USERNAME=vscode
@@ -250,17 +203,18 @@ gpm-copilot suggest "..."
       && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
       && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+  # Pre-create the .copilot directory with correct ownership
+  RUN mkdir -p /home/vscode/.copilot && \
+      chown -R vscode:vscode /home/vscode/.copilot
+
   USER $USERNAME
   WORKDIR /workspace
 
   # Add pm binary to PATH (points to /workspace/bin/pm)
   ENV PATH="/workspace/bin:${PATH}"
-
-  # Install Copilot extension (user-level)
-  RUN gh extension install github/gh-copilot || true
   ```
 
-- [ ] Create `.devcontainer/docker-compose.yml`
+- [x] Create `.devcontainer/docker-compose.yml`
   ```yaml
   version: '3.8'
   
@@ -274,7 +228,7 @@ gpm-copilot suggest "..."
           USER_GID: ${GID:-1000}
       volumes:
         - ..:/workspace:cached
-        - gh-config:/home/vscode/.config/gh
+        - copilot-config:/home/vscode/.copilot
         - go-cache:/home/vscode/go
       working_dir: /workspace
       stdin_open: true
@@ -282,77 +236,58 @@ gpm-copilot suggest "..."
       command: sleep infinity
   
   volumes:
-    gh-config:    # Persists GitHub CLI auth
-    go-cache:     # Persists Go modules cache
+    copilot-config:  # Persists GitHub Copilot CLI auth
+    go-cache:        # Persists Go modules cache
   ```
 
 ### Step 2: Create Wrapper Script
 
-- [ ] Create `scripts/gpm-copilot`
+- [x] Create `scripts/dev-copilot.sh`
   ```bash
   #!/bin/bash
-  # Wrapper to run GitHub Copilot CLI inside dev container
-  
-  set -e
-  
-  COMPOSE_FILE=".devcontainer/docker-compose.yml"
-  
-  # Check if container is running
-  if ! docker-compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-      echo "Error: Dev container is not running"
-      echo "Start it with: docker-compose -f $COMPOSE_FILE up -d"
-      exit 1
-  fi
-  
-  # Pass all arguments to gh copilot inside container
-  docker-compose -f "$COMPOSE_FILE" exec \
-      -T dev \
-      gh copilot "$@"
+  docker-compose -f .devcontainer/docker-compose.yml exec dev copilot
   ```
 
-- [ ] Make executable: `chmod +x scripts/gpm-copilot`
+- [x] Make executable: `chmod +x scripts/dev-copilot.sh`
 
-- [ ] Add to PATH (optional): symlink to `~/bin/` or `/usr/local/bin/`
+- [x] Add to `/workspace/bin` to PATH (optional)
 
 ### Step 3: Initial Setup
 
-- [ ] Build and start container:
+- [x] Build and start container:
   ```bash
   docker-compose -f .devcontainer/docker-compose.yml build
   docker-compose -f .devcontainer/docker-compose.yml up -d
   ```
 
-- [ ] Authenticate Copilot (one-time):
+- [x] Authenticate Copilot (one-time):
   ```bash
-  docker-compose -f .devcontainer/docker-compose.yml exec dev bash
-  # Inside container:
-  gh auth login
-  gh copilot --version
-  exit
+  docker-compose -f .devcontainer/docker-compose.yml exec dev copilot
+  # Follow interactive authentication flow...
   ```
 
-- [ ] Test wrapper:
+- [x] Test wrapper:
   ```bash
-  ./scripts/gpm-copilot suggest "how to test a Go function"
+  ./scripts/dev-copilot.sh
   ```
 
 ### Step 4: Add Convenience Scripts
 
-- [ ] Create `scripts/dev-start.sh`
+- [x] Create `scripts/dev-start.sh`
   ```bash
   #!/bin/bash
   docker-compose -f .devcontainer/docker-compose.yml up -d
-  echo "Dev container started. Use 'gpm-copilot' to interact with Copilot CLI."
+  echo "Dev container started. Use './scripts/dev-copilot.sh' to interact with Copilot CLI."
   ```
 
-- [ ] Create `scripts/dev-stop.sh`
+- [x] Create `scripts/dev-stop.sh`
   ```bash
   #!/bin/bash
   docker-compose -f .devcontainer/docker-compose.yml down
   echo "Dev container stopped. Auth is preserved in volumes."
   ```
 
-- [ ] Create `scripts/dev-shell.sh` (for debugging)
+- [x] Create `scripts/dev-shell.sh` (for debugging)
   ```bash
   #!/bin/bash
   docker-compose -f .devcontainer/docker-compose.yml exec dev bash
@@ -360,12 +295,12 @@ gpm-copilot suggest "..."
 
 ### Step 5: Update Documentation
 
-- [ ] Add to `.gitignore`:
+- [x] Add to `.gitignore`:
   ```
   .devcontainer/.env
   ```
 
-- [ ] Update README.md with:
+- [x] Update README.md with:
   ```markdown
   ## Development with Copilot CLI
   
@@ -377,9 +312,8 @@ gpm-copilot suggest "..."
   docker-compose -f .devcontainer/docker-compose.yml up -d
   
   # Authenticate Copilot
-  docker-compose -f .devcontainer/docker-compose.yml exec dev bash
-  gh auth login
-  exit
+  docker-compose -f .devcontainer/docker-compose.yml exec dev copilot
+  # Follow interactive authentication...
   ```
   
   ### Daily Usage
@@ -391,7 +325,7 @@ gpm-copilot suggest "..."
   nvim cmd/pm/list.go
   
   # Ask Copilot for help
-  ./scripts/gpm-copilot suggest "refactor this query"
+  ./scripts/dev-copilot.sh
   
   # Stop container (optional - can leave running)
   ./scripts/dev-stop.sh
@@ -400,17 +334,17 @@ gpm-copilot suggest "..."
 
 ## Acceptance Criteria
 
-- [ ] DevContainer files created (`.devcontainer/`)
-- [ ] Container builds successfully
-- [ ] Container runs in background (docker-compose)
-- [ ] GitHub Copilot CLI installed in container
-- [ ] `pm` command available in container $PATH (points to `/workspace/bin/pm`)
-- [ ] Authentication persists across container restarts
-- [ ] Wrapper script `gpm-copilot` works from host
-- [ ] Can edit files with system Neovim (changes visible in container)
-- [ ] Copilot can modify files (changes persist to host)
-- [ ] Container cannot access host files outside project directory
-- [ ] Documentation updated
+- [x] DevContainer files created (`.devcontainer/`)
+- [x] Container builds successfully
+- [x] Container runs in background (docker-compose)
+- [x] GitHub Copilot CLI installed in container
+- [x] `pm` command available in container $PATH (points to `/workspace/bin/pm`)
+- [x] Authentication persists across container restarts
+- [x] Wrapper script `dev-copilot.sh` works from host
+- [x] Can edit files with system Neovim (changes visible in container)
+- [x] Copilot can modify files (changes persist to host)
+- [x] Container cannot access host files outside project directory
+- [x] Documentation updated
 
 ## Workflow Summary
 
@@ -418,7 +352,8 @@ gpm-copilot suggest "..."
 # ONE-TIME SETUP
 docker-compose -f .devcontainer/docker-compose.yml build
 docker-compose -f .devcontainer/docker-compose.yml up -d
-docker-compose -f .devcontainer/docker-compose.yml exec dev gh auth login
+docker-compose -f .devcontainer/docker-compose.yml exec dev copilot
+# Follow authentication flow...
 
 # DAILY WORKFLOW
 # 1. Ensure container is running
@@ -427,8 +362,8 @@ docker-compose -f .devcontainer/docker-compose.yml exec dev gh auth login
 # 2. Edit code on host
 nvim cmd/pm/blocked.go
 
-# 3. Use Copilot from host (runs in container)
-./scripts/gpm-copilot suggest "optimize this SQL query"
+# 3. Use Copilot from container
+./scripts/dev-copilot.sh
 
 # 4. Build and run pm inside container
 docker-compose -f .devcontainer/docker-compose.yml exec dev make build

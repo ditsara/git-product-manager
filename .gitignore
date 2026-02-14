@@ -6,6 +6,9 @@
 /sandbox/
 /test-*/
 
+# DevContainer
+.devcontainer/.env
+
 # Go
 *.exe
 *.exe~

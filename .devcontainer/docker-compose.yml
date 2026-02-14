@@ -1,0 +1,18 @@
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    volumes:
+      - ..:/workspace:cached
+      - copilot-config:/home/vscode/.copilot
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: sleep infinity
+
+volumes:
+  copilot-config:    # Persists Copilot CLI auth
