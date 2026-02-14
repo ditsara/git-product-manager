@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,6 +12,8 @@ import (
 	"github.com/ditsara/git-product-manager/internal/config"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
+	"github.com/stephenafamo/bob/dialect/sqlite"
+	"github.com/stephenafamo/bob/dialect/sqlite/sm"
 )
 
 var blockedCmd = &cobra.Command{
@@ -180,9 +183,21 @@ func showGlobalBlockedView(db *sql.DB, completedStates []string) {
 
 // showTicketBlockedView shows dependencies and blockers for a specific ticket
 func showTicketBlockedView(db *sql.DB, ticketID string, workflow *config.Workflow) {
-	// Verify ticket exists
+	// Verify ticket exists using Bob query builder
+	query := sqlite.Select(
+		sm.Columns("title", "status"),
+		sm.From("tickets"),
+		sm.Where(sqlite.Quote("id").EQ(sqlite.Arg(ticketID))),
+	)
+
+	// Build the SQL query
+	querySQL, args, err := query.Build(context.Background())
+	if err != nil {
+		log.Fatalf("Error building query: %v", err)
+	}
+
 	var title, status string
-	err := db.QueryRow("SELECT title, status FROM tickets WHERE id = ?", ticketID).Scan(&title, &status)
+	err = db.QueryRow(querySQL, args...).Scan(&title, &status)
 	if err == sql.ErrNoRows {
 		log.Fatalf("Ticket not found: %s", ticketID)
 	} else if err != nil {

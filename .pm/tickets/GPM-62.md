@@ -1,22 +1,25 @@
 ---
-id: GPM-62
-title: "Initial Bob integration + POC refactor"
-type: task
-status: backlog
-priority: high
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-61"
-depends_on: []
-blocks: [GPM-63, GPM-64, GPM-65]
-related: []
-
-labels: [database, refactoring]
 assignee: ""
+blocks:
+    - GPM-63
+    - GPM-64
+    - GPM-65
 created_at: "2026-02-14T08:35:06Z"
-updated_at: "2026-02-14T08:35:06Z"
+depends_on: []
+id: GPM-62
+labels:
+    - database
+    - refactoring
+parent: GPM-61
+points: 3
+priority: high
+related: []
+status: done
+title: Initial Bob integration + POC refactor
+type: task
+updated_at: "2026-02-14T10:33:35Z"
 ---
+
 
 # Description
 
@@ -58,32 +61,33 @@ This is a perfect POC because:
 
 ## Implementation Steps
 
-- [ ] Add Bob to dependencies
+- [x] Add Bob to dependencies
   ```bash
   go get github.com/stephenafamo/bob
   ```
-- [ ] Import Bob SQLite packages
+- [x] Import Bob SQLite packages
   ```go
   import (
+      "context"
       "github.com/stephenafamo/bob/dialect/sqlite"
       "github.com/stephenafamo/bob/dialect/sqlite/sm"
   )
   ```
-- [ ] Refactor ticket lookup query in `blocked.go` line 185
+- [x] Refactor ticket lookup query in `blocked.go` line 185
   - Replace raw SQL with Bob query builder
   - Keep same error handling logic
   - Maintain same return values
-- [ ] Run `integration_blocked_test.go`
-- [ ] Verify no behavior changes
-- [ ] Document Bob usage pattern for team
+- [x] Run `integration_blocked_test.go`
+- [x] Verify no behavior changes
+- [x] Document Bob usage pattern for team
 
 ## Acceptance Criteria
 
-- [ ] Bob added to `go.mod` and imports successfully
-- [ ] Simple SELECT query refactored to use Bob Layer 1 (query builder)
-- [ ] `integration_blocked_test.go` passes unchanged
-- [ ] Code is cleaner/more readable than raw SQL
-- [ ] Pattern is documented for future refactors
+- [x] Bob added to `go.mod` and imports successfully
+- [x] Simple SELECT query refactored to use Bob Layer 1 (query builder)
+- [x] `integration_blocked_test.go` passes unchanged
+- [x] Code is cleaner/more readable than raw SQL
+- [x] Pattern is documented for future refactors
 
 ## Example (POC Implementation)
 
@@ -120,3 +124,50 @@ if err == sql.ErrNoRows {
 ## Notes
 
 This ticket is the **proof of concept** for the entire migration. If this doesn't work smoothly, we reassess the strategy before proceeding to GPM-63+.
+
+## Implementation Results
+
+**Completed:** 2026-02-14
+
+**Final Implementation:**
+```go
+// Verify ticket exists using Bob query builder
+query := sqlite.Select(
+    sm.Columns("title", "status"),
+    sm.From("tickets"),
+    sm.Where(sqlite.Quote("id").EQ(sqlite.Arg(ticketID))),
+)
+
+// Build the SQL query
+querySQL, args, err := query.Build(context.Background())
+if err != nil {
+    log.Fatalf("Error building query: %v", err)
+}
+
+var title, status string
+err = db.QueryRow(querySQL, args...).Scan(&title, &status)
+if err == sql.ErrNoRows {
+    log.Fatalf("Ticket not found: %s", ticketID)
+} else if err != nil {
+    log.Fatalf("Error querying ticket: %v", err)
+}
+```
+
+**Key Learnings:**
+1. ✅ **Bob API:** Use `query.Build(ctx)` to generate SQL, then execute with `db.QueryRow()`
+2. ✅ **Context required:** Bob requires `context.Context` for all query building
+3. ✅ **Mixed usage works:** Bob and raw SQL can coexist during incremental migration
+4. ✅ **Error handling unchanged:** `sql.ErrNoRows` works identically
+5. ✅ **Zero test changes:** Integration test passed without modification
+
+**Pattern for Future Refactors:**
+1. Build query using Bob dialect (e.g., `sqlite.Select()`)
+2. Apply mods (columns, from, where, etc.) using `sm.*` functions
+3. Call `query.Build(context.Background())` to get SQL + args
+4. Execute with standard `database/sql` methods (`QueryRow`, `Query`, `Exec`)
+5. Error handling remains identical to raw SQL
+
+**Dependencies Added:**
+- `github.com/stephenafamo/bob v0.42.0`
+- `github.com/stephenafamo/bob/orm v0.42.0` (transitive, required for build)
+- `github.com/aarondl/opt v0.0.0-20250607033636-982744e1bd65` (transitive)
