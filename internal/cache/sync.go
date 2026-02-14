@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/ditsara/git-product-manager/internal/ticket"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stephenafamo/bob/dialect/sqlite"
+	"github.com/stephenafamo/bob/dialect/sqlite/dm"
+	"github.com/stephenafamo/bob/dialect/sqlite/im"
 )
 
 // ShouldSync checks if the cache needs to be synchronized with the filesystem
@@ -100,20 +104,37 @@ func SyncCache(pmPath string) error {
 	}
 	defer tx.Rollback()
 
-	// Clear existing tickets
-	_, err = tx.Exec("DELETE FROM tickets")
+	ctx := context.Background()
+
+	// Clear existing tickets using Bob
+	deleteTickets := sqlite.Delete(dm.From("tickets"))
+	deleteTicketsSQL, deleteTicketsArgs, err := deleteTickets.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build DELETE tickets query: %w", err)
+	}
+	_, err = tx.Exec(deleteTicketsSQL, deleteTicketsArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to clear tickets table: %w", err)
 	}
 
-	// Also clear existing comments
-	_, err = tx.Exec("DELETE FROM comments")
+	// Clear existing comments using Bob
+	deleteComments := sqlite.Delete(dm.From("comments"))
+	deleteCommentsSQL, deleteCommentsArgs, err := deleteComments.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build DELETE comments query: %w", err)
+	}
+	_, err = tx.Exec(deleteCommentsSQL, deleteCommentsArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to clear comments table: %w", err)
 	}
 
-	// Clear existing relationships
-	_, err = tx.Exec("DELETE FROM relationships")
+	// Clear existing relationships using Bob
+	deleteRelationships := sqlite.Delete(dm.From("relationships"))
+	deleteRelationshipsSQL, deleteRelationshipsArgs, err := deleteRelationships.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build DELETE relationships query: %w", err)
+	}
+	_, err = tx.Exec(deleteRelationshipsSQL, deleteRelationshipsArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to clear relationships table: %w", err)
 	}
@@ -129,33 +150,34 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to read tickets directory: %w", err)
 	}
 
-	// Prepare insert statements
-	ticketStmt, err := tx.Prepare(`
-		INSERT INTO tickets (id, title, type, status, priority, assignee, parent, created_at, updated_at, body)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to prepare ticket insert statement: %w", err)
+	// Collect all data for bulk inserts
+	type ticketData struct {
+		id        string
+		title     string
+		typ       string
+		status    string
+		priority  string
+		assignee  string
+		parent    string
+		createdAt string
+		updatedAt string
+		body      string
 	}
-	defer ticketStmt.Close()
+	type commentData struct {
+		ticketID  string
+		author    string
+		timestamp string
+		filepath  string
+	}
+	type relationshipData struct {
+		fromTicket string
+		toTicket   string
+		relType    string
+	}
 
-	commentStmt, err := tx.Prepare(`
-		INSERT INTO comments (ticket_id, author, timestamp, filepath)
-		VALUES (?, ?, ?, ?)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to prepare comment insert statement: %w", err)
-	}
-	defer commentStmt.Close()
-
-	relationshipStmt, err := tx.Prepare(`
-		INSERT INTO relationships (from_ticket, to_ticket, relationship_type)
-		VALUES (?, ?, ?)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to prepare relationship insert statement: %w", err)
-	}
-	defer relationshipStmt.Close()
+	var tickets []ticketData
+	var comments []commentData
+	var relationships []relationshipData
 
 	// Process each ticket file
 	for _, file := range files {
@@ -180,43 +202,40 @@ func SyncCache(pmPath string) error {
 				body = strings.TrimSpace(parts[2])
 			}
 
-			_, err = ticketStmt.Exec(
-				t.ID,
-				t.Title,
-				t.Type,
-				t.Status,
-				t.Priority,
-				t.Assignee,
-				t.Parent,
-				t.CreatedAt,
-				t.UpdatedAt,
-				body,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to insert ticket %s: %w", t.ID, err)
-			}
+			tickets = append(tickets, ticketData{
+				id:        t.ID,
+				title:     t.Title,
+				typ:       t.Type,
+				status:    t.Status,
+				priority:  t.Priority,
+				assignee:  t.Assignee,
+				parent:    t.Parent,
+				createdAt: t.CreatedAt,
+				updatedAt: t.UpdatedAt,
+				body:      body,
+			})
 
-			// Insert relationships from depends_on array
+			// Collect relationships from depends_on array
 			for _, depID := range t.DependsOn {
-				_, err = relationshipStmt.Exec(t.ID, depID, "depends-on")
-				if err != nil {
-					return fmt.Errorf("failed to insert depends-on relationship for %s -> %s: %w", t.ID, depID, err)
-				}
+				relationships = append(relationships, relationshipData{
+					fromTicket: t.ID,
+					toTicket:   depID,
+					relType:    "depends-on",
+				})
 			}
 
-			// Insert relationships from blocks array
+			// Collect relationships from blocks array
 			for _, blockedID := range t.Blocks {
-				_, err = relationshipStmt.Exec(t.ID, blockedID, "blocks")
-				if err != nil {
-					return fmt.Errorf("failed to insert blocks relationship for %s -> %s: %w", t.ID, blockedID, err)
-				}
+				relationships = append(relationships, relationshipData{
+					fromTicket: t.ID,
+					toTicket:   blockedID,
+					relType:    "blocks",
+				})
 			}
-		} else if file.IsDir() {
-			// This might be a comment directory - skip it here, we'll handle it below
 		}
 	}
 
-	// Now process comments in ticket comment directories
+	// Collect comments from comment directories
 	for _, file := range files {
 		if !file.IsDir() {
 			continue
@@ -243,15 +262,83 @@ func SyncCache(pmPath string) error {
 				continue // Skip invalid comment files
 			}
 
-			_, err = commentStmt.Exec(
-				ticketID,
-				comment.Author,
-				comment.CreatedAt.Format(time.RFC3339),
-				relPath,
+			comments = append(comments, commentData{
+				ticketID:  ticketID,
+				author:    comment.Author,
+				timestamp: comment.CreatedAt.Format(time.RFC3339),
+				filepath:  relPath,
+			})
+		}
+	}
+
+	// Bulk insert tickets using Bob
+	if len(tickets) > 0 {
+		insertTickets := sqlite.Insert(
+			im.Into("tickets",
+				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body",
+			),
+		)
+		
+		for _, t := range tickets {
+			insertTickets.Apply(
+				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body)),
 			)
-			if err != nil {
-				return fmt.Errorf("failed to insert comment for %s: %w", ticketID, err)
-			}
+		}
+
+		insertTicketsSQL, insertTicketsArgs, err := insertTickets.Build(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to build INSERT tickets query: %w", err)
+		}
+
+		_, err = tx.Exec(insertTicketsSQL, insertTicketsArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to insert tickets: %w", err)
+		}
+	}
+
+	// Bulk insert comments using Bob
+	if len(comments) > 0 {
+		insertComments := sqlite.Insert(
+			im.Into("comments", "ticket_id", "author", "timestamp", "filepath"),
+		)
+
+		for _, c := range comments {
+			insertComments.Apply(
+				im.Values(sqlite.Arg(c.ticketID, c.author, c.timestamp, c.filepath)),
+			)
+		}
+
+		insertCommentsSQL, insertCommentsArgs, err := insertComments.Build(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to build INSERT comments query: %w", err)
+		}
+
+		_, err = tx.Exec(insertCommentsSQL, insertCommentsArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to insert comments: %w", err)
+		}
+	}
+
+	// Bulk insert relationships using Bob
+	if len(relationships) > 0 {
+		insertRelationships := sqlite.Insert(
+			im.Into("relationships", "from_ticket", "to_ticket", "relationship_type"),
+		)
+
+		for _, r := range relationships {
+			insertRelationships.Apply(
+				im.Values(sqlite.Arg(r.fromTicket, r.toTicket, r.relType)),
+			)
+		}
+
+		insertRelationshipsSQL, insertRelationshipsArgs, err := insertRelationships.Build(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to build INSERT relationships query: %w", err)
+		}
+
+		_, err = tx.Exec(insertRelationshipsSQL, insertRelationshipsArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to insert relationships: %w", err)
 		}
 	}
 
@@ -274,10 +361,22 @@ func updateSyncTimestamp(tx *sql.Tx) error {
 	// which means files with mtime >= sync_time will trigger a sync.
 	// This is intentional to catch files modified in the same second as the sync.
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := tx.Exec(`
-		INSERT OR REPLACE INTO cache_metadata (key, value)
-		VALUES ('last_sync_timestamp', ?)
-	`, now)
+	
+	ctx := context.Background()
+	
+	// Use Bob for INSERT OR REPLACE
+	updateQuery := sqlite.Insert(
+		im.Into("cache_metadata", "key", "value"),
+		im.Values(sqlite.Arg("last_sync_timestamp", now)),
+		im.OrReplace(),
+	)
+	
+	updateSQL, updateArgs, err := updateQuery.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build UPDATE cache_metadata query: %w", err)
+	}
+	
+	_, err = tx.Exec(updateSQL, updateArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to update sync timestamp: %w", err)
 	}
