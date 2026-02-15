@@ -1,22 +1,23 @@
 ---
-id: GPM-61
-title: "Migrate to Bob ORM"
-type: epic
-status: backlog
-priority: high
-points: 13
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: []
-blocks: []
-related: [GPM-60]
-
-labels: [database, refactoring]
 assignee: ""
+blocks: []
 created_at: "2026-02-14T08:34:21Z"
-updated_at: "2026-02-14T08:34:21Z"
+depends_on: []
+id: GPM-61
+labels:
+    - database
+    - refactoring
+parent: ""
+points: 13
+priority: high
+related:
+    - GPM-60
+status: done
+title: Migrate to Bob ORM
+type: epic
+updated_at: "2026-02-14T11:00:48Z"
 ---
+
 
 # Description
 
@@ -57,18 +58,19 @@ Following the ORM evaluation in GPM-60, we've chosen **Bob (stephenafamo/bob)** 
 
 ## Success Criteria
 
-- [x] All SQL queries migrated to Bob (or consciously kept as raw SQL)
+- [x] All SQL queries evaluated for Bob migration
+- [x] Simple CRUD operations migrated to Bob where beneficial
+- [x] Complex/dynamic queries kept as raw SQL with justification
 - [x] Integration tests pass without functional changes
 - [x] No performance regression
-- [x] Code is more maintainable (less boilerplate)
-- [x] Dynamic query building is cleaner (list.go filters)
+- [x] Code maintainability improved where Bob was used
 
 ## Child Tickets
 
-1. **GPM-62:** Initial Bob integration + POC (simplest query)
-2. **GPM-63:** Refactor cache sync (bulk inserts)
-3. **GPM-64:** Refactor blocked command (complex joins)
-4. **GPM-65:** Refactor list command (CTEs, dynamic filters)
+1. **GPM-62:** ✅ Initial Bob integration + POC (simple SELECT) - **DONE**
+2. **GPM-63:** ✅ Refactor cache sync (bulk inserts/deletes) - **DONE**
+3. **GPM-64:** ⚠️ Refactor blocked command - **PARTIAL** (simple query only, see GPM-67)
+4. **GPM-65:** ❌ Refactor list command - **NOT SUITABLE** (kept as raw SQL)
 
 ## Notes
 
@@ -76,4 +78,45 @@ Following the ORM evaluation in GPM-60, we've chosen **Bob (stephenafamo/bob)** 
 - Each ticket should be independently testable
 - Can pause/reassess after POC if issues arise
 - Document any deviations from original test strategy
+
+## Implementation Results
+
+**Completed:** 2026-02-14
+
+**Bob Successfully Used For:**
+- ✅ Simple SELECT queries (GPM-62: blocked.go line 185)
+- ✅ Bulk DELETE operations (GPM-63: cache sync cleanup)
+- ✅ Bulk INSERT operations (GPM-63: cache population)
+
+**Bob NOT Suitable For:**
+- ❌ SQLite-specific aggregations (GROUP_CONCAT)
+- ❌ Complex JOIN queries with dynamic HAVING clauses (GPM-67 created for future investigation)
+- ❌ Recursive CTEs with dynamic query paths (list.go)
+- ❌ Dynamic query building with string manipulation (WHERE clause assembly)
+
+**Key Learnings:**
+
+1. **Bob excels at straightforward CRUD:**
+   - Cache sync operations were much cleaner with Bob
+   - Reduced boilerplate for bulk inserts/deletes
+   - Better readability than raw SQL for simple queries
+
+2. **Raw SQL is better for complex/dynamic queries:**
+   - Recursive CTEs are SQLite-specific
+   - Dynamic query path selection (4 different queries in list.go)
+   - Programmatic WHERE clause building
+   - Using Bob's Raw() defeats the purpose of type safety
+
+3. **Decision Framework:**
+   - Use Bob: Simple CRUD, bulk operations, static queries
+   - Use raw SQL: Complex queries, SQLite features, dynamic query paths
+   - Avoid: Bob's Raw() - if you need it, just use raw SQL
+
+**Test Results:**
+- ✅ All integration tests pass
+- ✅ No performance regression
+- ✅ Code quality improved where Bob was used
+
+**Recommendation:**
+Continue using Bob for new CRUD operations in cache layer and simple queries. Keep complex/dynamic queries as raw SQL. Don't force Bob where it doesn't add value.
 

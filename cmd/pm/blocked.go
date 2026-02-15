@@ -81,6 +81,10 @@ Examples:
 
 // showGlobalBlockedView lists all tickets that have unresolved dependencies
 func showGlobalBlockedView(db *sql.DB, completedStates []string) {
+	// This query uses GROUP_CONCAT and complex HAVING with dynamic NOT IN clause
+	// Bob doesn't have clean support for SQLite's GROUP_CONCAT or dynamic IN clauses in HAVING
+	// Keeping as raw SQL per GPM-64 acceptance criteria: "May need to fallback to raw SQL for parts if Bob can't express it"
+	
 	// Build the NOT IN clause for completed states
 	placeholders := make([]string, len(completedStates))
 	args := make([]interface{}, len(completedStates))
@@ -207,6 +211,7 @@ func showTicketBlockedView(db *sql.DB, ticketID string, workflow *config.Workflo
 	fmt.Printf("%s: %s\n\n", ticketID, truncate(title, 60))
 
 	// Query what this ticket depends on
+	// Note: Keeping as raw SQL - see GPM-67 for Bob migration
 	dependsOnQuery := `
 		SELECT r.to_ticket, t.title, t.status
 		FROM relationships r
@@ -245,6 +250,7 @@ func showTicketBlockedView(db *sql.DB, ticketID string, workflow *config.Workflo
 	fmt.Println()
 
 	// Query what depends on this ticket (reverse lookup)
+	// Note: Keeping as raw SQL - see GPM-67 for Bob migration
 	blocksQuery := `
 		SELECT r.from_ticket, t.title, t.status
 		FROM relationships r
