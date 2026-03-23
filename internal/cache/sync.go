@@ -162,6 +162,7 @@ func SyncCache(pmPath string) error {
 		createdAt string
 		updatedAt string
 		body      string
+		path      string
 	}
 	type commentData struct {
 		ticketID  string
@@ -235,6 +236,42 @@ func SyncCache(pmPath string) error {
 		}
 	}
 
+	// Compute materialized paths for all tickets.
+	// A materialized path encodes the full ancestor chain (e.g., "GPM-1/GPM-2/GPM-3"),
+	// enabling subtree queries via a simple LIKE predicate instead of a recursive CTE.
+	byID := make(map[string]*ticketData, len(tickets))
+	for i := range tickets {
+		byID[tickets[i].id] = &tickets[i]
+	}
+
+	var buildPath func(id string, visited map[string]bool) string
+	buildPath = func(id string, visited map[string]bool) string {
+		t, ok := byID[id]
+		if !ok {
+			return id
+		}
+		if t.path != "" {
+			return t.path // already computed
+		}
+		if visited[id] {
+			t.path = id // cycle detected — fall back to bare ID
+			return t.path
+		}
+		visited[id] = true
+		if t.parent == "" {
+			t.path = id
+		} else {
+			t.path = buildPath(t.parent, visited) + "/" + id
+		}
+		return t.path
+	}
+
+	for i := range tickets {
+		if tickets[i].path == "" {
+			buildPath(tickets[i].id, make(map[string]bool))
+		}
+	}
+
 	// Collect comments from comment directories
 	for _, file := range files {
 		if !file.IsDir() {
@@ -275,13 +312,13 @@ func SyncCache(pmPath string) error {
 	if len(tickets) > 0 {
 		insertTickets := sqlite.Insert(
 			im.Into("tickets",
-				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body",
+				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body", "path",
 			),
 		)
 		
 		for _, t := range tickets {
 			insertTickets.Apply(
-				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body)),
+				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body, t.path)),
 			)
 		}
 

@@ -62,6 +62,7 @@ func TestRunMigrations(t *testing.T) {
 		"created_at": false,
 		"updated_at": false,
 		"body":       false,
+		"path":       false,
 	}
 
 	for rows.Next() {
