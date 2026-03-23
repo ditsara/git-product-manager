@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ditsara/git-product-manager/internal/config"
 	"github.com/ditsara/git-product-manager/internal/milestone"
 	"github.com/ditsara/git-product-manager/internal/ticket"
 	"github.com/spf13/cobra"
@@ -108,9 +109,13 @@ var milestoneListCmd = &cobra.Command{
 Examples:
   pm milestone list
   pm milestone list --state active
-  pm milestone list --state closed`,
+  pm milestone list --state closed
+  pm milestone list --overdue
+  pm milestone list --with-progress`,
 	Run: func(cmd *cobra.Command, args []string) {
 		stateFilter, _ := cmd.Flags().GetString("state")
+		overdueOnly, _ := cmd.Flags().GetBool("overdue")
+		withProgress, _ := cmd.Flags().GetBool("with-progress")
 		pmPath := ".pm"
 		milestonesDir := filepath.Join(pmPath, "milestones")
 
@@ -124,11 +129,36 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Load workflow for done states (used by overdue/progress flags)
+		var doneStates []string
+		if overdueOnly || withProgress {
+			doneStates = loadDoneStates(pmPath)
+		}
+
 		// Filter by state if requested
 		if stateFilter != "" {
 			var filtered []*milestone.Milestone
 			for _, m := range milestones {
 				if m.State == stateFilter {
+					filtered = append(filtered, m)
+				}
+			}
+			milestones = filtered
+		}
+
+		// Filter to overdue active milestones
+		if overdueOnly {
+			today := time.Now().UTC().Truncate(24 * time.Hour)
+			var filtered []*milestone.Milestone
+			for _, m := range milestones {
+				if m.State != "active" || m.DueDate == "" {
+					continue
+				}
+				due, err := time.Parse("2006-01-02", m.DueDate)
+				if err != nil {
+					continue
+				}
+				if due.Before(today) {
 					filtered = append(filtered, m)
 				}
 			}
@@ -154,6 +184,56 @@ Examples:
 			}
 			return di < dj
 		})
+
+		ticketsDir := filepath.Join(pmPath, "tickets")
+
+		if overdueOnly {
+			today := time.Now().UTC().Truncate(24 * time.Hour)
+			fmt.Printf("%-20s %-40s %-13s %-12s\n", "ID", "TITLE", "DUE DATE", "DAYS OVERDUE")
+			fmt.Println(strings.Repeat("-", 85))
+			for _, m := range milestones {
+				dueDateStr := m.DueDate
+				daysOverdue := ""
+				if due, err := time.Parse("2006-01-02", m.DueDate); err == nil {
+					dueDateStr = due.Format("Jan 02, 2006")
+					days := int(today.Sub(due) / (24 * time.Hour))
+					daysOverdue = fmt.Sprintf("%d", days)
+				}
+				fmt.Printf("%-20s %-40s %-13s %-12s\n",
+					truncate(m.ID, 20),
+					truncate(m.Title, 40),
+					dueDateStr,
+					daysOverdue,
+				)
+			}
+			return
+		}
+
+		if withProgress {
+			fmt.Printf("%-20s %-30s %-13s %-10s %-14s\n", "ID", "TITLE", "DUE DATE", "STATE", "PROGRESS")
+			fmt.Println(strings.Repeat("-", 87))
+			for _, m := range milestones {
+				dueDateStr := "-"
+				if m.DueDate != "" {
+					if t, err := time.Parse("2006-01-02", m.DueDate); err == nil {
+						dueDateStr = t.Format("Jan 02, 2006")
+					} else {
+						dueDateStr = m.DueDate
+					}
+				}
+				summaries := collectTicketSummaries(ticketsDir, m.ID)
+				info := milestone.CalculateProgress(summaries, m.DueDate, doneStates)
+				progressStr := fmt.Sprintf("%d%% (%d/%d)", pct(info.DoneTickets, info.TotalTickets), info.DoneTickets, info.TotalTickets)
+				fmt.Printf("%-20s %-30s %-13s %-10s %-14s\n",
+					truncate(m.ID, 20),
+					truncate(m.Title, 30),
+					dueDateStr,
+					m.State,
+					progressStr,
+				)
+			}
+			return
+		}
 
 		fmt.Printf("%-20s %-40s %-13s %-10s\n", "ID", "TITLE", "DUE DATE", "STATE")
 		fmt.Println(strings.Repeat("-", 83))
@@ -227,9 +307,35 @@ var milestoneShowCmd = &cobra.Command{
 			fmt.Printf("%-12s %s\n", "Description:", m.Description)
 		}
 
-		// Count tickets associated with this milestone
-		ticketCount := countTicketsForMilestone(filepath.Join(pmPath, "tickets"), m.ID)
-		fmt.Printf("%-12s %d total\n", "Tickets:", ticketCount)
+		// Progress section
+		ticketsDir := filepath.Join(pmPath, "tickets")
+		doneStates := loadDoneStates(pmPath)
+		summaries := collectTicketSummaries(ticketsDir, m.ID)
+		info := milestone.CalculateProgress(summaries, m.DueDate, doneStates)
+
+		fmt.Println()
+		if info.TotalTickets == 0 {
+			fmt.Printf("%-12s 0 (none assigned)\n", "Tickets:")
+		} else {
+			bar := milestone.ProgressBar(info.DoneTickets, info.TotalTickets, 20)
+			fmt.Printf("%-12s %s tickets\n", "Progress:", bar)
+
+			if info.TotalPoints > 0 {
+				pointsBar := milestone.ProgressBar(info.DonePoints, info.TotalPoints, 20)
+				fmt.Printf("%-12s %s points\n", "By Points:", pointsBar)
+			}
+
+			if info.HasDueDate {
+				if due, err := time.Parse("2006-01-02", m.DueDate); err == nil {
+					if info.IsOverdue {
+						days := -info.DaysRemaining
+						fmt.Printf("%-12s ⚠ OVERDUE: Due %s (%d days ago)\n", "Due:", due.Format("Jan 02, 2006"), days)
+					} else {
+						fmt.Printf("%-12s %s (%d days)\n", "Due:", due.Format("Jan 02, 2006"), info.DaysRemaining)
+					}
+				}
+			}
+		}
 
 		if m.Body != "" {
 			fmt.Println()
@@ -279,14 +385,14 @@ func findMilestone(milestonesDir, id string) (*milestone.Milestone, error) {
 	return milestone.ParseFile(filepath.Join(milestonesDir, matches[0]))
 }
 
-// countTicketsForMilestone counts tickets whose Milestones field contains milestoneID.
-func countTicketsForMilestone(ticketsDir, milestoneID string) int {
+// collectTicketSummaries returns TicketSummary for all tickets assigned to milestoneID.
+func collectTicketSummaries(ticketsDir, milestoneID string) []milestone.TicketSummary {
 	entries, err := os.ReadDir(ticketsDir)
 	if err != nil {
-		return 0
+		return nil
 	}
 
-	count := 0
+	var summaries []milestone.TicketSummary
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
@@ -302,12 +408,146 @@ func countTicketsForMilestone(ticketsDir, milestoneID string) int {
 		}
 		for _, mid := range t.Milestones {
 			if mid == milestoneID {
-				count++
+				summaries = append(summaries, milestone.TicketSummary{
+					Status: t.Status,
+					Points: t.Points,
+				})
 				break
 			}
 		}
 	}
-	return count
+	return summaries
+}
+
+// loadDoneStates loads the "completed" state group from workflow.yaml,
+// falling back to ["done", "canceled"] if the config is missing or malformed.
+func loadDoneStates(pmPath string) []string {
+	workflowPath := filepath.Join(pmPath, "config", "workflow.yaml")
+	wf, err := config.LoadWorkflow(workflowPath)
+	if err != nil {
+		return []string{"done", "canceled"}
+	}
+	completed := wf.GetCompletedStates()
+	if len(completed) == 0 {
+		return []string{"done", "canceled"}
+	}
+	return completed
+}
+
+// pct computes integer percentage (0 if total == 0).
+func pct(done, total int) int {
+	if total == 0 {
+		return 0
+	}
+	return done * 100 / total
+}
+
+// milestoneCloseCmd closes a milestone.
+var milestoneCloseCmd = &cobra.Command{
+	Use:               "close <milestone-id>",
+	Short:             "Close a milestone",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeMilestoneIDs,
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+		pmPath := ".pm"
+		milestonesDir := filepath.Join(pmPath, "milestones")
+
+		m, err := findMilestone(milestonesDir, id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		if m.State != "active" {
+			fmt.Printf("Milestone '%s' is already closed.\n", m.ID)
+			return
+		}
+
+		doneStates := loadDoneStates(pmPath)
+		ticketsDir := filepath.Join(pmPath, "tickets")
+		summaries := collectTicketSummaries(ticketsDir, m.ID)
+		info := milestone.CalculateProgress(summaries, m.DueDate, doneStates)
+
+		incomplete := info.TotalTickets - info.DoneTickets
+		if incomplete > 0 && !force {
+			fmt.Fprintf(os.Stderr, "Error: %d ticket(s) are not done. Use --force to close anyway.\n", incomplete)
+
+			// Collect incomplete ticket info for display
+			type incompleteTicket struct {
+				id    string
+				title string
+			}
+			var incompletes []incompleteTicket
+
+			doneSet := make(map[string]bool, len(doneStates))
+			for _, s := range doneStates {
+				doneSet[s] = true
+			}
+
+			entries, _ := os.ReadDir(ticketsDir)
+			for _, e := range entries {
+				if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+					continue
+				}
+				path := filepath.Join(ticketsDir, e.Name())
+				content, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				t, err := ticket.Parse(content)
+				if err != nil {
+					continue
+				}
+				if doneSet[t.Status] {
+					continue
+				}
+				for _, mid := range t.Milestones {
+					if mid == m.ID {
+						incompletes = append(incompletes, incompleteTicket{id: t.ID, title: t.Title})
+						break
+					}
+				}
+			}
+
+			shown := incompletes
+			extra := 0
+			if len(shown) > 5 {
+				extra = len(shown) - 5
+				shown = shown[:5]
+			}
+			for _, inc := range shown {
+				fmt.Fprintf(os.Stderr, "  - %s: %s\n", inc.id, inc.title)
+			}
+			if extra > 0 {
+				fmt.Fprintf(os.Stderr, "  ... and %d more\n", extra)
+			}
+			os.Exit(1)
+		}
+
+		// Close the milestone
+		m.State = "closed"
+		m.ClosedAt = time.Now().UTC().Format(time.RFC3339)
+
+		destPath := filepath.Join(milestonesDir, m.ID+".md")
+		if err := milestone.Write(m, destPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		commitMsg := fmt.Sprintf("chore(pm): Close milestone %s", m.ID)
+		gitAdd := exec.Command("git", "add", destPath)
+		gitAdd.Dir = "."
+		_ = gitAdd.Run()
+
+		gitCommit := exec.Command("git", "commit", "-m", commitMsg)
+		gitCommit.Dir = "."
+		_ = gitCommit.Run()
+
+		fmt.Printf("✓ Closed milestone: %s\n", m.ID)
+		fmt.Printf("  %d/%d tickets done\n", info.DoneTickets, info.TotalTickets)
+	},
 }
 
 func init() {
@@ -318,12 +558,16 @@ func init() {
 
 	// State filter for list
 	milestoneListCmd.Flags().String("state", "", "Filter by state (active, closed)")
+	milestoneListCmd.Flags().Bool("overdue", false, "Show only overdue active milestones")
+	milestoneListCmd.Flags().Bool("with-progress", false, "Show completion percentage")
 
-	// TODO: pm milestone close is deferred to GPM-56
+	// Flags for close
+	milestoneCloseCmd.Flags().Bool("force", false, "Close even if tickets are not done")
 
 	milestoneCmd.AddCommand(milestoneCreateCmd)
 	milestoneCmd.AddCommand(milestoneListCmd)
 	milestoneCmd.AddCommand(milestoneShowCmd)
+	milestoneCmd.AddCommand(milestoneCloseCmd)
 
 	rootCmd.AddCommand(milestoneCmd)
 }

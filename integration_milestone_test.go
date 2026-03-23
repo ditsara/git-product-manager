@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -207,4 +208,116 @@ func TestListMilestoneFilter(t *testing.T) {
 			t.Errorf("expected 'Warning' in output for nonexistent milestone, got: %s", output)
 		}
 	})
+}
+
+// TestMilestoneProgress tests progress display and close functionality.
+func TestMilestoneProgress(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "TEST")
+
+	// Create milestone "Sprint 1"
+	_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Sprint 1")
+	if err != nil {
+		t.Fatalf("failed to create milestone: %v", err)
+	}
+
+	// Create 3 tickets and assign all to sprint-1
+	for i := 0; i < 3; i++ {
+		_, err = runPM(t, pmBinary, workspace, "new", "Sprint Ticket")
+		if err != nil {
+			t.Fatalf("failed to create ticket %d: %v", i+1, err)
+		}
+	}
+	for i := 1; i <= 3; i++ {
+		id := fmt.Sprintf("TEST-%d", i)
+		_, err = runPM(t, pmBinary, workspace, "edit", id, "--field", "milestones=sprint-1")
+		if err != nil {
+			t.Fatalf("failed to assign milestone to %s: %v", id, err)
+		}
+	}
+
+	// Move 1 ticket to done
+	_, err = runPM(t, pmBinary, workspace, "move", "TEST-1", "done")
+	if err != nil {
+		t.Fatalf("failed to move TEST-1 to done: %v", err)
+	}
+
+	t.Run("show_displays_progress", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "show", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm milestone show sprint-1 failed: %v\nOutput: %s", err, output)
+		}
+		// Should contain progress info: 1/3 tickets
+		if !strings.Contains(output, "1/3") && !strings.Contains(output, "33%") {
+			t.Errorf("expected progress '1/3' or '33%%' in output, got: %s", output)
+		}
+	})
+
+	t.Run("close_fails_with_incomplete", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "close", "sprint-1")
+		if err == nil {
+			t.Fatalf("expected error when closing with incomplete tickets, got success\nOutput: %s", output)
+		}
+		if !strings.Contains(output, "not done") {
+			t.Errorf("expected 'not done' in output, got: %s", output)
+		}
+	})
+
+	t.Run("close_force_succeeds", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "close", "sprint-1", "--force")
+		if err != nil {
+			t.Fatalf("pm milestone close --force failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "Closed") {
+			t.Errorf("expected 'Closed' in output, got: %s", output)
+		}
+	})
+
+	t.Run("show_state_is_closed", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "show", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm milestone show sprint-1 failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "closed") {
+			t.Errorf("expected state 'closed' in output, got: %s", output)
+		}
+	})
+}
+
+// TestMilestoneCloseAllDone tests that close succeeds without --force when all tickets are done.
+func TestMilestoneCloseAllDone(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "TEST")
+
+	_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Done Sprint", "--id", "done-sprint")
+	if err != nil {
+		t.Fatalf("failed to create milestone: %v", err)
+	}
+
+	_, err = runPM(t, pmBinary, workspace, "new", "Only Ticket")
+	if err != nil {
+		t.Fatalf("failed to create ticket: %v", err)
+	}
+
+	_, err = runPM(t, pmBinary, workspace, "edit", "TEST-1", "--field", "milestones=done-sprint")
+	if err != nil {
+		t.Fatalf("failed to assign milestone: %v", err)
+	}
+
+	_, err = runPM(t, pmBinary, workspace, "move", "TEST-1", "done")
+	if err != nil {
+		t.Fatalf("failed to move ticket to done: %v", err)
+	}
+
+	output, err := runPM(t, pmBinary, workspace, "milestone", "close", "done-sprint")
+	if err != nil {
+		t.Fatalf("close should succeed when all tickets done: %v\nOutput: %s", err, output)
+	}
+	if !strings.Contains(output, "Closed") {
+		t.Errorf("expected 'Closed' in output, got: %s", output)
+	}
 }
