@@ -112,6 +112,21 @@ set_related() {
     fi
 }
 
+create_milestone() {
+    local id=$1
+    local title=$2
+    local due=$3
+    local desc=$4
+    ../bin/pm milestone create "$title" --id "$id" --due "$due" --description "$desc" > /dev/null
+    echo "$id"
+}
+
+assign_milestone() {
+    local ticket_id=$1
+    local milestone_id=$2
+    ../bin/pm edit "$ticket_id" --field milestones="$milestone_id" > /dev/null 2>&1
+}
+
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}Creating 16-Ticket Scenario: User Authentication System${NC}"
@@ -204,6 +219,32 @@ set_ticket_fields "$BUG_2" "in-progress" "high" "3" "bug,backend" "bob"
 ../bin/pm comment SANDBOX-7 -m "This is the first comment"
 ../bin/pm comment SANDBOX-7 -m "This is the second comment"
 
+# Phase 9: Create Milestones
+echo ""
+echo -e "${YELLOW}Phase 9: Creating Milestones...${NC}"
+
+# Milestone A: overdue sprint covering the OAuth work (past due date)
+MS_1=$(create_milestone "v0-1-oauth-mvp" "v0.1 OAuth MVP" "2026-01-31" "Minimum viable OAuth2 authentication")
+
+# Assign OAuth tasks + related bug to milestone A (10 pts total, 2 done)
+assign_milestone "$TASK_1" "$MS_1"   # Setup Google Provider     (3 pts, done)
+assign_milestone "$TASK_2" "$MS_1"   # Setup GitHub Provider     (3 pts, in-progress)
+assign_milestone "$TASK_3" "$MS_1"   # Add OAuth Middleware      (2 pts, backlog)
+assign_milestone "$BUG_1"  "$MS_1"   # Login Token Expiration    (2 pts, done)
+
+# Milestone B: future release milestone covering all stories (future due date)
+MS_2=$(create_milestone "v1-0-release" "v1.0 Release" "2026-12-31" "Full authentication system ready for production")
+
+# Assign stories + password task + session bug to milestone B (26 pts total, 1 done)
+assign_milestone "$STORY_1" "$MS_2"  # OAuth2 Integration        (8 pts, in-progress)
+assign_milestone "$STORY_2" "$MS_2"  # Password Authentication   (5 pts, todo)
+assign_milestone "$STORY_3" "$MS_2"  # Session Management        (5 pts, backlog)
+assign_milestone "$STORY_4" "$MS_2"  # Login UI                  (3 pts, backlog)
+assign_milestone "$TASK_4"  "$MS_2"  # Hash Password Impl        (2 pts, done)
+assign_milestone "$BUG_2"   "$MS_2"  # Session Race Condition    (3 pts, in-progress)
+
+echo -e "${GREEN}✓ Milestones created and populated${NC}"
+
 
 echo ""
 echo -e "${GREEN}✓ Sandbox created successfully!${NC}"
@@ -219,6 +260,10 @@ echo "   • 1 Epic ($EPIC_ID)"
 echo "   • 4 Stories ($STORY_1, $STORY_2, $STORY_3, $STORY_4)"
 echo "   • 9 Tasks ($TASK_1-$TASK_9)"
 echo "   • 2 Bugs ($BUG_1, $BUG_2)"
+echo ""
+echo "🗓️  Milestones Created: 2"
+echo "   • $MS_1 — v0.1 OAuth MVP        (due 2026-01-31, overdue, 10 pts)"
+echo "   • $MS_2 — v1.0 Release          (due 2026-12-31, active,  26 pts)"
 echo ""
 echo "🔗 Relationships:"
 echo "   • Parent-child hierarchy (Epic → Stories → Tasks)"
@@ -256,6 +301,24 @@ echo "  ../bin/pm list --status in-progress"
 echo ""
 echo -e "${YELLOW}Filter by assignee:${NC}"
 echo "  ../bin/pm list --assignee alice"
+echo ""
+echo -e "${BLUE}── Milestones ──────────────────────────────────────────────${NC}"
+echo ""
+echo -e "${YELLOW}List all milestones:${NC}"
+echo "  ../bin/pm milestone list"
+echo ""
+echo -e "${YELLOW}Show overdue milestones only:${NC}"
+echo "  ../bin/pm milestone list --overdue"
+echo ""
+echo -e "${YELLOW}Show milestones with progress percentages:${NC}"
+echo "  ../bin/pm milestone list --with-progress"
+echo ""
+echo -e "${YELLOW}Show milestone details with progress bars:${NC}"
+echo "  ../bin/pm milestone show $MS_1"
+echo "  ../bin/pm milestone show $MS_2"
+echo ""
+echo -e "${YELLOW}List tickets belonging to a milestone:${NC}"
+echo "  ../bin/pm list --milestone $MS_2"
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo ""
