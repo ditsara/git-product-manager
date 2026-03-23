@@ -101,21 +101,21 @@ needed.
 
 ## Implementation Steps
 
-- [ ] Create `internal/migrations/000005_add_path_column.up.sql`: `ALTER TABLE
+- [x] Create `internal/migrations/000005_add_path_column.up.sql`: `ALTER TABLE
   tickets ADD COLUMN path TEXT`
-- [ ] Create `internal/migrations/000005_add_path_column.down.sql`: `ALTER
+- [x] Create `internal/migrations/000005_add_path_column.down.sql`: `ALTER
   TABLE tickets DROP COLUMN path`
-- [ ] In `sync.go` `SyncCache`: after collecting all `ticketData` into a slice,
+- [x] In `sync.go` `SyncCache`: after collecting all `ticketData` into a slice,
   build a `map[string]ticketData` by ID
-- [ ] Implement `buildPath(id string, byID map[string]ticketData, visited
+- [x] Implement `buildPath(id string, byID map[string]ticketData, visited
   map[string]bool) string`:
   - If no parent: return `id`
   - If parent not found in map (orphan): return `id` (fallback)
   - If cycle detected (visited): return `id` (safety fallback)
   - Otherwise: return `buildPath(parent, ...) + "/" + id`
-- [ ] Compute path for each ticket and store in `ticketData.path`
-- [ ] Add `path` to the bulk INSERT column list and values in `SyncCache`
-- [ ] Add `path TEXT` field to the local `ticketData` struct in `sync.go`
+- [x] Compute path for each ticket and store in `ticketData.path`
+- [x] Add `path` to the bulk INSERT column list and values in `SyncCache`
+- [x] Add `path TEXT` field to the local `ticketData` struct in `sync.go`
 
 ## Edge Cases
 
@@ -131,11 +131,11 @@ needed.
 
 ## Acceptance Criteria
 
-- [ ] Migration 000005 up/down files exist and apply cleanly
-- [ ] `SyncCache` populates `path` for all tickets
-- [ ] Root tickets have `path = id`
-- [ ] Child tickets have `path = "parent_path/id"`
-- [ ] Orphan tickets (missing parent) fall back to `path = id`
-- [ ] No panic or error on cycles in parent chain
-- [ ] All existing tests pass without modification
+- [x] Migration 000005 up/down files exist and apply cleanly
+- [x] `SyncCache` populates `path` for all tickets
+- [x] Root tickets have `path = id`
+- [x] Child tickets have `path = "parent_path/id"`
+- [x] Orphan tickets (missing parent) fall back to `path = id`
+- [x] No panic or error on cycles in parent chain
+- [x] All existing tests pass without modification
 

@@ -260,6 +260,8 @@ func SyncCache(pmPath string) error {
 		visited[id] = true
 		if t.parent == "" {
 			t.path = id
+		} else if _, parentExists := byID[t.parent]; !parentExists {
+			t.path = id // orphan: parent not in ticket set, fall back to bare ID
 		} else {
 			t.path = buildPath(t.parent, visited) + "/" + id
 		}
