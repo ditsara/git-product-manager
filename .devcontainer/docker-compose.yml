@@ -6,8 +6,9 @@ services:
       args:
         USER_UID: ${UID:-1000}
         USER_GID: ${GID:-1000}
+    userns_mode: keep-id
     volumes:
-      - ..:/workspace:cached
+      - ..:/workspace:cached,z
       - copilot-config:/home/vscode/.copilot
     working_dir: /workspace
     stdin_open: true
