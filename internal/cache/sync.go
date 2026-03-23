@@ -16,6 +16,75 @@ import (
 	"github.com/stephenafamo/bob/dialect/sqlite/im"
 )
 
+// ticketData holds the fields extracted from a ticket file for bulk cache insertion.
+type ticketData struct {
+	id        string
+	title     string
+	typ       string
+	status    string
+	priority  string
+	assignee  string
+	parent    string
+	createdAt string
+	updatedAt string
+	body      string
+	path      string
+}
+
+// commentData holds comment metadata for bulk cache insertion.
+type commentData struct {
+	ticketID  string
+	author    string
+	timestamp string
+	filepath  string
+}
+
+// relationshipData holds a single directed relationship for bulk cache insertion.
+type relationshipData struct {
+	fromTicket string
+	toTicket   string
+	relType    string
+}
+
+// clearTable deletes all rows from the named table within the given transaction.
+func clearTable(ctx context.Context, tx *sql.Tx, table string) error {
+	q := sqlite.Delete(dm.From(table))
+	sql, args, err := q.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build DELETE %s query: %w", table, err)
+	}
+	if _, err = tx.Exec(sql, args...); err != nil {
+		return fmt.Errorf("failed to clear %s table: %w", table, err)
+	}
+	return nil
+}
+
+// buildPath computes the materialized path for a ticket: the full ancestor chain
+// separated by slashes (e.g. "GPM-1/GPM-2/GPM-3"). Orphans and cycle members
+// fall back to the bare ticket ID. Computed paths are memoised in the struct.
+func buildPath(id string, byID map[string]*ticketData, visited map[string]bool) string {
+	t, ok := byID[id]
+	if !ok {
+		return id
+	}
+	if t.path != "" {
+		return t.path // already computed
+	}
+	if visited[id] {
+		t.path = id // cycle detected — fall back to bare ID
+		return t.path
+	}
+	visited[id] = true
+	if t.parent == "" {
+		t.path = id
+	} else if _, parentExists := byID[t.parent]; !parentExists {
+		t.path = id // orphan: parent not in ticket set, fall back to bare ID
+	} else {
+		t.path = buildPath(t.parent, byID, visited) + "/" + id
+	}
+	return t.path
+}
+
 // ShouldSync checks if the cache needs to be synchronized with the filesystem
 // by comparing the last sync timestamp with the modification times of ticket files
 func ShouldSync(pmPath string) (bool, error) {
@@ -106,37 +175,10 @@ func SyncCache(pmPath string) error {
 
 	ctx := context.Background()
 
-	// Clear existing tickets using Bob
-	deleteTickets := sqlite.Delete(dm.From("tickets"))
-	deleteTicketsSQL, deleteTicketsArgs, err := deleteTickets.Build(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to build DELETE tickets query: %w", err)
-	}
-	_, err = tx.Exec(deleteTicketsSQL, deleteTicketsArgs...)
-	if err != nil {
-		return fmt.Errorf("failed to clear tickets table: %w", err)
-	}
-
-	// Clear existing comments using Bob
-	deleteComments := sqlite.Delete(dm.From("comments"))
-	deleteCommentsSQL, deleteCommentsArgs, err := deleteComments.Build(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to build DELETE comments query: %w", err)
-	}
-	_, err = tx.Exec(deleteCommentsSQL, deleteCommentsArgs...)
-	if err != nil {
-		return fmt.Errorf("failed to clear comments table: %w", err)
-	}
-
-	// Clear existing relationships using Bob
-	deleteRelationships := sqlite.Delete(dm.From("relationships"))
-	deleteRelationshipsSQL, deleteRelationshipsArgs, err := deleteRelationships.Build(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to build DELETE relationships query: %w", err)
-	}
-	_, err = tx.Exec(deleteRelationshipsSQL, deleteRelationshipsArgs...)
-	if err != nil {
-		return fmt.Errorf("failed to clear relationships table: %w", err)
+	for _, table := range []string{"tickets", "comments", "relationships"} {
+		if err := clearTable(ctx, tx, table); err != nil {
+			return err
+		}
 	}
 
 	// Scan tickets directory
@@ -151,31 +193,6 @@ func SyncCache(pmPath string) error {
 	}
 
 	// Collect all data for bulk inserts
-	type ticketData struct {
-		id        string
-		title     string
-		typ       string
-		status    string
-		priority  string
-		assignee  string
-		parent    string
-		createdAt string
-		updatedAt string
-		body      string
-		path      string
-	}
-	type commentData struct {
-		ticketID  string
-		author    string
-		timestamp string
-		filepath  string
-	}
-	type relationshipData struct {
-		fromTicket string
-		toTicket   string
-		relType    string
-	}
-
 	var tickets []ticketData
 	var comments []commentData
 	var relationships []relationshipData
@@ -244,33 +261,9 @@ func SyncCache(pmPath string) error {
 		byID[tickets[i].id] = &tickets[i]
 	}
 
-	var buildPath func(id string, visited map[string]bool) string
-	buildPath = func(id string, visited map[string]bool) string {
-		t, ok := byID[id]
-		if !ok {
-			return id
-		}
-		if t.path != "" {
-			return t.path // already computed
-		}
-		if visited[id] {
-			t.path = id // cycle detected — fall back to bare ID
-			return t.path
-		}
-		visited[id] = true
-		if t.parent == "" {
-			t.path = id
-		} else if _, parentExists := byID[t.parent]; !parentExists {
-			t.path = id // orphan: parent not in ticket set, fall back to bare ID
-		} else {
-			t.path = buildPath(t.parent, visited) + "/" + id
-		}
-		return t.path
-	}
-
 	for i := range tickets {
 		if tickets[i].path == "" {
-			buildPath(tickets[i].id, make(map[string]bool))
+			buildPath(tickets[i].id, byID, make(map[string]bool))
 		}
 	}
 
