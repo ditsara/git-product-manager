@@ -211,16 +211,26 @@ func showTicketBlockedView(db *sql.DB, ticketID string, workflow *config.Workflo
 	fmt.Printf("%s: %s\n\n", ticketID, truncate(title, 60))
 
 	// Query what this ticket depends on
-	// Note: Keeping as raw SQL - see GPM-67 for Bob migration
-	dependsOnQuery := `
-		SELECT r.to_ticket, t.title, t.status
-		FROM relationships r
-		JOIN tickets t ON t.id = r.to_ticket
-		WHERE r.from_ticket = ? AND r.relationship_type = 'depends-on'
-		ORDER BY r.to_ticket
-	`
+	dependsOnSQL, dependsOnArgs, err := sqlite.Select(
+		sm.Columns(
+			sqlite.Quote("r", "to_ticket"),
+			sqlite.Quote("t", "title"),
+			sqlite.Quote("t", "status"),
+		),
+		sm.From("relationships AS r"),
+		sm.InnerJoin("tickets AS t").OnEQ(
+			sqlite.Quote("t", "id"),
+			sqlite.Quote("r", "to_ticket"),
+		),
+		sm.Where(sqlite.Quote("r", "from_ticket").EQ(sqlite.Arg(ticketID))),
+		sm.Where(sqlite.Quote("r", "relationship_type").EQ(sqlite.Arg("depends-on"))),
+		sm.OrderBy(sqlite.Quote("r", "to_ticket")),
+	).Build(context.Background())
+	if err != nil {
+		log.Fatalf("Error building dependencies query: %v", err)
+	}
 
-	rows, err := db.Query(dependsOnQuery, ticketID)
+	rows, err := db.Query(dependsOnSQL, dependsOnArgs...)
 	if err != nil {
 		log.Fatalf("Error querying dependencies: %v", err)
 	}
@@ -250,16 +260,26 @@ func showTicketBlockedView(db *sql.DB, ticketID string, workflow *config.Workflo
 	fmt.Println()
 
 	// Query what depends on this ticket (reverse lookup)
-	// Note: Keeping as raw SQL - see GPM-67 for Bob migration
-	blocksQuery := `
-		SELECT r.from_ticket, t.title, t.status
-		FROM relationships r
-		JOIN tickets t ON t.id = r.from_ticket
-		WHERE r.to_ticket = ? AND r.relationship_type = 'depends-on'
-		ORDER BY r.from_ticket
-	`
+	blocksSQL, blocksArgs, err := sqlite.Select(
+		sm.Columns(
+			sqlite.Quote("r", "from_ticket"),
+			sqlite.Quote("t", "title"),
+			sqlite.Quote("t", "status"),
+		),
+		sm.From("relationships AS r"),
+		sm.InnerJoin("tickets AS t").OnEQ(
+			sqlite.Quote("t", "id"),
+			sqlite.Quote("r", "from_ticket"),
+		),
+		sm.Where(sqlite.Quote("r", "to_ticket").EQ(sqlite.Arg(ticketID))),
+		sm.Where(sqlite.Quote("r", "relationship_type").EQ(sqlite.Arg("depends-on"))),
+		sm.OrderBy(sqlite.Quote("r", "from_ticket")),
+	).Build(context.Background())
+	if err != nil {
+		log.Fatalf("Error building blockers query: %v", err)
+	}
 
-	rows, err = db.Query(blocksQuery, ticketID)
+	rows, err = db.Query(blocksSQL, blocksArgs...)
 	if err != nil {
 		log.Fatalf("Error querying blockers: %v", err)
 	}
