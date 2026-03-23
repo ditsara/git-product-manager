@@ -7,7 +7,7 @@ priority: medium
 points: 2
 
 parent: GPM-14
-depends_on: [GPM-54]
+depends_on: [GPM-52, GPM-54]
 blocks: []
 related: []
 
@@ -62,8 +62,16 @@ This task extends the existing `pm list` command with a new `--milestone <id>` f
 
 ## Code Output
 
-- Updated `cmd/pm/list.go`: Add --milestone flag and filtering logic
-- Updated `cmd/pm/completion.go`: Add milestone completion function
-- Unit tests in `cmd/pm/list_test.go` (if exists, or in integration_test.go)
+- Updated `cmd/pm/list.go`: Add `--milestone` flag and filtering logic
+- Updated `internal/cache/query.go`: Add `MilestoneFilter string` field to `ListOptions` struct; filter using `milestones LIKE '%' || ? || '%'` (handles comma-separated storage from GPM-54)
+- Updated `cmd/pm/completion.go`: Add milestone completion function (scan `.pm/milestones/` for IDs)
+- Unit tests in `cmd/pm/list_test.go` (if exists, or in `integration_test.go`)
 - Integration tests in `integration_test.go`
+
+## Dev Readiness Notes
+
+- Added GPM-52 to `depends_on`: the milestones infrastructure (directory, validation, `internal/milestone` package) must exist before this can filter on milestone IDs.
+- The `ListOptions` struct in `internal/cache/query.go` needs a new `MilestoneFilter string` field — this is the key cache-layer change. The LIKE query works with the comma-separated TEXT storage defined in GPM-54.
+- Shell completion for `--milestone` should scan `.pm/milestones/` at completion time (not the cache) for freshness — consistent with how `--parent` completion works for ticket IDs.
+- The `--milestone` warning for non-existent milestones should check the filesystem, not the cache.
 

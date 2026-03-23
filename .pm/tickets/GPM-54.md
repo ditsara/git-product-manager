@@ -31,7 +31,7 @@ This task integrates milestones into the existing ticket system by adding a `mil
 
 - [ ] Add `milestones: []` field to ticket YAML schema (array of milestone IDs)
 - [ ] Update ticket templates (story, task, bug, epic) to include milestones field
-- [ ] Create migration 000005b to alter tickets table:
+- [ ] Create migration 000007 to alter tickets table (000006 is taken by GPM-52's milestones table):
   ```sql
   ALTER TABLE tickets ADD COLUMN milestones TEXT;  -- JSON array as text
   ```
@@ -71,12 +71,21 @@ This task integrates milestones into the existing ticket system by adding a `mil
 
 ## Code Output
 
-- Updated `internal/ticket/ticket.go`: Add milestones field to Ticket struct
-- Updated `internal/ticket/validator.go`: Add milestone validation logic
-- Updated `cmd/pm/edit.go`: Handle --field milestones assignment
-- Updated `.pm/config/templates/*.md`: Add milestones field
-- Updated `internal/cache/sync.go`: Sync milestones data to cache
+- Updated `internal/ticket/ticket.go`: Add `Milestones []string \`yaml:"milestones,omitempty"\`` field to Ticket struct (plural, array; `omitempty` ensures backward compatibility with existing tickets)
+- Updated `internal/ticket/validator.go`: Add milestone reference validation logic
+- Updated `cmd/pm/edit.go`: Handle `--field milestones=` assignment (comma-separated list)
+- Updated `cmd/pm/templates/*.md`: Add `milestones: []` field to story, task, bug, epic templates
+- `internal/migrations/000007_add_milestones_to_tickets.up.sql` and `.down.sql`: `ALTER TABLE tickets ADD COLUMN milestones TEXT`
+- Updated `internal/cache/sync.go`: Sync milestones column to cache
 - Updated `cmd/pm/validate.go`: Check for broken milestone references
 - Unit tests in `internal/ticket/ticket_test.go`
 - Integration tests in `integration_test.go`
+
+## Dev Readiness Notes
+
+- Migration number must be **000007** (not "000005b" — golang-migrate requires sequential integers). GPM-52 uses 000006 for the milestones table.
+- Field name is `milestones` (plural, array) — consistent with GPM-14's design. Tag it `omitempty` so existing tickets without the field parse cleanly.
+- Storing milestones as comma-separated TEXT in SQLite (e.g., `"v1-0-release,sprint-3"`) is acceptable for now; LIKE-based filtering is sufficient until full FTS is needed.
+- The `--field milestones=` assignment replaces the whole array (consistent with how other array fields like `labels` work in `pm edit`).
+- `pm validate` milestone reference check should scan `.pm/milestones/` filesystem, not the cache, to avoid stale-cache false positives.
 

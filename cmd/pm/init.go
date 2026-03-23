@@ -52,6 +52,7 @@ var initCmd = &cobra.Command{
 		dirs := []string{
 			"tickets",
 			"config/templates",
+			"milestones",
 		}
 		for _, dir := range dirs {
 			if err := os.MkdirAll(filepath.Join(pmPath, dir), 0755); err != nil {
@@ -91,7 +92,7 @@ var initCmd = &cobra.Command{
 		fmt.Println("✓ Initialized .pm directory")
 		fmt.Println("✓ Created default workflow with 4 states")
 		fmt.Println("✓ Created default labels")
-		fmt.Println("✓ Created 4 ticket templates")
+		fmt.Println("✓ Created 5 ticket templates")
 		fmt.Printf("✓ Project prefix set to: %s\n", prefix)
 		fmt.Println("\nNext steps:")
 		fmt.Println("  pm new \"Your first ticket\"")
@@ -130,7 +131,7 @@ func createDefaultLabels(pmPath string) {
 }
 
 func createDefaultTemplates(pmPath string) {
-	templateNames := []string{"story.md", "task.md", "bug.md", "epic.md"}
+	templateNames := []string{"story.md", "task.md", "bug.md", "epic.md", "milestone.md"}
 
 	for _, name := range templateNames {
 		// Read template from embedded filesystem

@@ -7,7 +7,7 @@ priority: medium
 points: 5
 
 parent: GPM-14
-depends_on: [GPM-52]
+depends_on: [GPM-52, GPM-54]
 blocks: [GPM-56]
 related: []
 
@@ -29,8 +29,10 @@ This task delivers three essential user-facing commands for milestone management
 
 ## Implementation Steps
 
-- [ ] Implement `pm milestone create "Title" [--due YYYY-MM-DD] [--description TEXT]`
-  - Generate new milestone ID (kebab-case, auto-generated from title slug)
+- [ ] Implement `pm milestone create "Title" [--due YYYY-MM-DD] [--description TEXT] [--id CUSTOM-ID]`
+  - Generate new milestone ID by slugifying title (kebab-case)
+  - If `--id` provided, use that instead (still validated as kebab-case)
+  - If generated ID already exists as `.pm/milestones/{id}.md`, error: `"Milestone ID '{id}' already exists. Use --id to specify a unique ID."`
   - Set state to "active"
   - Set created_at to current UTC timestamp
   - Write `.pm/milestones/{id}.md` with YAML front-matter
@@ -72,11 +74,7 @@ This task delivers three essential user-facing commands for milestone management
   - If no title provided: `pm milestone create` opens $EDITOR with template
   - Template shows example fields: title, description, due_date
   - Parse editor output to extract values
-- [ ] Implement `pm milestone close <milestone-id> [--reason TEXT]`
-  - Update state from "active" to "closed"
-  - Set closed_at to current UTC timestamp
-  - Optional reason added to markdown body
-  - Auto-commit with message: `chore(pm): Close milestone {id}`
+- [ ] Implement `pm milestone close <milestone-id>`: **deferred to GPM-56** — that ticket owns progress tracking and the close workflow
 - [ ] Update SQLite cache:
   - Sync milestones table from filesystem
   - Keep milestones in cache for fast list/show queries
@@ -89,7 +87,7 @@ This task delivers three essential user-facing commands for milestone management
 - [ ] `pm milestone list --state closed` filters to closed milestones only
 - [ ] `pm milestone show v1-0` renders complete milestone details
 - [ ] Overdue milestones display warning indicator
-- [ ] `pm milestone close v1-0` updates state and closed_at
+- [ ] `pm milestone close v1-0` updates state and closed_at (**implemented in GPM-56**)
 - [ ] All commands update SQLite cache
 - [ ] Integration tests for full workflow: create → list → show → close
 
@@ -99,4 +97,11 @@ This task delivers three essential user-facing commands for milestone management
 - `internal/milestone/operations.go`: Core logic for milestone management
 - Unit tests in `internal/milestone/milestone_test.go`
 - Integration tests in `integration_test.go`
+
+## Dev Readiness Notes
+
+- Added GPM-54 to `depends_on`: `pm milestone show` needs to query associated ticket count, which requires the milestones field on tickets (GPM-54) and the `ListOptions.MilestoneFilter` query support (GPM-55).
+- `pm milestone close` was duplicated here and in GPM-56. Removed from this ticket — GPM-56 owns the close command and progress tracking.
+- The `milestone` subcommand should use a Cobra command group. Follow the same pattern as `pm link`/`pm unlink` (separate file, registered in `main.go`).
+- `pm milestone show` ticket count can be approximated at this stage by querying the filesystem directly; cache-based filtering is GPM-55's responsibility.
 

@@ -7,7 +7,7 @@ priority: medium
 points: 5
 
 parent: GPM-14
-depends_on: [GPM-53, GPM-54]
+depends_on: [GPM-52, GPM-53, GPM-54]
 blocks: []
 related: []
 
@@ -87,13 +87,11 @@ This task adds intelligent progress calculation to milestones and implements the
   - Warn if milestone due in < 1 day (critical)
   - Yellow/red color coding in list view
 
-- [ ] Update SQLite cache to include progress metrics:
-  - Add computed columns (or cache as separate calculations):
-    - done_count, total_count
-    - done_points, total_points
-    - days_remaining
-    - is_overdue
-  - Recalculate on each sync (when tickets change)
+- [ ] Progress metrics are **computed at query time** (not stored in the cache) to avoid stale data:
+  - Query tickets for milestone via `ListOptions.MilestoneFilter` (GPM-55)
+  - Count total and done tickets in Go; sum points from Ticket structs
+  - `days_remaining` and `is_overdue` computed from `due_date` at render time
+  - No new migration needed for progress — computed from existing data
 
 - [ ] Test scenarios:
   - Milestone with 0 points: Show progress as "N/A"
@@ -116,9 +114,15 @@ This task adds intelligent progress calculation to milestones and implements the
 
 ## Code Output
 
-- `internal/milestone/progress.go`: Progress calculation logic
-- Updated `cmd/pm/milestone.go`: Enhanced show/list/close commands with progress
-- Updated `internal/cache/sync.go`: Calculate and cache progress metrics
+- `internal/milestone/progress.go`: Progress calculation logic (pure computation, no DB writes)
+- Updated `cmd/pm/milestone.go`: Enhanced show/list/close commands with progress; `pm milestone close` fully implemented here (stub was deferred from GPM-53)
 - Unit tests in `internal/milestone/progress_test.go`
 - Integration tests in `integration_test.go`
+
+## Dev Readiness Notes
+
+- Added GPM-52 to `depends_on`: `internal/milestone/progress.go` imports the Milestone struct from GPM-52.
+- Progress is computed dynamically from live ticket data (no new cache columns). This avoids a migration and stale-cache bugs. If performance becomes a concern, caching can be added as a follow-up.
+- `pm milestone close` is fully owned here. GPM-53 has a placeholder note deferring to this ticket.
+- The `--force` flag for closing with incomplete tickets should print a warning listing the unfinished tickets before closing.
 
