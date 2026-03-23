@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -49,6 +50,7 @@ Examples:
 		showActive, _ := cmd.Flags().GetBool("active")
 		showIncomplete, _ := cmd.Flags().GetBool("incomplete")
 		parentFilter, _ := cmd.Flags().GetString("parent")
+		milestoneFilter, _ := cmd.Flags().GetString("milestone")
 		pmPath := ".pm"
 
 		// Ensure cache database exists and has current schema
@@ -64,6 +66,14 @@ Examples:
 		} else if shouldSync {
 			if err := cache.SyncCache(pmPath); err != nil {
 				log.Fatalf("Error syncing cache: %v", err)
+			}
+		}
+
+		// Validate milestone existence (warn but continue)
+		if milestoneFilter != "" {
+			milestonePath := filepath.Join(pmPath, "milestones", milestoneFilter+".md")
+			if _, err := os.Stat(milestonePath); os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Warning: milestone '%s' not found\n", milestoneFilter)
 			}
 		}
 
@@ -84,8 +94,9 @@ Examples:
 
 		// Determine which states to filter based on flags
 		opts := cache.ListOptions{
-			ParentFilter: parentFilter,
-			Subtree:      showAll,
+			ParentFilter:    parentFilter,
+			Subtree:         showAll || (milestoneFilter != "" && parentFilter == ""),
+			MilestoneFilter: milestoneFilter,
 		}
 
 		if statusFilter != "" {
@@ -132,10 +143,12 @@ func init() {
 	listCmd.Flags().Bool("active", false, "Show only active tickets (todo, in-progress)")
 	listCmd.Flags().Bool("incomplete", false, "Show only incomplete tickets")
 	listCmd.Flags().StringP("parent", "P", "", "Show direct children of specified ticket ID")
+	listCmd.Flags().String("milestone", "", "Filter tickets by milestone ID")
 
 	// Register completion functions for flags
 	listCmd.RegisterFlagCompletionFunc("status", completeStates)
 	listCmd.RegisterFlagCompletionFunc("parent", completeTicketIDs)
+	listCmd.RegisterFlagCompletionFunc("milestone", completeMilestoneIDs)
 
 	rootCmd.AddCommand(listCmd)
 }

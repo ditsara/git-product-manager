@@ -147,3 +147,64 @@ func TestMilestoneShowNotFound(t *testing.T) {
 		t.Errorf("expected 'not found' in error output, got: %s", output)
 	}
 }
+
+// TestListMilestoneFilter verifies --milestone filtering in pm list.
+func TestListMilestoneFilter(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "TEST")
+
+	// Create a milestone
+	_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Sprint 1", "--due", "2026-06-01")
+	if err != nil {
+		t.Fatalf("failed to create milestone: %v", err)
+	}
+
+	// Create two tickets
+	_, err = runPM(t, pmBinary, workspace, "new", "Ticket A")
+	if err != nil {
+		t.Fatalf("failed to create Ticket A: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "new", "Ticket B")
+	if err != nil {
+		t.Fatalf("failed to create Ticket B: %v", err)
+	}
+
+	// Assign first ticket to the milestone
+	_, err = runPM(t, pmBinary, workspace, "edit", "TEST-1", "--field", "milestones=sprint-1")
+	if err != nil {
+		t.Fatalf("failed to assign milestone to TEST-1: %v", err)
+	}
+
+	t.Run("filter_shows_milestoned_ticket", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-1 failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "TEST-1") {
+			t.Errorf("expected output to contain 'TEST-1', got: %s", output)
+		}
+		if strings.Contains(output, "TEST-2") {
+			t.Errorf("expected output NOT to contain 'TEST-2', got: %s", output)
+		}
+	})
+
+	t.Run("combined_with_status_filter", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1", "--status", "done")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-1 --status done failed: %v\nOutput: %s", err, output)
+		}
+		// TEST-1 is not done, so it should not appear
+		if strings.Contains(output, "TEST-1") {
+			t.Errorf("expected output NOT to contain 'TEST-1' (not done), got: %s", output)
+		}
+	})
+
+	t.Run("nonexistent_milestone_warns", func(t *testing.T) {
+		output, _ := runPM(t, pmBinary, workspace, "list", "--milestone", "nonexistent")
+		if !strings.Contains(output, "Warning") {
+			t.Errorf("expected 'Warning' in output for nonexistent milestone, got: %s", output)
+		}
+	})
+}
