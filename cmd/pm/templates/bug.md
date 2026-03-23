@@ -13,6 +13,7 @@ blocks: []  # This blocks these tickets
 related: []  # Related work (duplicates, see-also)
 
 labels: []  # Tags from labels.yaml
+milestones: []  # Milestone IDs this ticket belongs to
 assignee: ""  # GitHub username or email
 created_at: "{{.CreatedAt}}"
 updated_at: "{{.UpdatedAt}}"

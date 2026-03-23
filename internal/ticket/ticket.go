@@ -20,8 +20,9 @@ type Ticket struct {
 	DependsOn []string `yaml:"depends_on,omitempty"`
 	Blocks    []string `yaml:"blocks,omitempty"`
 	Related   []string `yaml:"related,omitempty"`
-	Labels    []string `yaml:"labels,omitempty"`
-	Assignee  string   `yaml:"assignee,omitempty"`
+	Labels     []string `yaml:"labels,omitempty"`
+	Milestones []string `yaml:"milestones,omitempty"`
+	Assignee   string   `yaml:"assignee,omitempty"`
 	CreatedAt string   `yaml:"created_at"`
 	UpdatedAt string   `yaml:"updated_at"`
 	Body      string   `yaml:"-"`
@@ -61,7 +62,8 @@ func (t *Ticket) Normalize() {
 	t.DependsOn = dedup(t.DependsOn)
 	t.Blocks = dedup(t.Blocks)
 	t.Related = dedup(t.Related)
-	t.Labels = dedup(t.Labels)
+	t.Labels      = dedup(t.Labels)
+	t.Milestones  = dedup(t.Milestones)
 }
 
 // dedup removes duplicate strings from a slice while preserving order.

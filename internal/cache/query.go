@@ -32,6 +32,8 @@ type ListOptions struct {
 	IncludeStates []string
 	// ExcludeStates is a blacklist of statuses. Mutually exclusive with IncludeStates.
 	ExcludeStates []string
+	// MilestoneFilter limits results to tickets belonging to this milestone ID.
+	MilestoneFilter string
 }
 
 // hasChildrenSQL is the computed column expression that detects whether a ticket
@@ -89,6 +91,19 @@ func ListTickets(db *sql.DB, opts ListOptions) ([]CachedTicket, error) {
 		mods = append(mods, sm.Where(sqlite.Quote("status").In(stringsToArgs(opts.IncludeStates)...)))
 	} else if len(opts.ExcludeStates) > 0 {
 		mods = append(mods, sm.Where(sqlite.Quote("status").NotIn(stringsToArgs(opts.ExcludeStates)...)))
+	}
+
+	// Milestone filtering — milestones stored as comma-separated string
+	if opts.MilestoneFilter != "" {
+		pattern := opts.MilestoneFilter
+		mods = append(mods, sm.Where(
+			sqlite.Or(
+				sqlite.Quote("milestones").EQ(sqlite.Arg(pattern)),
+				sqlite.Quote("milestones").Like(sqlite.Arg(pattern+",%")),
+				sqlite.Quote("milestones").Like(sqlite.Arg("%,"+pattern)),
+				sqlite.Quote("milestones").Like(sqlite.Arg("%,"+pattern+",%")),
+			),
+		))
 	}
 
 	querySQL, queryArgs, err := sqlite.Select(mods...).Build(ctx)

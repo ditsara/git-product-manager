@@ -18,17 +18,18 @@ import (
 
 // ticketData holds the fields extracted from a ticket file for bulk cache insertion.
 type ticketData struct {
-	id        string
-	title     string
-	typ       string
-	status    string
-	priority  string
-	assignee  string
-	parent    string
-	createdAt string
-	updatedAt string
-	body      string
-	path      string
+	id         string
+	title      string
+	typ        string
+	status     string
+	priority   string
+	assignee   string
+	parent     string
+	createdAt  string
+	updatedAt  string
+	body       string
+	path       string
+	milestones string
 }
 
 // commentData holds comment metadata for bulk cache insertion.
@@ -221,16 +222,17 @@ func SyncCache(pmPath string) error {
 			}
 
 			tickets = append(tickets, ticketData{
-				id:        t.ID,
-				title:     t.Title,
-				typ:       t.Type,
-				status:    t.Status,
-				priority:  t.Priority,
-				assignee:  t.Assignee,
-				parent:    t.Parent,
-				createdAt: t.CreatedAt,
-				updatedAt: t.UpdatedAt,
-				body:      body,
+				id:         t.ID,
+				title:      t.Title,
+				typ:        t.Type,
+				status:     t.Status,
+				priority:   t.Priority,
+				assignee:   t.Assignee,
+				parent:     t.Parent,
+				createdAt:  t.CreatedAt,
+				updatedAt:  t.UpdatedAt,
+				body:       body,
+				milestones: strings.Join(t.Milestones, ","),
 			})
 
 			// Collect relationships from depends_on array
@@ -307,13 +309,13 @@ func SyncCache(pmPath string) error {
 	if len(tickets) > 0 {
 		insertTickets := sqlite.Insert(
 			im.Into("tickets",
-				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body", "path",
+				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body", "path", "milestones",
 			),
 		)
 		
 		for _, t := range tickets {
 			insertTickets.Apply(
-				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body, t.path)),
+				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body, t.path, t.milestones)),
 			)
 		}
 

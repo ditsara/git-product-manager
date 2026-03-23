@@ -25,7 +25,8 @@ type FieldSpec struct {
 // FieldRegistry maps field names to their specifications
 var FieldRegistry = map[string]FieldSpec{
 	// Array fields
-	"labels":     {Type: FieldTypeArray},
+	"labels":      {Type: FieldTypeArray},
+	"milestones":  {Type: FieldTypeArray},
 	"depends_on": {Type: FieldTypeArray},
 	"blocks":     {Type: FieldTypeArray},
 	"related":    {Type: FieldTypeArray},
