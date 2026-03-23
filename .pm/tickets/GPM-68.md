@@ -2,7 +2,7 @@
 id: GPM-68
 title: "Refactor tickets db table using materialized paths"
 type: story
-status: backlog
+status: done
 priority: high
 points: 5
 
@@ -14,7 +14,7 @@ related: []
 labels: [database, refactoring]
 assignee: ""
 created_at: "2026-03-23T14:53:40Z"
-updated_at: "2026-03-23T14:53:40Z"
+updated_at: "2026-03-23T15:05:31Z"
 ---
 
 ## Dev Readiness Evaluation
