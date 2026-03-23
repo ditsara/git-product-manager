@@ -1,21 +1,25 @@
 ---
-id: GPM-54
-title: "Add milestone field to ticket schema"
-type: task
-status: backlog
-priority: medium
-points: 3
-
-parent: GPM-14
-depends_on: [GPM-52]
-blocks: [GPM-55, GPM-56]
-related: []
-
-labels: [milestone, schema]
 assignee: ""
+blocks:
+    - GPM-55
+    - GPM-56
 created_at: "2026-02-08T15:04:51Z"
-updated_at: "2026-02-08T15:04:51Z"
+depends_on:
+    - GPM-52
+id: GPM-54
+labels:
+    - milestone
+    - schema
+parent: GPM-14
+points: 3
+priority: medium
+related: []
+status: done
+title: Add milestone field to ticket schema
+type: task
+updated_at: "2026-03-23T23:47:58Z"
 ---
+
 
 # Description
 

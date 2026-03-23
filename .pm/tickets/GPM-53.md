@@ -1,21 +1,25 @@
 ---
-id: GPM-53
-title: "Implement pm milestone create/list/show commands"
-type: task
-status: backlog
-priority: medium
-points: 5
-
-parent: GPM-14
-depends_on: [GPM-52, GPM-54]
-blocks: [GPM-56]
-related: []
-
-labels: [milestone, cli]
 assignee: ""
+blocks:
+    - GPM-56
 created_at: "2026-02-08T15:04:51Z"
-updated_at: "2026-02-08T15:04:51Z"
+depends_on:
+    - GPM-52
+    - GPM-54
+id: GPM-53
+labels:
+    - milestone
+    - cli
+parent: GPM-14
+points: 5
+priority: medium
+related: []
+status: done
+title: Implement pm milestone create/list/show commands
+type: task
+updated_at: "2026-03-23T23:47:58Z"
 ---
+
 
 # Description
 

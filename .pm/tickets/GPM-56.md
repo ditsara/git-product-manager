@@ -1,21 +1,25 @@
 ---
-id: GPM-56
-title: "Progress tracking and milestone close"
-type: task
-status: backlog
-priority: medium
-points: 5
-
-parent: GPM-14
-depends_on: [GPM-52, GPM-53, GPM-54]
-blocks: []
-related: []
-
-labels: [milestone, progress]
 assignee: ""
+blocks: []
 created_at: "2026-02-08T15:04:53Z"
-updated_at: "2026-02-08T15:04:53Z"
+depends_on:
+    - GPM-52
+    - GPM-53
+    - GPM-54
+id: GPM-56
+labels:
+    - milestone
+    - progress
+parent: GPM-14
+points: 5
+priority: medium
+related: []
+status: done
+title: Progress tracking and milestone close
+type: task
+updated_at: "2026-03-23T23:47:58Z"
 ---
+
 
 # Description
 

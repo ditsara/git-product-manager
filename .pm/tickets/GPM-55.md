@@ -1,21 +1,24 @@
 ---
-id: GPM-55
-title: "Implement pm list --milestone filtering"
-type: task
-status: backlog
-priority: medium
-points: 2
-
-parent: GPM-14
-depends_on: [GPM-52, GPM-54]
-blocks: []
-related: []
-
-labels: [milestone, filtering]
 assignee: ""
+blocks: []
 created_at: "2026-02-08T15:04:52Z"
-updated_at: "2026-02-08T15:04:52Z"
+depends_on:
+    - GPM-52
+    - GPM-54
+id: GPM-55
+labels:
+    - milestone
+    - filtering
+parent: GPM-14
+points: 2
+priority: medium
+related: []
+status: done
+title: Implement pm list --milestone filtering
+type: task
+updated_at: "2026-03-23T23:47:58Z"
 ---
+
 
 # Description
 

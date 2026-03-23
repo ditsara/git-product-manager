@@ -1,21 +1,24 @@
 ---
-id: GPM-52
-title: "Milestone filesystem & schema setup"
-type: task
-status: backlog
-priority: medium
-points: 3
-
-parent: GPM-14
-depends_on: []
-blocks: [GPM-53, GPM-54]
-related: []
-
-labels: [milestone, infrastructure]
 assignee: ""
+blocks:
+    - GPM-53
+    - GPM-54
 created_at: "2026-02-08T15:04:51Z"
-updated_at: "2026-02-08T15:04:51Z"
+depends_on: []
+id: GPM-52
+labels:
+    - milestone
+    - infrastructure
+parent: GPM-14
+points: 3
+priority: medium
+related: []
+status: done
+title: Milestone filesystem & schema setup
+type: task
+updated_at: "2026-03-23T23:47:58Z"
 ---
+
 
 # Description
 
