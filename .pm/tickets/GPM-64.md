@@ -12,11 +12,12 @@ parent: GPM-61
 points: 5
 priority: medium
 related: []
-status: backlog
+status: done
 title: Refactor cmd/pm/blocked.go to use Bob
 type: task
-updated_at: "2026-02-14T10:57:49Z"
+updated_at: "2026-03-23T16:00:05Z"
 ---
+
 
 
 # Description

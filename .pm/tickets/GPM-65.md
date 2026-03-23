@@ -12,10 +12,10 @@ parent: GPM-61
 points: 8
 priority: medium
 related: []
-status: backlog
+status: canceled
 title: Refactor cmd/pm/list.go to use Bob
 type: task
-updated_at: "2026-02-14T11:00:27Z"
+updated_at: "2026-03-23T16:00:05Z"
 ---
 
 
@@ -159,3 +159,9 @@ Bob is not suitable for:
 - GPM-65: ❌ Not suitable (complex dynamic queries)
 
 **Recommendation:** Use Bob for straightforward CRUD, keep raw SQL for complex/dynamic queries.
+
+## Cancellation Note
+
+**Canceled 2026-03-23** — Superseded by GPM-69.
+
+GPM-69 (implemented 2026-03-23) completed the migration of `list.go` to Bob using a different approach than originally planned. The recursive CTE was eliminated entirely by GPM-68's materialized path column, enabling a two-step `path LIKE` subtree query that Bob can express cleanly. All four query paths now use `sqlite/sm` with no raw SQL strings. `TestQueryBuilding` (which tested the old SQL strings) was replaced with `TestListTickets_*` unit tests in `internal/cache/query_test.go`.
