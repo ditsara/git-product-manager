@@ -55,6 +55,27 @@ func completeStates(cmd *cobra.Command, args []string, toComplete string) ([]str
 	return states, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeMilestoneIDs provides completion for milestone IDs
+func completeMilestoneIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	milestonesPath := filepath.Join(".pm", "milestones")
+	files, err := os.ReadDir(milestonesPath)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var ids []string
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+			continue
+		}
+		id := strings.TrimSuffix(file.Name(), ".md")
+		if toComplete == "" || strings.HasPrefix(id, toComplete) {
+			ids = append(ids, id)
+		}
+	}
+	return ids, cobra.ShellCompDirectiveNoFileComp
+}
+
 // completeTicketTypes provides completion for ticket types
 func completeTicketTypes(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	types := []string{"story", "task", "bug", "epic"}

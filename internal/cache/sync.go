@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ditsara/git-product-manager/internal/milestone"
 	"github.com/ditsara/git-product-manager/internal/ticket"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stephenafamo/bob/dialect/sqlite"
@@ -386,6 +387,12 @@ func SyncCache(pmPath string) error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	// Sync milestones independently after the ticket transaction commits
+	if err := SyncMilestones(pmPath); err != nil {
+		// Non-fatal: milestones dir may not exist in older projects
+		_ = err
+	}
+
 	return nil
 }
 
@@ -415,4 +422,50 @@ func updateSyncTimestamp(tx *sql.Tx) error {
 		return fmt.Errorf("failed to update sync timestamp: %w", err)
 	}
 	return nil
+}
+
+// SyncMilestones reads all milestone files from .pm/milestones/ and upserts
+// them into the milestones cache table.
+func SyncMilestones(pmPath string) error {
+	dbPath := filepath.Join(pmPath, ".cache.db")
+
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Clear existing milestones
+	if _, err := tx.Exec("DELETE FROM milestones"); err != nil {
+		return fmt.Errorf("failed to clear milestones table: %w", err)
+	}
+
+	milestonesPath := filepath.Join(pmPath, "milestones")
+	milestones, err := milestone.ListMilestones(milestonesPath)
+	if err != nil {
+		if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file") {
+			// No milestones directory yet — nothing to sync
+			return tx.Commit()
+		}
+		return fmt.Errorf("failed to list milestones: %w", err)
+	}
+
+	for _, m := range milestones {
+		_, err := tx.Exec(
+			`INSERT OR REPLACE INTO milestones (id, title, description, due_date, state, created_at, closed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			m.ID, m.Title, m.Description, m.DueDate, m.State, m.CreatedAt, m.ClosedAt,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert milestone %s: %w", m.ID, err)
+		}
+	}
+
+	return tx.Commit()
 }
