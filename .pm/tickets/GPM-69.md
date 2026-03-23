@@ -98,3 +98,76 @@ Scanning uses `stephenafamo/scan` (already a dependency at v0.7.0) to populate `
 - [ ] `has_children` indicator still shown in output
 - [ ] All existing integration tests pass without modification
 
+## Dev Readiness Evaluation
+
+**Result: ✅ Ready to implement**
+
+### Dependencies
+
+Both packages are in `go.mod` and ready. They are currently marked `// indirect`; using them directly in `cmd/pm/` will promote them to direct — no `go get` needed.
+
+| Package | Version | Status |
+|---------|---------|--------|
+| `github.com/stephenafamo/bob` | v0.42.0 | ✅ available |
+| `github.com/stephenafamo/scan` | v0.7.0 | ✅ available (unused so far) |
+
+### Established Bob `sm` SELECT pattern (blocked.go:191)
+
+```go
+query := sqlite.Select(
+    sm.Columns("title", "status"),
+    sm.From("tickets"),
+    sm.Where(sqlite.Quote("id").EQ(sqlite.Arg(ticketID))),
+)
+querySQL, args, err := query.Build(context.Background())
+var title, status string
+err = db.QueryRow(querySQL, args...).Scan(&title, &status)
+```
+
+`ListTickets` will follow this pattern for building, and use `stephenafamo/scan` for multi-row struct scanning.
+
+### All required Bob expressions are available
+
+| SQL pattern | Bob expression |
+|-------------|---------------|
+| `UPPER(parent) = UPPER(?)` | `sqlite.F("UPPER", sqlite.Quote("parent")).EQ(sqlite.F("UPPER", sqlite.Arg(v)))` |
+| `parent IS NULL OR parent = ''` | `sqlite.Or(sqlite.Quote("parent").IsNull(), sqlite.Quote("parent").EQ(sqlite.Arg("")))` |
+| `path LIKE ?` | `sqlite.Quote("path").Like(sqlite.Arg(v))` |
+| `status IN (?, ...)` | `sqlite.Quote("status").In(sqlite.Arg(s1), sqlite.Arg(s2), ...)` |
+| `status NOT IN (?, ...)` | `sqlite.Quote("status").NotIn(sqlite.Arg(s1), ...)` |
+| `CASE WHEN EXISTS(...) THEN 1 ELSE 0 END` | `sqlite.Case().When(...).Then(sqlite.Literal(1)).Else(sqlite.Literal(0))` |
+| `ORDER BY updated_at DESC` | `sm.OrderBy(sqlite.Quote("updated_at").Desc())` |
+
+### Subtree query: use `path LIKE` — no recursive CTE needed
+
+The subtree query (`--parent X --all`) becomes a two-step operation using the `path` column from GPM-68:
+
+```go
+// Step 1: look up parent's materialized path
+var parentPath string
+db.QueryRow("SELECT path FROM tickets WHERE id = ?", opts.ParentFilter).Scan(&parentPath)
+
+// Step 2: query all descendants
+sm.Where(sqlite.Quote("path").Like(sqlite.Arg(parentPath + "/%")))
+```
+
+This is expressible entirely via Bob `sm` — the recursive CTE is fully eliminated.
+
+### Test impact
+
+**`cmd/pm/list_test.go` — `TestQueryBuilding`** ⚠️ **Needs replacement**
+
+This test duplicates query-building logic inline and asserts on raw SQL strings (`"WITH RECURSIVE subtree"`, `"UPPER(parent) = UPPER(?)"`, etc.). Since those strings will no longer exist, the test must be rewritten. The right approach is to replace it with unit tests of `ListTickets` via an in-memory SQLite DB (same pattern as `internal/cache/sync_test.go`).
+
+The `TestTruncate*` tests in the same file are unaffected — they only test the `truncate()` helper.
+
+**`integration_list_test.go`** ✅ **Completely safe** — all assertions check CLI text output (`strings.Contains(output, "HIER-1")`), not internal code. Behaviour must remain identical; output format must remain identical.
+
+### Files to create/modify
+
+| File | Change |
+|------|--------|
+| `internal/cache/query.go` | **New** — `CachedTicket`, `ListOptions`, `ListTickets()` |
+| `cmd/pm/list.go` | **Modified** — remove raw SQL; call `cache.ListTickets()` |
+| `cmd/pm/list_test.go` | **Modified** — replace `TestQueryBuilding` with `ListTickets` unit tests |
+
