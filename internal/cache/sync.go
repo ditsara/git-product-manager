@@ -331,10 +331,14 @@ func SyncCache(pmPath string) error {
 		}
 	}
 
-	// Bulk insert comments using Bob
+	// Bulk insert comments using Bob.
+	// OR IGNORE handles the edge case where two comments are created in the same
+	// second by the same author on the same ticket (identical PRIMARY KEY). The
+	// files remain on disk as the source of truth; the cache keeps the first one.
 	if len(comments) > 0 {
 		insertComments := sqlite.Insert(
 			im.Into("comments", "ticket_id", "author", "timestamp", "filepath"),
+			im.OrIgnore(),
 		)
 
 		for _, c := range comments {
