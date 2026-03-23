@@ -1,0 +1,147 @@
+package cache
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/stephenafamo/bob"
+	"github.com/stephenafamo/bob/dialect/sqlite"
+	sqldialect "github.com/stephenafamo/bob/dialect/sqlite/dialect"
+	"github.com/stephenafamo/bob/dialect/sqlite/sm"
+)
+
+// CachedTicket is a row from the tickets cache table, used by ListTickets.
+type CachedTicket struct {
+	ID          string
+	Title       string
+	Type        string
+	Status      string
+	HasChildren int
+}
+
+// ListOptions controls filtering in ListTickets.
+type ListOptions struct {
+	// ParentFilter limits results to children of this ticket ID.
+	// Combined with Subtree=true it returns all descendants; otherwise direct children only.
+	ParentFilter string
+	// Subtree, when true with ParentFilter, returns all descendants via materialized-path LIKE.
+	// When true without ParentFilter, all tickets are returned (no parent filter at all).
+	Subtree bool
+	// IncludeStates is a whitelist of statuses. Mutually exclusive with ExcludeStates.
+	IncludeStates []string
+	// ExcludeStates is a blacklist of statuses. Mutually exclusive with IncludeStates.
+	ExcludeStates []string
+}
+
+// hasChildrenSQL is the computed column expression that detects whether a ticket
+// has any direct children. Reused verbatim across all four query paths.
+const hasChildrenSQL = "CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id)) THEN 1 ELSE 0 END AS has_children"
+
+// ListTickets queries the SQLite cache and returns tickets matching opts,
+// ordered by updated_at descending.
+func ListTickets(db *sql.DB, opts ListOptions) ([]CachedTicket, error) {
+	ctx := context.Background()
+
+	mods := []bob.Mod[*sqldialect.SelectQuery]{
+		sm.Columns(
+			sqlite.Quote("id"),
+			sqlite.Quote("title"),
+			sqlite.Quote("type"),
+			sqlite.Quote("status"),
+			sqlite.Raw(hasChildrenSQL),
+		),
+		sm.From("tickets"),
+		sm.OrderBy(sqlite.Quote("updated_at")).Desc(),
+	}
+
+	// Parent/subtree filtering — four cases:
+	//   ParentFilter != "" && Subtree  → all descendants via materialized path LIKE
+	//   ParentFilter != "" && !Subtree → direct children only
+	//   ParentFilter == "" && !Subtree → top-level tickets only (no parent)
+	//   ParentFilter == "" && Subtree  → all tickets (no parent filter)
+	if opts.ParentFilter != "" && opts.Subtree {
+		parentPath, err := lookupPath(ctx, db, opts.ParentFilter)
+		if err != nil {
+			return nil, err
+		}
+		mods = append(mods, sm.Where(sqlite.Quote("path").Like(sqlite.Arg(parentPath+"/%"))))
+	} else if opts.ParentFilter != "" {
+		// Validate parent exists before querying children
+		if _, err := lookupPath(ctx, db, opts.ParentFilter); err != nil {
+			return nil, err
+		}
+		mods = append(mods, sm.Where(
+			sqlite.F("UPPER", sqlite.Quote("parent"))().EQ(sqlite.F("UPPER", sqlite.Arg(opts.ParentFilter))()),
+		))
+	} else if !opts.Subtree {
+		mods = append(mods, sm.Where(
+			sqlite.Or(
+				sqlite.Quote("parent").IsNull(),
+				sqlite.Quote("parent").EQ(sqlite.Arg("")),
+			),
+		))
+	}
+	// else: Subtree=true, ParentFilter="" → return all tickets without a parent filter
+
+	// Status filtering
+	if len(opts.IncludeStates) > 0 {
+		mods = append(mods, sm.Where(sqlite.Quote("status").In(stringsToArgs(opts.IncludeStates)...)))
+	} else if len(opts.ExcludeStates) > 0 {
+		mods = append(mods, sm.Where(sqlite.Quote("status").NotIn(stringsToArgs(opts.ExcludeStates)...)))
+	}
+
+	querySQL, queryArgs, err := sqlite.Select(mods...).Build(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build list query: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, querySQL, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute list query: %w", err)
+	}
+	defer rows.Close()
+
+	var tickets []CachedTicket
+	for rows.Next() {
+		var t CachedTicket
+		if err := rows.Scan(&t.ID, &t.Title, &t.Type, &t.Status, &t.HasChildren); err != nil {
+			return nil, fmt.Errorf("failed to scan ticket row: %w", err)
+		}
+		tickets = append(tickets, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate ticket rows: %w", err)
+	}
+	return tickets, nil
+}
+
+// lookupPath returns the materialized path for the given ticket ID (case-insensitive).
+func lookupPath(ctx context.Context, db *sql.DB, ticketID string) (string, error) {
+	querySQL, queryArgs, err := sqlite.Select(
+		sm.Columns(sqlite.Quote("path")),
+		sm.From("tickets"),
+		sm.Where(sqlite.F("UPPER", sqlite.Quote("id"))().EQ(sqlite.F("UPPER", sqlite.Arg(ticketID))())),
+	).Build(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to build parent path query: %w", err)
+	}
+
+	var path string
+	if err := db.QueryRowContext(ctx, querySQL, queryArgs...).Scan(&path); err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("ticket %q not found", ticketID)
+		}
+		return "", fmt.Errorf("failed to look up path for %q: %w", ticketID, err)
+	}
+	return path, nil
+}
+
+// stringsToArgs converts a string slice into a slice of Bob Arg expressions.
+func stringsToArgs(ss []string) []bob.Expression {
+	exprs := make([]bob.Expression, len(ss))
+	for i, s := range ss {
+		exprs[i] = sqlite.Arg(s)
+	}
+	return exprs
+}

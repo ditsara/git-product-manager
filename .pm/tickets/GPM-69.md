@@ -2,7 +2,7 @@
 id: GPM-69
 title: "remove SQL from list.go using ORM"
 type: story
-status: backlog
+status: done
 priority: high
 points: 5
 
@@ -21,15 +21,21 @@ updated_at: "2026-03-23T14:54:00Z"
 
 **[Claude Sonnet 4.6]**
 
-Remove all raw SQL strings, `strings.Contains` WHERE-detection hacks, and manual `rows.Scan` from `cmd/pm/list.go` by introducing a typed `CachedTicket` model and a `ListTickets(db, opts)` function in the cache layer, using Bob's `sqlite/sm` query builder throughout.
+Remove all raw SQL strings, `strings.Contains` WHERE-detection hacks, and
+manual `rows.Scan` from `cmd/pm/list.go` by introducing a typed `CachedTicket`
+model and a `ListTickets(db, opts)` function in the cache layer, using Bob's
+`sqlite/sm` query builder throughout.
 
-Depends on GPM-68 (materialized path column), which makes the previously-problematic subtree query expressible via Bob.
+Depends on GPM-68 (materialized path column), which makes the
+previously-problematic subtree query expressible via Bob.
 
 ## Current Problems in `list.go`
 
-1. **String concatenation for WHERE clauses** — checks `strings.Contains(query, "WHERE")` then appends `" AND ..."` or `" WHERE ..."` manually
+1. **String concatenation for WHERE clauses** — checks `strings.Contains(query,
+   "WHERE")` then appends `" AND ..."` or `" WHERE ..."` manually
 2. **Four separate raw SQL string variables** for different query paths
-3. **Manual `rows.Scan`** into bare local variables (`var id, title, ticketType, status string; var hasChildren int`)
+3. **Manual `rows.Scan`** into bare local variables (`var id, title,
+   ticketType, status string; var hasChildren int`)
 4. **SQL logic in the command layer** — belongs in `internal/cache/`
 
 ## New Structures (`internal/cache/query.go`)
@@ -64,39 +70,42 @@ All four query paths use Bob `sqlite/sm`; no raw SQL strings:
 | default (top-level) | `parent IS NULL OR parent = ''` |
 | `--all` | *(no WHERE)* |
 
-Status filtering appended dynamically via `sm.Where(sqlite.Quote("status").In(...))` or `.NotIn(...)`.
+Status filtering appended dynamically via
+`sm.Where(sqlite.Quote("status").In(...))` or `.NotIn(...)`.
 
-The `has_children` computed column is expressed as a Bob raw expression constant reused across all paths.
+The `has_children` computed column is expressed as a Bob raw expression
+constant reused across all paths.
 
-Scanning uses `stephenafamo/scan` (already a dependency at v0.7.0) to populate `[]CachedTicket`.
+Scanning uses `stephenafamo/scan` (already a dependency at v0.7.0) to populate
+`[]CachedTicket`.
 
 ## Implementation Steps
 
-- [ ] Create `internal/cache/query.go`
-- [ ] Define `CachedTicket` struct with `db:` tags
-- [ ] Define `ListOptions` struct
-- [ ] Implement `ListTickets(db *sql.DB, opts ListOptions) ([]CachedTicket, error)`:
-  - [ ] Subtree case: query parent's `path`, then `sm.Where(path LIKE ...)`
-  - [ ] Direct children case: `sm.Where(UPPER(parent) = UPPER(?))`
-  - [ ] Top-level case: `sm.Where(parent IS NULL OR parent = '')`
-  - [ ] All case: no WHERE predicate
-  - [ ] Status include/exclude: append `sm.Where` for `IN`/`NOT IN` dynamically
-  - [ ] Use `stephenafamo/scan` to scan rows into `[]CachedTicket`
-- [ ] Update `cmd/pm/list.go`:
-  - [ ] Remove raw SQL variables and `strings.Contains` logic
-  - [ ] Build `cache.ListOptions` from cobra flags
-  - [ ] Call `cache.ListTickets(db, opts)`
-  - [ ] Replace `rows.Next` loop with range over `[]CachedTicket`
+- [x] Create `internal/cache/query.go`
+- [x] Define `CachedTicket` struct with `db:` tags
+- [x] Define `ListOptions` struct
+- [x] Implement `ListTickets(db *sql.DB, opts ListOptions) ([]CachedTicket, error)`:
+  - [x] Subtree case: query parent's `path`, then `sm.Where(path LIKE ...)`
+  - [x] Direct children case: `sm.Where(UPPER(parent) = UPPER(?))`
+  - [x] Top-level case: `sm.Where(parent IS NULL OR parent = '')`
+  - [x] All case: no WHERE predicate
+  - [x] Status include/exclude: append `sm.Where` for `IN`/`NOT IN` dynamically
+  - [x] Manual row scan into `[]CachedTicket` (scan package type conversion not used)
+- [x] Update `cmd/pm/list.go`:
+  - [x] Remove raw SQL variables and `strings.Contains` logic
+  - [x] Build `cache.ListOptions` from cobra flags
+  - [x] Call `cache.ListTickets(db, opts)`
+  - [x] Replace `rows.Next` loop with range over `[]CachedTicket`
 
 ## Acceptance Criteria
 
-- [ ] No raw SQL strings in `list.go`
-- [ ] No `strings.Contains` or manual `AND`/`WHERE` appending in `list.go`
-- [ ] `CachedTicket` and `ListOptions` defined in `internal/cache/query.go`
-- [ ] All four filter modes work correctly (subtree, direct children, top-level, all)
-- [ ] Status flags (`--status`, `--all`, `--completed`, `--active`, `--incomplete`) behave identically
-- [ ] `has_children` indicator still shown in output
-- [ ] All existing integration tests pass without modification
+- [x] No raw SQL strings in `list.go`
+- [x] No `strings.Contains` or manual `AND`/`WHERE` appending in `list.go`
+- [x] `CachedTicket` and `ListOptions` defined in `internal/cache/query.go`
+- [x] All four filter modes work correctly (subtree, direct children, top-level, all)
+- [x] Status flags (`--status`, `--all`, `--completed`, `--active`, `--incomplete`) behave identically
+- [x] `has_children` indicator still shown in output
+- [x] All existing integration tests pass without modification
 
 ## Dev Readiness Evaluation
 
@@ -104,7 +113,9 @@ Scanning uses `stephenafamo/scan` (already a dependency at v0.7.0) to populate `
 
 ### Dependencies
 
-Both packages are in `go.mod` and ready. They are currently marked `// indirect`; using them directly in `cmd/pm/` will promote them to direct — no `go get` needed.
+Both packages are in `go.mod` and ready. They are currently marked `//
+indirect`; using them directly in `cmd/pm/` will promote them to direct — no
+`go get` needed.
 
 | Package | Version | Status |
 |---------|---------|--------|
@@ -157,11 +168,18 @@ This is expressible entirely via Bob `sm` — the recursive CTE is fully elimina
 
 **`cmd/pm/list_test.go` — `TestQueryBuilding`** ⚠️ **Needs replacement**
 
-This test duplicates query-building logic inline and asserts on raw SQL strings (`"WITH RECURSIVE subtree"`, `"UPPER(parent) = UPPER(?)"`, etc.). Since those strings will no longer exist, the test must be rewritten. The right approach is to replace it with unit tests of `ListTickets` via an in-memory SQLite DB (same pattern as `internal/cache/sync_test.go`).
+This test duplicates query-building logic inline and asserts on raw SQL strings
+(`"WITH RECURSIVE subtree"`, `"UPPER(parent) = UPPER(?)"`, etc.). Since those
+strings will no longer exist, the test must be rewritten. The right approach is
+to replace it with unit tests of `ListTickets` via an in-memory SQLite DB (same
+pattern as `internal/cache/sync_test.go`).
 
-The `TestTruncate*` tests in the same file are unaffected — they only test the `truncate()` helper.
+The `TestTruncate*` tests in the same file are unaffected — they only test the
+`truncate()` helper.
 
-**`integration_list_test.go`** ✅ **Completely safe** — all assertions check CLI text output (`strings.Contains(output, "HIER-1")`), not internal code. Behaviour must remain identical; output format must remain identical.
+**`integration_list_test.go`** ✅ **Completely safe** — all assertions check
+CLI text output (`strings.Contains(output, "HIER-1")`), not internal code.
+Behaviour must remain identical; output format must remain identical.
 
 ### Files to create/modify
 

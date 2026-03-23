@@ -83,150 +83,44 @@ Examples:
 		}
 
 		// Determine which states to filter based on flags
-		var includeStates []string
-		var excludeStates []string
+		opts := cache.ListOptions{
+			ParentFilter: parentFilter,
+			Subtree:      showAll,
+		}
 
 		if statusFilter != "" {
-			// Explicit status filter takes precedence
-			includeStates = []string{statusFilter}
+			opts.IncludeStates = []string{statusFilter}
 		} else if showCompleted {
-			// Show only completed states
-			includeStates = workflow.GetCompletedStates()
+			opts.IncludeStates = workflow.GetCompletedStates()
 		} else if showActive {
-			// Show only active states
-			includeStates = workflow.GetStateGroup("active")
+			opts.IncludeStates = workflow.GetStateGroup("active")
 		} else if showIncomplete {
-			// Show only incomplete states
-			includeStates = workflow.GetStateGroup("incomplete")
+			opts.IncludeStates = workflow.GetStateGroup("incomplete")
 		} else if !showAll {
-			// Default: exclude completed states (if defined)
 			if completedStates := workflow.GetCompletedStates(); len(completedStates) > 0 {
-				excludeStates = completedStates
-			}
-		}
-		// If showAll, no filtering on states
-
-		// Validate parent ticket exists if specified
-		var normalizedParent string
-		if parentFilter != "" {
-			foundTicketPath := getTicketPath(parentFilter)
-			// Extract just the ticket ID from the path (strip .pm/tickets/ and .md)
-			normalizedParent = strings.TrimSuffix(filepath.Base(foundTicketPath), ".md")
-		}
-
-		// Build query based on flags
-		var query string
-		var queryArgs []interface{}
-
-		if parentFilter != "" && showAll {
-			// Recursive subtree query
-			query = `
-				WITH RECURSIVE subtree(id) AS (
-					SELECT id FROM tickets WHERE UPPER(parent) = UPPER(?)
-					UNION ALL
-					SELECT t.id FROM tickets t
-					JOIN subtree s ON UPPER(t.parent) = UPPER(s.id)
-				)
-				SELECT id, title, type, status,
-					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
-						THEN 1 ELSE 0 END AS has_children
-				FROM tickets
-				WHERE id IN (SELECT id FROM subtree)`
-			queryArgs = append(queryArgs, normalizedParent)
-		} else if parentFilter != "" {
-			// Direct children only
-			query = `
-				SELECT id, title, type, status,
-					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
-						THEN 1 ELSE 0 END AS has_children
-				FROM tickets WHERE UPPER(parent) = UPPER(?)`
-			queryArgs = append(queryArgs, normalizedParent)
-		} else if !showAll {
-			// Default: top-level tickets only (no parent)
-			query = `
-				SELECT id, title, type, status,
-					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
-						THEN 1 ELSE 0 END AS has_children
-				FROM tickets WHERE (parent IS NULL OR parent = '')`
-		} else {
-			// Show all tickets
-			query = `
-				SELECT id, title, type, status,
-					CASE WHEN EXISTS(SELECT 1 FROM tickets AS t WHERE UPPER(t.parent) = UPPER(tickets.id))
-						THEN 1 ELSE 0 END AS has_children
-				FROM tickets`
-		}
-
-		// Add status filters
-		if len(includeStates) > 0 {
-			// Include only these states
-			placeholders := strings.Repeat("?,", len(includeStates))
-			placeholders = placeholders[:len(placeholders)-1]
-
-			if strings.Contains(query, "WHERE") {
-				query += " AND status IN (" + placeholders + ")"
-			} else {
-				query += " WHERE status IN (" + placeholders + ")"
-			}
-
-			for _, state := range includeStates {
-				queryArgs = append(queryArgs, state)
-			}
-		} else if len(excludeStates) > 0 {
-			// Exclude these states
-			placeholders := strings.Repeat("?,", len(excludeStates))
-			placeholders = placeholders[:len(placeholders)-1]
-
-			if strings.Contains(query, "WHERE") {
-				query += " AND status NOT IN (" + placeholders + ")"
-			} else {
-				query += " WHERE status NOT IN (" + placeholders + ")"
-			}
-
-			for _, state := range excludeStates {
-				queryArgs = append(queryArgs, state)
+				opts.ExcludeStates = completedStates
 			}
 		}
 
-		query += " ORDER BY updated_at DESC"
-
-		rows, err := db.Query(query, queryArgs...)
+		tickets, err := cache.ListTickets(db, opts)
 		if err != nil {
 			log.Fatalf("Error querying tickets: %v", err)
 		}
-		defer rows.Close()
 
-		// Check if we got any results
-		hasResults := false
 		fmt.Printf("%-20s %-50s %-10s %-15s\n", "ID", "TITLE", "TYPE", "STATUS")
 		fmt.Println(strings.Repeat("-", 95))
 
-		for rows.Next() {
-			hasResults = true
-			var id, title, ticketType, status string
-			var hasChildren int
-			if err := rows.Scan(&id, &title, &ticketType, &status, &hasChildren); err != nil {
-				log.Printf("Error scanning row: %v", err)
-				continue
+		for _, t := range tickets {
+			displayID := t.ID
+			if t.HasChildren > 0 {
+				displayID = t.ID + " (+)"
 			}
-
-			// Append " (+)" to ID if ticket has children
-			displayID := id
-			if hasChildren > 0 {
-				displayID = id + " (+)"
-			}
-
 			fmt.Printf("%-20s %-50s %-10s %-15s\n",
-				displayID, truncate(title, 50), ticketType, status)
+				displayID, truncate(t.Title, 50), t.Type, t.Status)
 		}
 
-		if err := rows.Err(); err != nil {
-			log.Fatalf("Error iterating rows: %v", err)
-		}
-
-		// Show helpful message if parent filter returned no results
-		if !hasResults && parentFilter != "" {
-			fmt.Printf("\nNo children found for %s\n", normalizedParent)
+		if len(tickets) == 0 && parentFilter != "" {
+			fmt.Printf("\nNo children found for %s\n", parentFilter)
 		}
 	},
 }
