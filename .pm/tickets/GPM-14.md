@@ -1,22 +1,24 @@
 ---
-id: GPM-14
-title: "Implement Milestones for grouping and tracking tickets"
-type: epic
-status: backlog
-priority: low
-points: 0
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: [GPM-2]
-blocks: []
-related: []
-
-labels: [feature, milestones, planning]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T04:13:05Z"
-updated_at: "2026-02-03T04:13:05Z"
+depends_on:
+    - GPM-2
+id: GPM-14
+labels:
+    - feature
+    - milestones
+    - planning
+parent: ""
+points: 0
+priority: low
+related: []
+status: done
+title: Implement Milestones for grouping and tracking tickets
+type: epic
+updated_at: "2026-03-24T00:12:26Z"
 ---
+
 
 # Description
 

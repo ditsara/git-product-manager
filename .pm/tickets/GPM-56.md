@@ -33,7 +33,7 @@ This task adds intelligent progress calculation to milestones and implements the
 
 ## Implementation Steps
 
-- [ ] Implement progress calculation logic in `internal/milestone/progress.go`:
+- [x] Implement progress calculation logic in `internal/milestone/progress.go`:
   - Count total tickets assigned to milestone
   - Count tickets in "done" state
   - Calculate completion percentage by count: `done_count / total_count * 100`
@@ -44,7 +44,7 @@ This task adds intelligent progress calculation to milestones and implements the
   - Detect overdue: if due_date < today and state != "closed"
   - Return ProgressInfo struct with all metrics
 
-- [ ] Enhance `pm milestone show` to display progress:
+- [x] Enhance `pm milestone show` to display progress:
   - Show progress bar with ASCII art:
     ```
     Progress:    [████████░░░░░░░░░░] 40% (4/10 tickets)
@@ -57,7 +57,7 @@ This task adds intelligent progress calculation to milestones and implements the
     ⚠ OVERDUE: Due Feb 14 (8 days ago)  5 tickets not done
     ```
 
-- [ ] Implement `pm milestone close <milestone-id>`:
+- [x] Implement `pm milestone close <milestone-id>`:
   - Validate milestone exists and state is "active"
   - Check if all tickets in milestone are done (optional warning if not)
   - Update milestone state to "closed"
@@ -66,7 +66,7 @@ This task adds intelligent progress calculation to milestones and implements the
   - Auto-commit with message: `chore(pm): Close milestone {id}`
   - Output: `✓ Closed milestone: {id}` with final stats
 
-- [ ] Add `pm milestone list --overdue` flag:
+- [x] Add `pm milestone list --overdue` flag:
   - Show only active milestones with due_date in the past
   - Sorted by due_date ascending (oldest first)
   - Include "Days Overdue" column
@@ -77,7 +77,7 @@ This task adds intelligent progress calculation to milestones and implements the
     beta-complete   Beta Program Close   Jan 15     24            12/12 done
     ```
 
-- [ ] Update `pm milestone list` to show progress inline (optional column):
+- [x] Update `pm milestone list` to show progress inline (optional column):
   - Add `--with-progress` flag to show completion percentage in list view
   - Example:
     ```
@@ -86,18 +86,18 @@ This task adds intelligent progress calculation to milestones and implements the
     sprint-3        Sprint 3             Feb 14     active  100% (8/8) ✓
     ```
 
-- [ ] Implement warning system for approaching due dates:
+- [x] Implement warning system for approaching due dates:
   - Warn if milestone due in < 7 days (even if not overdue)
   - Warn if milestone due in < 1 day (critical)
   - Yellow/red color coding in list view
 
-- [ ] Progress metrics are **computed at query time** (not stored in the cache) to avoid stale data:
+- [x] Progress metrics are **computed at query time** (not stored in the cache) to avoid stale data:
   - Query tickets for milestone via `ListOptions.MilestoneFilter` (GPM-55)
   - Count total and done tickets in Go; sum points from Ticket structs
   - `days_remaining` and `is_overdue` computed from `due_date` at render time
   - No new migration needed for progress — computed from existing data
 
-- [ ] Test scenarios:
+- [x] Test scenarios:
   - Milestone with 0 points: Show progress as "N/A"
   - Milestone with no due date: Don't show "Days Remaining"
   - Milestone with no tickets: Show "0/0 done (0%)"
@@ -105,16 +105,16 @@ This task adds intelligent progress calculation to milestones and implements the
 
 ## Acceptance Criteria
 
-- [ ] `pm milestone show v1-0` displays progress bar (by count and points)
-- [ ] `pm milestone show` displays warning if overdue
-- [ ] `pm milestone close v1-0` updates state to "closed" and sets closed_at
-- [ ] `pm milestone close v1-0 --force` closes milestone even if tickets not done
-- [ ] `pm milestone list --overdue` shows only overdue milestones
-- [ ] `pm milestone list --with-progress` shows completion percentage
-- [ ] Days remaining calculated correctly (e.g., "32 days", "OVERDUE (8 days ago)")
-- [ ] Milestone with no due_date doesn't show dates in list/show
-- [ ] Milestone with 0 points doesn't error (shows "N/A" or "0% by points")
-- [ ] Integration test: Full milestone lifecycle (create → assign tickets → track progress → close)
+- [x] `pm milestone show v1-0` displays progress bar (by count and points)
+- [x] `pm milestone show` displays warning if overdue
+- [x] `pm milestone close v1-0` updates state to "closed" and sets closed_at
+- [x] `pm milestone close v1-0 --force` closes milestone even if tickets not done
+- [x] `pm milestone list --overdue` shows only overdue milestones
+- [x] `pm milestone list --with-progress` shows completion percentage
+- [x] Days remaining calculated correctly (e.g., "32 days", "OVERDUE (8 days ago)")
+- [x] Milestone with no due_date doesn't show dates in list/show
+- [x] Milestone with 0 points doesn't error (shows "N/A" or "0% by points")
+- [x] Integration test: Full milestone lifecycle (create → assign tickets → track progress → close)
 
 ## Code Output
 

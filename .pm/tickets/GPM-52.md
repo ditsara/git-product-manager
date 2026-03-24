@@ -32,8 +32,8 @@ This task sets up the foundational structures needed for the milestones system: 
 
 ## Implementation Steps
 
-- [ ] Create `.pm/milestones/` directory structure (created during init, same as `.pm/tickets/`)
-- [ ] Define milestone YAML schema with front-matter fields:
+- [x] Create `.pm/milestones/` directory structure (created during init, same as `.pm/tickets/`)
+- [x] Define milestone YAML schema with front-matter fields:
   - `id`: Milestone ID (kebab-case, must be valid filename)
   - `title`: Human-readable milestone name
   - `description`: Optional markdown description
@@ -41,11 +41,11 @@ This task sets up the foundational structures needed for the milestones system: 
   - `state`: Either "active" or "closed"
   - `created_at`: ISO8601 timestamp, auto-set
   - `closed_at`: ISO8601 timestamp, null until milestone is closed
-- [ ] Update `cmd/pm/init.go` to create `.pm/milestones/` directory during init (alongside `.pm/tickets/`)
+- [x] Update `cmd/pm/init.go` to create `.pm/milestones/` directory during init (alongside `.pm/tickets/`)
   - The `createDefaultTemplates` function creates 4 templates — update the "✓ Created 4 ticket templates" message to 5 after adding the milestone template
-- [ ] Add `cmd/pm/templates/milestone.md` as an embedded template (follows the existing embed pattern: `//go:embed all:templates` in `init.go`); it will be deployed to `.pm/config/templates/milestone.md` by `createDefaultTemplates`
-- [ ] Implement milestone ID validation (kebab-case, alphanumeric + hyphens, valid filename)
-- [ ] Create database migration 000006 for milestones table (000005 is already taken by `add_path_column`):
+- [x] Add `cmd/pm/templates/milestone.md` as an embedded template (follows the existing embed pattern: `//go:embed all:templates` in `init.go`); it will be deployed to `.pm/config/templates/milestone.md` by `createDefaultTemplates`
+- [x] Implement milestone ID validation (kebab-case, alphanumeric + hyphens, valid filename)
+- [x] Create database migration 000006 for milestones table (000005 is already taken by `add_path_column`):
   ```sql
   CREATE TABLE milestones (
     id TEXT PRIMARY KEY,
@@ -57,19 +57,19 @@ This task sets up the foundational structures needed for the milestones system: 
     closed_at TEXT
   );
   ```
-- [ ] Create index on state field for fast filtering: `CREATE INDEX idx_milestone_state ON milestones(state);`
-- [ ] Write unit tests for milestone ID validation (valid: "v1-0", "sprint-1"; invalid: "v1.0", "Sprint 1")
-- [ ] Update `.pm/.gitignore` to ensure `.pm/milestones/` is tracked (opposite of `.cache.db`)
+- [x] Create index on state field for fast filtering: `CREATE INDEX idx_milestone_state ON milestones(state);`
+- [x] Write unit tests for milestone ID validation (valid: "v1-0", "sprint-1"; invalid: "v1.0", "Sprint 1")
+- [x] Update `.pm/.gitignore` to ensure `.pm/milestones/` is tracked (opposite of `.cache.db`)
 
 ## Acceptance Criteria
 
-- [ ] `.pm/milestones/` directory created during `pm init`
-- [ ] Milestone YAML schema is documented and validated
-- [ ] Migration 000006 creates milestones table with all required fields
-- [ ] Milestone ID validation rejects invalid characters (spaces, dots, underscores, capital letters)
-- [ ] Templates exist in `.pm/config/templates/`
-- [ ] Unit tests pass for ID validation
-- [ ] Database index on state field exists for performance
+- [x] `.pm/milestones/` directory created during `pm init`
+- [x] Milestone YAML schema is documented and validated
+- [x] Migration 000006 creates milestones table with all required fields
+- [x] Milestone ID validation rejects invalid characters (spaces, dots, underscores, capital letters)
+- [x] Templates exist in `.pm/config/templates/`
+- [x] Unit tests pass for ID validation
+- [x] Database index on state field exists for performance
 
 ## Code Output
 

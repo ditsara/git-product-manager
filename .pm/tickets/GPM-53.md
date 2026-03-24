@@ -33,7 +33,7 @@ This task delivers three essential user-facing commands for milestone management
 
 ## Implementation Steps
 
-- [ ] Implement `pm milestone create "Title" [--due YYYY-MM-DD] [--description TEXT] [--id CUSTOM-ID]`
+- [x] Implement `pm milestone create "Title" [--due YYYY-MM-DD] [--description TEXT] [--id CUSTOM-ID]`
   - Generate new milestone ID by slugifying title (kebab-case)
   - If `--id` provided, use that instead (still validated as kebab-case)
   - If generated ID already exists as `.pm/milestones/{id}.md`, error: `"Milestone ID '{id}' already exists. Use --id to specify a unique ID."`
@@ -42,7 +42,7 @@ This task delivers three essential user-facing commands for milestone management
   - Write `.pm/milestones/{id}.md` with YAML front-matter
   - Auto-stage file in git
   - Output: `✓ Created milestone: {id}`
-- [ ] Implement `pm milestone list [--state active|closed]`
+- [x] Implement `pm milestone list [--state active|closed]`
   - Query SQLite cache for all milestones (or generate from filesystem if cache stale)
   - Display table with columns: ID, Title, Due Date, State, Days Until/Days Overdue
   - Color-code: green for active/not-overdue, yellow for approaching due date, red for overdue
@@ -55,7 +55,7 @@ This task delivers three essential user-facing commands for milestone management
     mvp-launch      MVP Launch            Jan 31     active  ⚠ OVERDUE (8 days ago)
     beta-complete   Beta Program Close    Jan 15     closed  -
     ```
-- [ ] Implement `pm milestone show <milestone-id>`
+- [x] Implement `pm milestone show <milestone-id>`
   - Parse milestone YAML file
   - Display formatted milestone info (title, description, due_date, state, created_at, closed_at)
   - Calculate and display days remaining
@@ -74,26 +74,26 @@ This task delivers three essential user-facing commands for milestone management
     
     (description rendered below)
     ```
-- [ ] Implement editor integration (optional) for creating milestones interactively
+- [ ] Implement editor integration (optional, not implemented) for creating milestones interactively
   - If no title provided: `pm milestone create` opens $EDITOR with template
   - Template shows example fields: title, description, due_date
   - Parse editor output to extract values
-- [ ] Implement `pm milestone close <milestone-id>`: **deferred to GPM-56** — that ticket owns progress tracking and the close workflow
-- [ ] Update SQLite cache:
+- [x] Implement `pm milestone close <milestone-id>`: **deferred to GPM-56** — that ticket owns progress tracking and the close workflow
+- [x] Update SQLite cache:
   - Sync milestones table from filesystem
   - Keep milestones in cache for fast list/show queries
   - Index on state for filtering
 
 ## Acceptance Criteria
 
-- [ ] `pm milestone create "v1.0"` creates `.pm/milestones/v1-0.md` with proper YAML
-- [ ] `pm milestone list` displays all milestones with proper formatting
-- [ ] `pm milestone list --state closed` filters to closed milestones only
-- [ ] `pm milestone show v1-0` renders complete milestone details
-- [ ] Overdue milestones display warning indicator
-- [ ] `pm milestone close v1-0` updates state and closed_at (**implemented in GPM-56**)
-- [ ] All commands update SQLite cache
-- [ ] Integration tests for full workflow: create → list → show → close
+- [x] `pm milestone create "v1.0"` creates `.pm/milestones/v1-0.md` with proper YAML
+- [x] `pm milestone list` displays all milestones with proper formatting
+- [x] `pm milestone list --state closed` filters to closed milestones only
+- [x] `pm milestone show v1-0` renders complete milestone details
+- [x] Overdue milestones display warning indicator
+- [x] `pm milestone close v1-0` updates state and closed_at (**implemented in GPM-56**)
+- [x] All commands update SQLite cache
+- [x] Integration tests for full workflow: create → list → show → close
 
 ## Code Output
 

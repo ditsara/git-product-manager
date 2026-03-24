@@ -33,22 +33,22 @@ This task integrates milestones into the existing ticket system by adding a `mil
 
 ## Implementation Steps
 
-- [ ] Add `milestones: []` field to ticket YAML schema (array of milestone IDs)
-- [ ] Update ticket templates (story, task, bug, epic) to include milestones field
-- [ ] Create migration 000007 to alter tickets table (000006 is taken by GPM-52's milestones table):
+- [x] Add `milestones: []` field to ticket YAML schema (array of milestone IDs)
+- [x] Update ticket templates (story, task, bug, epic) to include milestones field
+- [x] Create migration 000007 to alter tickets table (000006 is taken by GPM-52's milestones table):
   ```sql
   ALTER TABLE tickets ADD COLUMN milestones TEXT;  -- JSON array as text
   ```
   - Note: SQLite doesn't support JSON natively in older versions; store as comma-separated IDs or JSON array string
   - Decision: Store as comma-separated IDs for simplicity ("v1-0-release,sprint-3")
-- [ ] Implement milestone assignment in `pm edit`:
+- [x] Implement milestone assignment in `pm edit`:
   - `pm edit GPM-1 --field milestones=v1-0-release` (single)
   - `pm edit GPM-1 --field milestones=v1-0-release,sprint-3` (multiple, comma-separated)
   - Parse comma-separated list, validate each milestone ID exists
   - Show error: "Milestone not found: invalid-id"
-- [ ] Implement milestone removal:
+- [x] Implement milestone removal:
   - `pm edit GPM-1 --field milestones=` (clears all milestones)
-- [ ] Add validation logic:
+- [x] Add validation logic:
   - When setting milestones on a ticket, validate all referenced milestone IDs exist
   - Load milestone IDs from filesystem scan of `.pm/milestones/`
   - Provide helpful error message if milestone doesn't exist

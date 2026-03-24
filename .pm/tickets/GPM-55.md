@@ -32,22 +32,22 @@ This task extends the existing `pm list` command with a new `--milestone <id>` f
 
 ## Implementation Steps
 
-- [ ] Add `--milestone <id>` flag to `pm list` command
+- [x] Add `--milestone <id>` flag to `pm list` command
   - Accept single milestone ID: `pm list --milestone v1-0-release`
   - Query SQLite cache for all tickets where milestones field contains the ID
-- [ ] Implement milestone ID validation in flag parsing:
+- [x] Implement milestone ID validation in flag parsing:
   - Warn if milestone doesn't exist: "Warning: Milestone 'invalid-id' not found"
   - Still display results if milestone exists but has no tickets
-- [ ] Update filtering logic in `cmd/pm/list.go`:
+- [x] Update filtering logic in `cmd/pm/list.go`:
   - Parse milestones field from each ticket (comma-separated)
   - Include ticket if its milestones field contains the target milestone ID
   - Combine with existing filters (--status, --assignee, --label, --parent) using AND logic
   - Example: `pm list --milestone v1-0 --status todo` shows only TODO tickets in v1-0 milestone
-- [ ] Add completion support:
+- [x] Add completion support:
   - Update shell completion to suggest milestone IDs for --milestone flag
   - Scan `.pm/milestones/` directory during completion
   - Same case-insensitive matching as ticket IDs
-- [ ] Test scenarios:
+- [x] Test scenarios:
   - Single milestone filter: `pm list --milestone v1-0-release` → shows all tickets
   - Combined filters: `pm list --milestone v1-0 --status done` → shows only done tickets
   - Non-existent milestone: `pm list --milestone fake-id` → warns but shows empty list (no error)
@@ -55,13 +55,13 @@ This task extends the existing `pm list` command with a new `--milestone <id>` f
 
 ## Acceptance Criteria
 
-- [ ] `pm list --milestone v1-0` displays only tickets in that milestone
-- [ ] Can combine --milestone with --status, --assignee, --label filters
-- [ ] Warning displayed if milestone doesn't exist
-- [ ] Shell completion suggests milestone IDs for --milestone flag
-- [ ] Empty list displayed if milestone exists but has no tickets
-- [ ] Ticket with multiple milestones appears in results for each
-- [ ] Integration test: create milestone → assign multiple tickets → verify list filtering
+- [x] `pm list --milestone v1-0` displays only tickets in that milestone
+- [x] Can combine --milestone with --status, --assignee, --label filters
+- [x] Warning displayed if milestone doesn't exist
+- [x] Shell completion suggests milestone IDs for --milestone flag
+- [x] Empty list displayed if milestone exists but has no tickets
+- [x] Ticket with multiple milestones appears in results for each
+- [x] Integration test: create milestone → assign multiple tickets → verify list filtering
 
 ## Code Output
 
