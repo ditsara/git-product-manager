@@ -2,132 +2,144 @@
 id: GPM-28
 title: "Embed Development Workflow Guidance into CLI"
 type: epic
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
+status: backlog
+priority: medium
+points: 5
 
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic (for nested epics)
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
+parent: ""
+depends_on: []
+blocks: []
+related: []
 
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+labels: [dx, cli, llm]
+assignee: ""
 created_at: "2026-02-04T05:30:49Z"
-updated_at: "2026-02-04T05:30:49Z"
+updated_at: "2026-03-24T00:31:15Z"
 ---
 
 # Description
 
-When other LLMs work on repos using GPM, they won't have access to AGENTS.md. This epic covers embedding the essential development workflow guidance directly into the CLI and project config, making GPM self-documenting for any AI assistant.
+[Claude Sonnet 4.6]
+
+LLMs working on repos that *use* GPM have no access to this repo's `AGENTS.md`.
+This epic makes GPM self-documenting for any AI assistant by embedding workflow
+guidance directly in the CLI binary and surfacing it via a `pm guide` command.
 
 ## Problem
 
-- LLMs working on GPM-based repos lack context about the development workflow
-- AGENTS.md is in the git-product-manager repo, not in repos where GPM is *used*
-- Without workflow guidance, LLMs may make suboptimal decisions about ticket structure and implementation approach
+- `AGENTS.md` lives in the `git-product-manager` repo, not in repos where GPM is *used*
+- Without workflow guidance, LLMs make suboptimal decisions about ticket structure, edge cases, and implementation approach
+- There is no discoverable, always-current source of guidance for agents working in GPM-managed repos
 
-## Solution Approach
+## Solution
 
-Embed workflow guidance in two complementary ways:
-1. **CLI command** (`pm guide`): Display workflow principles and best practices
-2. **Config file** (`.pm/config/WORKFLOW_GUIDE.md`): Versioned, customizable guidance created during `pm init`
+1. **`pm guide [section]`** command — outputs full Markdown guidance, pipeable to any agent context file
+2. **`.pm/config/WORKFLOW_GUIDE.md` stub** — created by `pm init`; a lightweight TOC pointing agents to `pm guide`
 
-This makes guidance discoverable and self-contained in each repo.
+## Design Decisions
 
-## Related Tickets
+### Output strategy: full by default, subsections available
 
-- **Potential sub-tasks:**
-  - `pm guide` command implementation
-  - WORKFLOW_GUIDE.md template creation
-  - Help system enhancements
-  - Documentation updates
+```bash
+pm guide                 # Full output — all sections concatenated as Markdown
+pm guide workflow        # Just the workflow section
+pm guide schema          # Just the ticket YAML schema
+pm guide commands        # Just the commands reference
+pm guide principles      # Just the key principles
+```
 
-## Demonstrated Workflow Pattern (From Actual Implementation)
+Full output is the default so that `pm guide > CLAUDE.md` (or `AGENTS.md`,
+`GEMINI.md`, etc.) works in one command without needing to know section names.
 
-Based on successful session implementing GPM-45, here's the proven workflow pattern for future LLM assistants:
+### WORKFLOW_GUIDE.md: stub only (never goes stale)
 
-### Phase 1: Specification & Clarification
-1. **Read the Epic/Ticket**: Thoroughly understand the problem statement and acceptance criteria
-2. **Identify Clarifications Needed**: Don't assume implementation details—ask for explicit decisions
-3. **Design First**: Document the approach (data structures, algorithm, symmetry logic, error handling) before coding
-4. **User Agreement**: Get user confirmation on key design decisions before implementation begins
+`pm init` creates `.pm/config/WORKFLOW_GUIDE.md` as a lightweight stub:
 
-**Example from GPM-45**: Tickets specified "automatic symmetry" but left implementation strategy open. We clarified: Should de-duplication happen on read or write? How to handle idempotency? What about atomic rollback on failure? User reviewed options, we chose Normalize-on-write with atomic rollback. This prevented wasted coding.
+```markdown
+# GPM Workflow Guide
 
-### Phase 2: Implementation with Continuous Verification
-1. **Incremental Coding**: Create one file at a time, build immediately after
-2. **Run Tests After Each Change**: Don't batch changes; verify immediately
-3. **Check Off Checklist Items**: Mark implementation steps complete as you finish them
-4. **Update Timestamps**: When modifying tickets, refresh `updated_at` to reflect current state
+This project uses Git Product Manager (GPM). For current guidance, run:
 
-**Example from GPM-45**: 
-   - Created relationships.go, tested it
-   - Created link.go/unlink.go, tested both commands
-   - Created relationships_test.go with comprehensive coverage
-   - Each step verified before moving to next
+  pm guide                 # Full guide (pipe to a file: pm guide > CLAUDE.md)
+  pm guide workflow        # Development workflow
+  pm guide schema          # Ticket YAML schema
+  pm guide commands        # Commands reference
+  pm guide principles      # Key principles
 
-### Phase 3: Completion & Documentation
-1. **Verify All Acceptance Criteria**: Go through each one, confirm it's met
-2. **Run Full Test Suite**: Ensure no regressions
-3. **Build Final Binary**: Verify clean compilation
-4. **Update Ticket Status**: Mark as "done" using `pm move`, check off all checklist items
-5. **Skip Git Commit**: Let user review and commit—they own the git history
+To generate a complete guidance file for your LLM:
+  pm guide > CLAUDE.md
+```
 
-**Example from GPM-45**: All 42 tests passed, both commands working, acceptance criteria verified, ticket marked done.
+Embedding full content in `WORKFLOW_GUIDE.md` would go stale as the binary is updated. The stub is a permanent pointer to the source of truth.
 
-### Key Principles Demonstrated
+### Guide content: embedded `.md` files in `internal/guide/`
 
-- **Tickets ARE the specification**: Don't start coding before the ticket is crystal clear
-- **User review prevents rework**: Clarify ambiguities before implementation (saves hours)
-- **Testing is not optional**: Run tests after every change to catch issues early
-- **Checklists drive implementation**: The acceptance criteria and implementation steps guide what to build
-- **Transparency matters**: Explain design choices to user for approval before coding
+Content stored as `.md` files embedded into the binary, mirroring the existing `internal/migrations/embed.go` pattern:
 
----
+```
+internal/guide/
+  embed.go       # //go:embed *.md; var FS embed.FS
+  guide.go       # Section(), Full(), SectionNames() API
+  workflow.md
+  schema.md
+  commands.md
+  principles.md
+```
 
-## LLM Conversation output
+This keeps content readable and editable as plain Markdown without touching Go code.
 
-Previous LLM conversation output below, for reference.
+### DevContainer: out of scope
 
-I'd recommend a two-part approach:
+`pm guide` covers universal GPM workflow. Whether an LLM runs inside a devcontainer is repo-specific setup context that belongs in each repo's own `README` or `CLAUDE.md`.
 
-1. New pm guide command (or pm workflow)
+### MCP: complementary, not competing
 
-A dedicated command to display development workflow principles:
+An MCP server would expose GPM *operations* as tools (create ticket, list tickets, move status). `pm guide` exposes *guidance text* (how to use GPM well). These serve different integration patterns:
 
-* Shows the essential sections from "Development Workflow" (1.5) in a consumable format
-* Outputs Markdown or plain text suitable for LLM context windows
-* Optional --json flag for programmatic/structured access
-* Could have sub-modes like:
-    * pm guide workflow - The iterative ticket-driven process
-    * pm guide principles - Key principles (tickets are specs, explicit edge cases, etc.)
-    * pm guide example - A sample workflow exchange
-    * pm guide schema - Ticket YAML structure
+- `pm guide` → for CLI-based agents (Copilot CLI, Codex, terminal LLMs)
+- Future MCP server → for IDE integrations (VS Code Copilot, Cursor)
 
-2. Embedded workflow guide file
+No overlap. A future MCP ticket should be created separately if desired.
 
-Store a .pm/config/WORKFLOW_GUIDE.md (created during pm init):
+## Implementation Steps
 
-* Contains the essential development workflow sections extracted from AGENTS.md
-* Lives in the repo alongside tickets, so other LLMs can access it
-* Can be versioned and customized per project
-* Keeps guidance close to the tickets it describes
+- [ ] Create `internal/guide/` package:
+  - `embed.go`: `//go:embed *.md; var FS embed.FS`
+  - `guide.go`: `Section(name string) (string, error)`, `Full() string`, `SectionNames() []string`
+  - `workflow.md`: 5-step ticket-driven process (idea → ticket → review → implement → done)
+  - `schema.md`: ticket YAML front-matter fields with annotated examples
+  - `commands.md`: essential `pm` commands cheat sheet
+  - `principles.md`: key principles — **must include**: do not commit to git without user approval
+- [ ] Create `cmd/pm/guide.go`:
+  - Import `internal/guide`
+  - Full output when no arg; single section when arg given
+  - Unknown section → helpful error listing valid names
+  - Register `ValidArgs: guide.SectionNames()` for shell completion
+- [ ] Update `cmd/pm/init.go`:
+  - Add `createWorkflowGuide(pmPath)` writing the stub TOC
+  - Add `✓ Created workflow guide` to init output
+- [ ] Update `cmd/pm/completion_helpers.go`:
+  - Add `completeGuideSections` func using `guide.SectionNames()`
+- [ ] Add integration tests:
+  - `pm guide` exits 0 and contains all section headers
+  - `pm guide schema` contains schema section, not workflow section
+  - `pm guide nonexistent` exits non-zero with helpful error
+  - `pm init` creates `.pm/config/WORKFLOW_GUIDE.md`
 
-3. Enhanced help system
+## Acceptance Criteria
 
-Add an "For AI Assistants" section to root help:
+- [ ] `pm guide` outputs full Markdown covering all sections
+- [ ] `pm guide workflow` / `schema` / `commands` / `principles` output only that section
+- [ ] `pm guide` output can be piped: `pm guide > CLAUDE.md`
+- [ ] `pm guide <invalid>` prints an error listing valid section names
+- [ ] `principles` section explicitly states: do not commit to git without user approval
+- [ ] `pm init` creates `.pm/config/WORKFLOW_GUIDE.md` as a stub TOC
+- [ ] Shell completion suggests section names for `pm guide <tab>`
+- [ ] Integration tests pass for all above behaviors
 
-* Brief mention that pm guide provides workflow context
-* Suggests: "If you're an LLM working on this repo, run pm guide workflow"
-* Reference that tickets contains actual specifications
-* Note that pm show <id> displays full ticket context
+## Out of Scope
 
-Why this works:
-
-* Offline-capable: Other repos get the guide without AGENTS.md
-* Self-contained: Everything needed is in .pm
-* Discoverable: Help naturally points to it
-* Scalable: Can add more guides (architecture decisions, testing patterns, etc.)
-* LLM-friendly: Structured, focused output without noise
+- DevContainer environment detection
+- Per-project customisable guide content
+- `--json` flag (no concrete use case yet)
+- MCP server (separate ticket if desired)
