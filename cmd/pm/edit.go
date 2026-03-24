@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -54,8 +55,25 @@ Array updates REPLACE existing values, they do not append.`,
 				fmt.Println("Error: --field must be in format field=value")
 				os.Exit(1)
 			}
-			updateTicketField(ticketPath, parts[0], parts[1])
-			fmt.Printf("✓ Updated %s for %s\n", parts[0], ticketID)
+			fieldName, fieldValue := parts[0], parts[1]
+			// Validate milestone IDs exist before writing
+			if fieldName == "milestones" && fieldValue != "" {
+				pmPath := ".pm"
+				milestonesDir := filepath.Join(pmPath, "milestones")
+				for _, mid := range strings.Split(fieldValue, ",") {
+					mid = strings.TrimSpace(mid)
+					if mid == "" {
+						continue
+					}
+					milePath := filepath.Join(milestonesDir, mid+".md")
+					if _, err := os.Stat(milePath); os.IsNotExist(err) {
+						fmt.Fprintf(os.Stderr, "Error: milestone not found: %q\nRun `pm milestone list` to see available milestones.\n", mid)
+						os.Exit(1)
+					}
+				}
+			}
+			updateTicketField(ticketPath, fieldName, fieldValue)
+			fmt.Printf("✓ Updated %s for %s\n", fieldName, ticketID)
 			return
 		}
 

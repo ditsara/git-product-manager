@@ -53,35 +53,30 @@ This task integrates milestones into the existing ticket system by adding a `mil
   - Load milestone IDs from filesystem scan of `.pm/milestones/`
   - Provide helpful error message if milestone doesn't exist
   - Validation runs before file write
-- [ ] Update SQLite cache:
+- [x] Update SQLite cache:
   - Add milestones column to tickets table
-  - Index on milestones for fast filtering: `CREATE INDEX idx_ticket_milestones ON tickets(milestones);`
+  - Index on milestones for fast filtering: `CREATE INDEX idx_ticket_milestones ON tickets(milestones);` (migration 000008)
   - Sync ticket milestones data from filesystem
-- [ ] Update validator (`pm validate`):
-  - Check that all milestone IDs referenced in tickets exist in `.pm/milestones/`
-  - List any orphaned or broken references
-  - Suggest: "Run `pm edit {ticket-id} --field milestones=` to remove"
 
 ## Acceptance Criteria
 
-- [ ] Ticket YAML includes `milestones: []` field
-- [ ] `pm edit GPM-1 --field milestones=v1-0-release` adds milestone to ticket
-- [ ] `pm edit GPM-1 --field milestones=` clears milestones
-- [ ] Validation rejects non-existent milestone IDs with helpful error
-- [ ] SQLite cache stores and indexes milestones for fast queries
-- [ ] `pm validate` detects orphaned milestone references
-- [ ] Integration test: create milestone → assign to ticket → verify in cache
-- [ ] Backward compatibility: existing tickets without milestones field work fine
+- [x] Ticket YAML includes `milestones: []` field
+- [x] `pm edit GPM-1 --field milestones=v1-0-release` adds milestone to ticket
+- [x] `pm edit GPM-1 --field milestones=` clears milestones
+- [x] Validation rejects non-existent milestone IDs with helpful error
+- [x] SQLite cache stores and indexes milestones for fast queries
+- [ ] `pm validate` detects orphaned milestone references — deferred to GPM-70
+- [x] Integration test: create milestone → assign to ticket → verify in cache
+- [x] Backward compatibility: existing tickets without milestones field work fine
 
 ## Code Output
 
 - Updated `internal/ticket/ticket.go`: Add `Milestones []string \`yaml:"milestones,omitempty"\`` field to Ticket struct (plural, array; `omitempty` ensures backward compatibility with existing tickets)
-- Updated `internal/ticket/validator.go`: Add milestone reference validation logic
-- Updated `cmd/pm/edit.go`: Handle `--field milestones=` assignment (comma-separated list)
+- Updated `cmd/pm/edit.go`: Handle `--field milestones=` assignment (comma-separated list); validate milestone IDs exist before writing
 - Updated `cmd/pm/templates/*.md`: Add `milestones: []` field to story, task, bug, epic templates
 - `internal/migrations/000007_add_milestones_to_tickets.up.sql` and `.down.sql`: `ALTER TABLE tickets ADD COLUMN milestones TEXT`
+- `internal/migrations/000008_add_ticket_milestones_index.up.sql` and `.down.sql`: `CREATE INDEX idx_ticket_milestones ON tickets(milestones)`
 - Updated `internal/cache/sync.go`: Sync milestones column to cache
-- Updated `cmd/pm/validate.go`: Check for broken milestone references
 - Unit tests in `internal/ticket/ticket_test.go`
 - Integration tests in `integration_test.go`
 
@@ -91,5 +86,5 @@ This task integrates milestones into the existing ticket system by adding a `mil
 - Field name is `milestones` (plural, array) — consistent with GPM-14's design. Tag it `omitempty` so existing tickets without the field parse cleanly.
 - Storing milestones as comma-separated TEXT in SQLite (e.g., `"v1-0-release,sprint-3"`) is acceptable for now; LIKE-based filtering is sufficient until full FTS is needed.
 - The `--field milestones=` assignment replaces the whole array (consistent with how other array fields like `labels` work in `pm edit`).
-- `pm validate` milestone reference check should scan `.pm/milestones/` filesystem, not the cache, to avoid stale-cache false positives.
+- `pm validate` milestone reference check is tracked in GPM-70.
 
