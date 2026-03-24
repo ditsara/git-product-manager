@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/config"
+	"github.com/ditsara/git-product-manager/internal/guide"
 	"github.com/spf13/cobra"
 )
 
@@ -87,5 +88,16 @@ func completeTicketTypes(cmd *cobra.Command, args []string, toComplete string) (
 		}
 	}
 
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeGuideSections provides completion for pm guide section names.
+func completeGuideSections(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var matches []string
+	for _, s := range guide.SectionNames() {
+		if strings.HasPrefix(s, toComplete) {
+			matches = append(matches, s)
+		}
+	}
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }

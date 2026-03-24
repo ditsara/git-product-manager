@@ -1,0 +1,22 @@
+---
+id: GPM-71
+title: "Add example common commands to the end of `pm --help`"
+type: story
+status: backlog  # Current workflow state
+priority: medium  # low, medium, high, critical
+points: 0  # Story points for estimation
+
+# Relationships - use ticket IDs (e.g., PROJ-123)
+parent: ""  # Parent epic or story
+depends_on: []  # Must complete these first
+blocks: []  # This blocks these tickets
+related: []  # Related work (duplicates, see-also)
+
+labels: []  # Tags from labels.yaml
+assignee: ""  # GitHub username or email
+created_at: "2026-03-24T00:41:28Z"
+updated_at: "2026-03-24T00:41:28Z"
+---
+
+# Description
+

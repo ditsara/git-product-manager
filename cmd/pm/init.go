@@ -10,6 +10,7 @@ import (
 
 	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
+	"github.com/ditsara/git-product-manager/internal/guide"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -67,6 +68,7 @@ var initCmd = &cobra.Command{
 		createDefaultTemplates(pmPath)
 		createGitignore(pmPath)
 		createProjectConfig(pmPath, prefix)
+		createWorkflowGuide(pmPath)
 
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")
@@ -93,10 +95,12 @@ var initCmd = &cobra.Command{
 		fmt.Println("✓ Created default workflow with 4 states")
 		fmt.Println("✓ Created default labels")
 		fmt.Println("✓ Created 5 ticket templates")
+		fmt.Println("✓ Created workflow guide")
 		fmt.Printf("✓ Project prefix set to: %s\n", prefix)
 		fmt.Println("\nNext steps:")
 		fmt.Println("  pm new \"Your first ticket\"")
 		fmt.Println("  pm list")
+		fmt.Println("  pm guide > CLAUDE.md   # generate LLM guidance file")
 	},
 }
 
@@ -167,6 +171,36 @@ func createProjectConfig(pmPath string, prefix string) {
 	}
 	if err := config.SaveProject(pmPath, project); err != nil {
 		fmt.Printf("Error creating project.yaml: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func createWorkflowGuide(pmPath string) {
+	sections := guide.SectionNames()
+	lines := []string{
+		"# GPM Workflow Guide",
+		"",
+		"This project uses Git Product Manager (GPM).",
+		"For current guidance, run:",
+		"",
+	}
+	for _, s := range sections {
+		lines = append(lines, "  pm guide "+s)
+	}
+	lines = append(lines,
+		"",
+		"Or generate a complete guidance file for your LLM:",
+		"",
+		"  pm guide > CLAUDE.md",
+		"",
+	)
+	content := ""
+	for _, l := range lines {
+		content += l + "\n"
+	}
+	path := filepath.Join(pmPath, "config", "WORKFLOW_GUIDE.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		fmt.Printf("Error creating WORKFLOW_GUIDE.md: %v\n", err)
 		os.Exit(1)
 	}
 }

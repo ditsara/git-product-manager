@@ -1,21 +1,23 @@
 ---
-id: GPM-28
-title: "Embed Development Workflow Guidance into CLI"
-type: epic
-status: backlog
-priority: medium
-points: 5
-
-parent: ""
-depends_on: []
-blocks: []
-related: []
-
-labels: [dx, cli, llm]
 assignee: ""
+blocks: []
 created_at: "2026-02-04T05:30:49Z"
-updated_at: "2026-03-24T00:31:15Z"
+depends_on: []
+id: GPM-28
+labels:
+    - dx
+    - cli
+    - llm
+parent: ""
+points: 5
+priority: medium
+related: []
+status: done
+title: Embed Development Workflow Guidance into CLI
+type: epic
+updated_at: "2026-03-24T00:44:46Z"
 ---
+
 
 # Description
 
@@ -103,24 +105,24 @@ No overlap. A future MCP ticket should be created separately if desired.
 
 ## Implementation Steps
 
-- [ ] Create `internal/guide/` package:
+- [x] Create `internal/guide/` package:
   - `embed.go`: `//go:embed *.md; var FS embed.FS`
   - `guide.go`: `Section(name string) (string, error)`, `Full() string`, `SectionNames() []string`
   - `workflow.md`: 5-step ticket-driven process (idea → ticket → review → implement → done)
   - `schema.md`: ticket YAML front-matter fields with annotated examples
   - `commands.md`: essential `pm` commands cheat sheet
   - `principles.md`: key principles — **must include**: do not commit to git without user approval
-- [ ] Create `cmd/pm/guide.go`:
+- [x] Create `cmd/pm/guide.go`:
   - Import `internal/guide`
   - Full output when no arg; single section when arg given
   - Unknown section → helpful error listing valid names
   - Register `ValidArgs: guide.SectionNames()` for shell completion
-- [ ] Update `cmd/pm/init.go`:
+- [x] Update `cmd/pm/init.go`:
   - Add `createWorkflowGuide(pmPath)` writing the stub TOC
   - Add `✓ Created workflow guide` to init output
-- [ ] Update `cmd/pm/completion_helpers.go`:
+- [x] Update `cmd/pm/completion_helpers.go`:
   - Add `completeGuideSections` func using `guide.SectionNames()`
-- [ ] Add integration tests:
+- [x] Add integration tests:
   - `pm guide` exits 0 and contains all section headers
   - `pm guide schema` contains schema section, not workflow section
   - `pm guide nonexistent` exits non-zero with helpful error
@@ -128,14 +130,14 @@ No overlap. A future MCP ticket should be created separately if desired.
 
 ## Acceptance Criteria
 
-- [ ] `pm guide` outputs full Markdown covering all sections
-- [ ] `pm guide workflow` / `schema` / `commands` / `principles` output only that section
-- [ ] `pm guide` output can be piped: `pm guide > CLAUDE.md`
-- [ ] `pm guide <invalid>` prints an error listing valid section names
-- [ ] `principles` section explicitly states: do not commit to git without user approval
-- [ ] `pm init` creates `.pm/config/WORKFLOW_GUIDE.md` as a stub TOC
-- [ ] Shell completion suggests section names for `pm guide <tab>`
-- [ ] Integration tests pass for all above behaviors
+- [x] `pm guide` outputs full Markdown covering all sections
+- [x] `pm guide workflow` / `schema` / `commands` / `principles` output only that section
+- [x] `pm guide` output can be piped: `pm guide > CLAUDE.md`
+- [x] `pm guide <invalid>` prints an error listing valid section names
+- [x] `principles` section explicitly states: do not commit to git without user approval
+- [x] `pm init` creates `.pm/config/WORKFLOW_GUIDE.md` as a stub TOC
+- [x] Shell completion suggests section names for `pm guide <tab>`
+- [x] Integration tests pass for all above behaviors
 
 ## Out of Scope
 

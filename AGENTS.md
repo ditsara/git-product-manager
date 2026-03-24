@@ -175,17 +175,18 @@ Tickets use **YAML Front-Matter** for machine-readable metadata and **Markdown**
 id: DEV-123
 title: "Implement OAuth2 Login"
 type: story          # Options: epic, story, task, bug
-status: todo         # Must match workflow.yaml
+status: backlog      # Must match workflow.yaml
 priority: high
 points: 5
 parent: ARCH-45      # Parent ticket (epic or story)
-depends_on: []       # Blocked by these tickets
-blocks: []           # This ticket blocks these tickets
+depends_on: []       # Tickets that must complete before this one
+blocks: []           # Tickets this one blocks
 related: []          # Related tickets (duplicates, see-also)
+milestones: []       # Milestone IDs this ticket belongs to
 labels: [auth, api]
 assignee: dan_i
-created_at: 2026-01-31T09:00:00Z
-updated_at: 2026-01-31T09:30:00Z
+created_at: "2026-01-31T09:00:00Z"
+updated_at: "2026-01-31T09:30:00Z"
 ---
 
 # Description
@@ -274,7 +275,7 @@ The implementation must include a **Validation Layer**:
   * Log all auto-fixes to stderr
   * Disabled by default; enable via `pm config set auto-fix true`
 
-* **Linter (`pm validate`):** Run validation on demand or before commits:
+* **Validation Rules (enforced on all ticket writes):**
   * **Required Fields:** `id`, `title`, `type`, `status`, `created_at`
   * **Valid Enums:** `type` ∈ {epic, story, task, bug}, `status` must be in configured states list
   * **Date Format:** ISO8601 with UTC timezone (e.g., `2026-01-31T09:00:00Z`)
@@ -282,12 +283,6 @@ The implementation must include a **Validation Layer**:
   * **YAML Syntax:** Must parse without errors
   * **Reference Integrity:** All ticket IDs in `parent`, `depends_on`, `blocks`, and `related` must exist
   * **Relationship Arrays:** Must be valid YAML arrays (empty arrays allowed)
-
-* **Git Hook (Optional Setup):** `pm init` offers to install a pre-commit hook:
-  ```bash
-  #!/bin/bash
-  pm validate || exit 1
-  ```
 
 ### 3.4 Timestamp Handling
 
@@ -311,7 +306,6 @@ The system supports a **computed relationship model** where relationships are st
      - Story → Bug
    * Stored as: `parent: PARENT-ID` (single value, optional)
    * Query children: `pm list --parent EPIC-123`
-   * Visualize tree: `pm tree EPIC-123`
 
 2. **Dependencies (`depends_on` and `blocks` fields)**
    * `depends_on`: Array of ticket IDs this ticket cannot start without
@@ -442,13 +436,17 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
   * Format: `YYYY-MM-DD HH:MM  author  old_state → new_state`
   * Show commit messages for context
 
+* `pm guide [section]`: Display embedded workflow guide for LLM agents
+  * No argument: outputs the full guide (all sections, pipeable)
+  * With section name: outputs a single section (`workflow`, `schema`, `commands`, `principles`)
+  * Example: `pm guide > CLAUDE.md` — write guide to a file for LLM context
+
 ### Phase 2: State & Metadata Management
 
-* `pm move <id> <status> [--no-commit]`: Update the YAML `status` field
+* `pm move <id> <status>`: Update the YAML `status` field
   * Validate status exists in `workflow.yaml` states list
   * Update `updated_at` timestamp
   * Auto-commit with message: `chore(pm): Move {id} to {status}`
-  * Skip commit if `--no-commit` flag provided
 
 * `pm edit <id> [--field FIELD]`: Modify ticket metadata or content
   * **No arguments:** Opens the full ticket file in `$EDITOR`
@@ -512,7 +510,6 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
   * **Ignored by Git:** Listed in `.pm/.gitignore`
 
 * **Search Commands:**
-  * `pm search <query>`: Full-text search across title and markdown body
   * `pm list --label <tag>`: Filter by label (supports multiple: `--label auth --label api`)
   * `pm list --parent <id>`: Show all tickets with the specified parent
 
@@ -528,26 +525,12 @@ CREATE INDEX idx_ticket_comments ON comments(ticket_id, timestamp);
   * Removes the target from the relationship array
   * If `--type` not specified, removes from all relationship fields
 
-* `pm tree <id> [--depth N]`: Visualize ticket hierarchy as ASCII tree
-  * Shows parent-child relationships recursively
-  * Default depth: unlimited
-  * Example output:
-    ```
-    EPIC-123: Implement Authentication
-    ├── STORY-456: OAuth2 Login
-    │   ├── TASK-789: Setup Google Provider
-    │   └── TASK-790: Create JWT Middleware
-    └── STORY-457: Password Reset Flow
-        └── TASK-791: Email Template
-    ```
-
 * `pm blocked [<id>]`: Show dependency information
   * No ID: List all tickets with unresolved dependencies
   * With ID: Show what blocks this ticket and what it blocks
 
 ### Phase 5: Advanced Features (Future)
 
-* `pm validate`: Run linter on all tickets (Phase 1 dependency)
 * `pm stats`: Show metrics (tickets by status, burndown data)
 * `pm graph <id> --format dot`: Generate GraphViz dependency graph
 * `pm sync`: Push/pull workflow with conflict detection
@@ -967,9 +950,7 @@ This final stage completes the vision by adding powerful relationship tracking, 
 
 **Key deliverables:**
 - `pm link` & `pm unlink` - Relationship management
-- `pm tree` - Hierarchy visualization
 - `pm blocked` - Dependency tracking
-- `pm search` - Full-text search
 - Enhanced `pm list` with parent filtering
 - Reference integrity validation
 - Database migrations for relationships and FTS tables
