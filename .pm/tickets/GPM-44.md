@@ -39,10 +39,38 @@ Ensure Git Product Manager is resilient, self-healing, and maintains data integr
 - [ ] Editor selection works on Windows/PowerShell as well as Unix shells
 - [ ] Users have a `pm repair` command for manual troubleshooting
 
+## Validation Strategy
+
+Validation is implemented in two layers. **GPM-5** is the canonical spec; **GPM-70** is a sub-task scoped to milestone reference checking.
+
+### Layer 1 — Write-time guardrails (inline in `new`, `edit`, `move`)
+
+Runs before every file save and blocks the write on failure. Covers the ticket being written only:
+
+| Check | Notes |
+|-------|-------|
+| Required fields (`id`, `title`, `type`, `status`, timestamps) | `ticket.Validate()` exists but is **unwired** — top priority |
+| Enum validation (`type`, `status`, `priority`) | Extend `ticket.Validate()` with config lookup |
+| Reference integrity for this ticket's `parent`, `depends_on`, `milestones` | New `ticket.ValidateRefs()` — filesystem scan, not cache |
+| YAML syntax | Already enforced by parser on load |
+
+### Layer 2 — `pm validate` (batch, cross-ticket, CI-friendly)
+
+Scans all tickets and exits with code 1 on any error. Catches drift from manual file edits that bypass Layer 1:
+
+| Check | Notes |
+|-------|-------|
+| All Layer 1 checks, retroactively | Catches manually-edited files |
+| Orphaned `milestones:` refs (→ `.pm/milestones/`) | GPM-70 scope |
+| Orphaned `parent` / `depends_on` refs (→ deleted tickets) | Cross-ticket, batch-only |
+| Bidirectional consistency (`blocks` ↔ `depends_on`) | Needs full graph |
+| `pm validate --fix` interactive repair | GPM-5 Phase 3 |
+
 ## Child Tickets
 
 ### Core Stability
-- **GPM-5**: Bad YAML validation guardrails
+- **GPM-5**: Validation guardrails (write-time + `pm validate` command) — canonical validation spec
+  - **GPM-70**: `pm validate` milestone reference checking (sub-task of GPM-5)
 - **GPM-9**: Auto-recovery on database errors
 - **GPM-11**: `pm repair` command
 - **GPM-17**: Cache metadata table for staleness tracking
@@ -57,10 +85,12 @@ All tickets depend on **GPM-10** (database migrations) being complete.
 
 ## Implementation Order
 
-1. GPM-17 (cache staleness) - Foundation for auto-sync
-2. GPM-9 (auto-recovery) - Builds on migration system
-3. GPM-5 (validation) - Can be done in parallel
-4. GPM-11 (repair command) - Uses validation and sync logic
-5. GPM-25 (cross-platform editor) - Independent, can be done anytime
-6. GPM-27 (git timestamps) - Most complex, do last
+1. GPM-17 (cache staleness) — foundation for auto-sync
+2. GPM-9 (auto-recovery) — builds on migration system
+3. GPM-5 Layer 1 (wire `ticket.Validate()` into writes) — zero new code, immediate win
+4. GPM-5 Layer 1 (extend with enum + ref checks) — can be done in parallel with GPM-9
+5. GPM-5 Layer 2 (`pm validate` command, including GPM-70 milestone checks)
+6. GPM-11 (repair command) — uses validation and sync logic
+7. GPM-25 (cross-platform editor) — independent, anytime
+8. GPM-27 (git timestamps) — most complex, do last
 

@@ -1,25 +1,27 @@
 ---
-id: GPM-70
-title: "pm validate command missing milestone reference checking"
-type: bug
-status: backlog
-priority: medium
-points: 0
-
-parent: ""
-depends_on: []
-blocks: []
-related: []
-
-labels: [milestone, validate]
 assignee: ""
+blocks: []
 created_at: "2026-03-24T00:06:45Z"
-updated_at: "2026-03-24T00:06:45Z"
+depends_on: []
+id: GPM-70
+labels:
+    - milestone
+    - validate
+parent: GPM-5
+points: 0
+priority: medium
+related: [GPM-5]
+status: backlog
+title: pm validate command missing milestone reference checking
+type: bug
+updated_at: "2026-03-26T02:53:05Z"
 ---
 
 # Description
 
-[Claude Sonnet 4.6]
+**This is a sub-task of GPM-5**, which is the canonical spec for all ticket validation. GPM-70 is scoped specifically to the milestone orphan check in `pm validate` (Layer 2). See GPM-5 for the full two-layer validation strategy and implementation order.
+
+---
 
 `pm validate` does not exist as a command, so milestone reference integrity cannot be checked. GPM-54 originally included a checklist item to implement this, but it was deferred.
 
