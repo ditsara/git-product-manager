@@ -4,10 +4,14 @@
 
 ```bash
 pm init . --prefix PROJ          # Initialise .pm/ in current directory
-pm guide                         # Display this full guide
-pm guide <section>               # Display one section (workflow|schema|commands|principles)
-pm guide > CLAUDE.md             # Write guide to a file for LLM context
+pm ai guide                      # Display this full guide
+pm ai guide <section>            # Display one section (workflow|schema|commands|principles)
+pm ai init                       # Append a GPM pointer to LLM tool config files
+pm ai init --for claude          # Append only to CLAUDE.md
 ```
+
+> **Important:** Never create or edit ticket files directly. Use `pm new`, `pm edit`,
+> and `pm move` to manage tickets — the CLI handles IDs, validation, and git tracking.
 
 ## Tickets
 
@@ -71,4 +75,16 @@ pm milestone close sprint-1 --force                 # Close even if tickets unfi
 
 ```bash
 pm assign GPM-42 alice           # Shorthand for pm edit --field assignee=alice
+```
+
+## AI Integration
+
+```bash
+pm ai guide                      # Read development workflow guidance
+pm ai guide workflow             # Workflow section
+pm ai guide schema               # Ticket schema reference
+pm ai guide commands             # This commands reference
+pm ai guide principles           # Key principles
+pm ai init                       # Bootstrap all supported LLM tool config files
+pm ai init --for claude          # Bootstrap only CLAUDE.md
 ```

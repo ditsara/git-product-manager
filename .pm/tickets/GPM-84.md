@@ -1,31 +1,35 @@
 ---
-id: GPM-84
-title: "Audit guide content: ensure LLMs are directed to use pm CLI commands"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-81"  # Parent epic or story
-depends_on:
-  - GPM-82
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T09:12:26Z"
-updated_at: "2026-04-05T09:12:26Z"
+depends_on:
+    - GPM-82
+id: GPM-84
+labels: []
+parent: GPM-81
+points: 0
+priority: medium
+related: []
+status: done
+title: 'Audit guide content: ensure LLMs are directed to use pm CLI commands'
+type: task
+updated_at: "2026-04-05T09:55:25Z"
 ---
+
 
 # Description
 
-Audit the content of all guide sections (`workflow.md`, `schema.md`, `commands.md`, `principles.md` in `internal/guide/`) to ensure every action an LLM might take is expressed as a `pm` CLI command, not as a file operation.
+Audit the content of all guide sections (`workflow.md`, `schema.md`,
+`commands.md`, `principles.md` in `internal/guide/`) to ensure every action an
+LLM might take is expressed as a `pm` CLI command, not as a file operation.
 
 ## Motivation
 
-LLMs like GitHub Copilot and Claude Code default to editing files directly when given the opportunity. If the guide says "create a ticket" without specifying *how*, the LLM may create the YAML/Markdown file manually — bypassing ID generation, validation, and cache sync. Every instructional step must be CLI-first.
+LLMs like GitHub Copilot and Claude Code default to editing files directly when
+given the opportunity. If the guide says "create a ticket" without specifying
+*how*, the LLM may create the YAML/Markdown file manually — bypassing ID
+generation, validation, and cache sync. Every instructional step must be
+CLI-first.
 
 ## Audit Checklist
 

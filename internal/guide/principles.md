@@ -2,6 +2,27 @@
 
 Follow these principles when working on any GPM-managed repository.
 
+## Use the CLI — Never Edit Files Directly
+
+**Always use `pm` commands to manage tickets.** Never create, rename, or edit
+ticket files directly (e.g., via `cat`, `vim`, or code editing tools).
+
+- `pm new` to create tickets (IDs are assigned by the CLI, not manually)
+- `pm edit` / `pm move` / `pm assign` to update tickets
+- `pm comment` to add comments
+- `pm link` / `pm unlink` to manage relationships
+
+Editing files directly bypasses validation, breaks the cache index, and can
+corrupt ticket IDs or YAML front-matter.
+
+## Markdown Formatting
+
+When writing ticket descriptions or guide content:
+
+- Wrap body text at **80 columns**
+- Align table columns for readability (except long cells)
+- Use fenced code blocks (` ``` `) for all shell examples
+
 ## Tickets Are the Specification
 
 - Read the ticket thoroughly before writing any code
