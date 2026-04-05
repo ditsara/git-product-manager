@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/cache"
-	"github.com/ditsara/git-product-manager/internal/config"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -176,10 +175,12 @@ func createProjectConfig(pmPath string, prefix string) {
 		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
 		return
 	}
-	project := &config.Project{
-		Prefix: prefix,
-	}
-	if err := config.SaveProject(pmPath, project); err != nil {
+	content := "prefix: " + prefix + "\n" +
+		"# assignee_domain: \"\"  # optional — appended when assigning without @\n" +
+		"# members:               # optional — used for tab completion on pm assign\n" +
+		"#   - alice\n" +
+		"#   - bob\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Printf("Error creating project.yaml: %v\n", err)
 		os.Exit(1)
 	}

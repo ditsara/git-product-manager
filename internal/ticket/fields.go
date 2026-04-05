@@ -92,6 +92,16 @@ func ParseFieldValue(fieldName, value string) (interface{}, error) {
 	}
 }
 
+// AppendDomain appends a domain suffix to a username if:
+//   - domain is non-empty
+//   - username does not already contain "@"
+func AppendDomain(username, domain string) string {
+	if domain == "" || strings.Contains(username, "@") {
+		return username
+	}
+	return username + "@" + domain
+}
+
 // parseArrayValue parses a comma-separated string into a string slice
 // Handles edge cases:
 // - Trims whitespace from each element

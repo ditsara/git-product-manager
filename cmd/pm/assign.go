@@ -9,6 +9,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/ditsara/git-product-manager/internal/config"
+	internaltkt "github.com/ditsara/git-product-manager/internal/ticket"
 	"github.com/spf13/cobra"
 )
 
@@ -19,11 +21,18 @@ var assignCmd = &cobra.Command{
 		if len(args) == 0 {
 			return completeTicketIDs(cmd, args, toComplete)
 		}
+		if len(args) == 1 {
+			return completeMembers(cmd, args, toComplete)
+		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	Long: `Quickly assign a ticket to a user without opening an editor.
 
 This is a shorthand for: pm edit <id> --field assignee=<user>
+
+If assignee_domain is configured in project.yaml, a bare username (without @)
+will have the domain appended automatically. For example, with domain "example.com",
+assigning to "alice" stores "alice@example.com".
 
 Examples:
   pm assign GPM-123 alice
@@ -38,6 +47,28 @@ Examples:
 		if username == "" {
 			fmt.Println("Error: Username cannot be empty")
 			os.Exit(1)
+		}
+
+		// Apply domain suffix if configured
+		pmPath := ".pm"
+		project, projErr := config.LoadProject(pmPath)
+		if projErr == nil {
+			username = internaltkt.AppendDomain(username, project.AssigneeDomain)
+		}
+
+		// Warn if assignee is not in members list
+		if projErr == nil && len(project.Members) > 0 {
+			found := false
+			for _, m := range project.Members {
+				if m == username {
+					found = true
+					break
+				}
+			}
+			if !found {
+				fmt.Fprintf(os.Stderr, "⚠ Warning: %q is not in the project member list.\n", username)
+				fmt.Fprintf(os.Stderr, "  To add them, edit .pm/config/project.yaml and add to the members list.\n")
+			}
 		}
 
 		// Find the ticket file

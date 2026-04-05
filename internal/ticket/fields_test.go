@@ -325,3 +325,53 @@ func TestParseFieldValue_UnknownField(t *testing.T) {
 		t.Errorf("expected 'some value', got '%s'", resultStr)
 	}
 }
+
+func TestAppendDomain(t *testing.T) {
+tests := []struct {
+name     string
+username string
+domain   string
+expected string
+}{
+{
+name:     "no domain configured",
+username: "alice",
+domain:   "",
+expected: "alice",
+},
+{
+name:     "domain appended to bare username",
+username: "alice",
+domain:   "example.com",
+expected: "alice@example.com",
+},
+{
+name:     "username with @ not modified",
+username: "alice@other.com",
+domain:   "example.com",
+expected: "alice@other.com",
+},
+{
+name:     "empty domain string is no-op",
+username: "bob",
+domain:   "",
+expected: "bob",
+},
+{
+name:     "full email unchanged",
+username: "bob@example.com",
+domain:   "example.com",
+expected: "bob@example.com",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+got := AppendDomain(tt.username, tt.domain)
+if got != tt.expected {
+t.Errorf("AppendDomain(%q, %q) = %q; want %q",
+tt.username, tt.domain, got, tt.expected)
+}
+})
+}
+}

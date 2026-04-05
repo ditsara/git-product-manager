@@ -91,6 +91,23 @@ func completeTicketTypes(cmd *cobra.Command, args []string, toComplete string) (
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeMembers provides completion for assignee usernames from the members
+// list in project.yaml. Returns no suggestions if the list is absent or empty.
+func completeMembers(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	pmPath := ".pm"
+	project, err := config.LoadProject(pmPath)
+	if err != nil || len(project.Members) == 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var matches []string
+	for _, m := range project.Members {
+		if toComplete == "" || strings.HasPrefix(m, toComplete) {
+			matches = append(matches, m)
+		}
+	}
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
 // completeGuideSections provides completion for pm guide section names.
 func completeGuideSections(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	var matches []string

@@ -8,7 +8,9 @@ import (
 )
 
 type Project struct {
-	Prefix string `yaml:"prefix"`
+	Prefix         string   `yaml:"prefix"`
+	AssigneeDomain string   `yaml:"assignee_domain,omitempty"`
+	Members        []string `yaml:"members,omitempty"`
 }
 
 func LoadProject(pmPath string) (*Project, error) {
