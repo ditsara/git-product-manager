@@ -69,6 +69,7 @@ var initCmd = &cobra.Command{
 		createGitignore(pmPath)
 		createProjectConfig(pmPath, prefix)
 		createWorkflowGuide(pmPath)
+		createAgentsFile(pmPath)
 
 		// Initialize database
 		dbPath := filepath.Join(pmPath, ".cache.db")

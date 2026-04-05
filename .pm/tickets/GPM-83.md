@@ -1,23 +1,21 @@
 ---
-id: GPM-83
-title: "Add pm ai init command and generate .pm/AGENTS.md on pm init"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-81"  # Parent epic or story
-depends_on:
-  - GPM-82
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T09:12:26Z"
-updated_at: "2026-04-05T09:41:56Z"
+depends_on:
+    - GPM-82
+id: GPM-83
+labels: []
+parent: GPM-81
+points: 0
+priority: medium
+related: []
+status: done
+title: Add pm ai init command and generate .pm/AGENTS.md on pm init
+type: task
+updated_at: "2026-04-05T09:53:54Z"
 ---
+
 
 # Description
 
