@@ -21,7 +21,10 @@ updated_at: "2026-02-08T14:23:48Z"
 
 [Claude Sonnet 4.5]
 
-Ensure Git Product Manager is resilient, self-healing, and maintains data integrity across all platforms and user workflows. This epic groups technical improvements that prevent errors, recover gracefully from failures, and keep data consistent.
+Ensure Git Product Manager is resilient, self-healing, and maintains data
+integrity across all platforms and user workflows. This epic groups technical
+improvements that prevent errors, recover gracefully from failures, and keep
+data consistent.
 
 ## Goals
 

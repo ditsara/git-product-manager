@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
@@ -118,17 +117,26 @@ Examples:
 			log.Fatalf("Error querying tickets: %v", err)
 		}
 
-		fmt.Printf("%-20s %-50s %-10s %-15s\n", "ID", "TITLE", "TYPE", "STATUS")
-		fmt.Println(strings.Repeat("-", 95))
-
+		listCols := []TableColumn{
+			{Header: "ID", Width: 20},
+			{Header: "TITLE", Width: 50},
+			{Header: "TYPE", Width: 10},
+			{Header: "STATUS", Width: 15},
+		}
+		var listRows [][]string
 		for _, t := range tickets {
 			displayID := t.ID
 			if t.HasChildren > 0 {
 				displayID = t.ID + " (+)"
 			}
-			fmt.Printf("%-20s %-50s %-10s %-15s\n",
-				displayID, truncate(t.Title, 50), t.Type, t.Status)
+			listRows = append(listRows, []string{
+				displayID,
+				truncate(t.Title, 50),
+				t.Type,
+				t.Status,
+			})
 		}
+		fmt.Println(renderTable(listCols, listRows, 3))
 
 		if len(tickets) == 0 && parentFilter != "" {
 			fmt.Printf("\nNo children found for %s\n", parentFilter)

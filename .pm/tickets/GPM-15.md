@@ -1,22 +1,24 @@
 ---
-id: GPM-15
-title: "Use table formatting library for better output"
-type: task
-status: backlog
-priority: low
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""
-depends_on: [GPM-12]
-blocks: []
-related: []
-
-labels: [enhancement, ux, polish]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T04:45:48Z"
-updated_at: "2026-02-03T04:45:48Z"
+depends_on:
+    - GPM-12
+id: GPM-15
+labels:
+    - enhancement
+    - ux
+    - polish
+parent: ""
+points: 3
+priority: low
+related: []
+status: done
+title: Use table formatting library for better output
+type: task
+updated_at: "2026-04-05T10:42:01Z"
 ---
+
 
 # Description
 

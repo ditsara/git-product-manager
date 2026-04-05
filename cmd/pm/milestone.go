@@ -189,8 +189,13 @@ Examples:
 
 		if overdueOnly {
 			today := time.Now().UTC().Truncate(24 * time.Hour)
-			fmt.Printf("%-20s %-40s %-13s %-12s\n", "ID", "TITLE", "DUE DATE", "DAYS OVERDUE")
-			fmt.Println(strings.Repeat("-", 85))
+			overdueCols := []TableColumn{
+				{Header: "ID", Width: 20},
+				{Header: "TITLE", Width: 40},
+				{Header: "DUE DATE", Width: 13},
+				{Header: "DAYS OVERDUE", Width: 12},
+			}
+			var overdueRows [][]string
 			for _, m := range milestones {
 				dueDateStr := m.DueDate
 				daysOverdue := ""
@@ -199,19 +204,26 @@ Examples:
 					days := int(today.Sub(due) / (24 * time.Hour))
 					daysOverdue = fmt.Sprintf("%d", days)
 				}
-				fmt.Printf("%-20s %-40s %-13s %-12s\n",
+				overdueRows = append(overdueRows, []string{
 					truncate(m.ID, 20),
 					truncate(m.Title, 40),
 					dueDateStr,
 					daysOverdue,
-				)
+				})
 			}
+			fmt.Println(renderTable(overdueCols, overdueRows, -1))
 			return
 		}
 
 		if withProgress {
-			fmt.Printf("%-20s %-30s %-13s %-10s %-14s\n", "ID", "TITLE", "DUE DATE", "STATE", "PROGRESS")
-			fmt.Println(strings.Repeat("-", 87))
+			progCols := []TableColumn{
+				{Header: "ID", Width: 20},
+				{Header: "TITLE", Width: 30},
+				{Header: "DUE DATE", Width: 13},
+				{Header: "STATE", Width: 10},
+				{Header: "PROGRESS", Width: 14},
+			}
+			var progRows [][]string
 			for _, m := range milestones {
 				dueDateStr := "-"
 				if m.DueDate != "" {
@@ -224,20 +236,25 @@ Examples:
 				summaries := collectTicketSummaries(ticketsDir, m.ID)
 				info := milestone.CalculateProgress(summaries, m.DueDate, doneStates)
 				progressStr := fmt.Sprintf("%d%% (%d/%d)", pct(info.DoneTickets, info.TotalTickets), info.DoneTickets, info.TotalTickets)
-				fmt.Printf("%-20s %-30s %-13s %-10s %-14s\n",
+				progRows = append(progRows, []string{
 					truncate(m.ID, 20),
 					truncate(m.Title, 30),
 					dueDateStr,
 					m.State,
 					progressStr,
-				)
+				})
 			}
+			fmt.Println(renderTable(progCols, progRows, -1))
 			return
 		}
 
-		fmt.Printf("%-20s %-40s %-13s %-10s\n", "ID", "TITLE", "DUE DATE", "STATE")
-		fmt.Println(strings.Repeat("-", 83))
-
+		milestoneCols := []TableColumn{
+			{Header: "ID", Width: 20},
+			{Header: "TITLE", Width: 40},
+			{Header: "DUE DATE", Width: 13},
+			{Header: "STATE", Width: 10},
+		}
+		var milestoneRows [][]string
 		for _, m := range milestones {
 			dueDateStr := "-"
 			if m.DueDate != "" {
@@ -247,13 +264,14 @@ Examples:
 					dueDateStr = m.DueDate
 				}
 			}
-			fmt.Printf("%-20s %-40s %-13s %-10s\n",
+			milestoneRows = append(milestoneRows, []string{
 				truncate(m.ID, 20),
 				truncate(m.Title, 40),
 				dueDateStr,
 				m.State,
-			)
+			})
 		}
+		fmt.Println(renderTable(milestoneCols, milestoneRows, -1))
 	},
 }
 
