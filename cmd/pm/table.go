@@ -60,8 +60,12 @@ func renderTable(cols []TableColumn, rows [][]string, statusColIndex, expandCol 
 			}
 		}
 		expanded := tw - fixed
-		if expanded < cols[expandCol].Width {
-			expanded = cols[expandCol].Width
+		minExpanded := 80 - fixed
+		if minExpanded < 1 {
+			minExpanded = 1
+		}
+		if expanded < minExpanded {
+			expanded = minExpanded
 		}
 		effective[expandCol].Width = expanded
 	}
