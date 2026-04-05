@@ -9,11 +9,12 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "pm",
-	Short: "Git Product Manager: a project management tool for git repositories.",
-	Long:  `Git Product Manager: a fast and flexible project management tool for git repositories; built with ❤️, ☮️, and 😡 in Bangkok, Thailand.`,
+	Short: "Git Product Manager: project management tool for git repos.",
+	Long:  `Git Product Manager: a fast and flexible project management tool for git repositories.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help when no subcommand is provided
 		cmd.Help()
+		fmt.Printf("\n\nBuilt in BKK with ❤️  ☮️  🤖  😡\n")
 	},
 }
 
