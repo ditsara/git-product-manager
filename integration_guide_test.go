@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-// TestGuideFullOutput verifies that pm guide outputs all section headers.
+// TestGuideFullOutput verifies that pm ai guide outputs all section headers.
 func TestGuideFullOutput(t *testing.T) {
 	pmBinary := buildPMBinary(t)
 	workspace := t.TempDir()
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide")
 	if err != nil {
-		t.Fatalf("pm guide failed: %v\nOutput: %s", err, output)
+		t.Fatalf("pm ai guide failed: %v\nOutput: %s", err, output)
 	}
 
 	expectedHeaders := []string{
@@ -27,52 +27,52 @@ func TestGuideFullOutput(t *testing.T) {
 	}
 	for _, header := range expectedHeaders {
 		if !strings.Contains(output, header) {
-			t.Errorf("pm guide missing expected header %q", header)
+			t.Errorf("pm ai guide missing expected header %q", header)
 		}
 	}
 }
 
-// TestGuideSectionWorkflow verifies pm guide workflow outputs only that section.
+// TestGuideSectionWorkflow verifies pm ai guide workflow outputs only that section.
 func TestGuideSectionWorkflow(t *testing.T) {
 	pmBinary := buildPMBinary(t)
 	workspace := t.TempDir()
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide", "workflow")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide", "workflow")
 	if err != nil {
-		t.Fatalf("pm guide workflow failed: %v\nOutput: %s", err, output)
+		t.Fatalf("pm ai guide workflow failed: %v\nOutput: %s", err, output)
 	}
 
 	if !strings.Contains(output, "# GPM Development Workflow") {
-		t.Errorf("pm guide workflow missing expected header")
+		t.Errorf("pm ai guide workflow missing expected header")
 	}
 	// Must NOT contain other section headers
 	if strings.Contains(output, "# GPM Ticket Schema") {
-		t.Errorf("pm guide workflow should not contain schema section")
+		t.Errorf("pm ai guide workflow should not contain schema section")
 	}
 	if strings.Contains(output, "# GPM Commands Reference") {
-		t.Errorf("pm guide workflow should not contain commands section")
+		t.Errorf("pm ai guide workflow should not contain commands section")
 	}
 }
 
-// TestGuideSectionSchema verifies pm guide schema outputs only that section.
+// TestGuideSectionSchema verifies pm ai guide schema outputs only that section.
 func TestGuideSectionSchema(t *testing.T) {
 	pmBinary := buildPMBinary(t)
 	workspace := t.TempDir()
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide", "schema")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide", "schema")
 	if err != nil {
-		t.Fatalf("pm guide schema failed: %v\nOutput: %s", err, output)
+		t.Fatalf("pm ai guide schema failed: %v\nOutput: %s", err, output)
 	}
 
 	if !strings.Contains(output, "# GPM Ticket Schema") {
-		t.Errorf("pm guide schema missing expected header")
+		t.Errorf("pm ai guide schema missing expected header")
 	}
 	if strings.Contains(output, "# GPM Development Workflow") {
-		t.Errorf("pm guide schema should not contain workflow section")
+		t.Errorf("pm ai guide schema should not contain workflow section")
 	}
 }
 
@@ -83,13 +83,13 @@ func TestGuidePrinciplesNoCommit(t *testing.T) {
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide", "principles")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide", "principles")
 	if err != nil {
-		t.Fatalf("pm guide principles failed: %v\nOutput: %s", err, output)
+		t.Fatalf("pm ai guide principles failed: %v\nOutput: %s", err, output)
 	}
 
 	if !strings.Contains(output, "commit") || !strings.Contains(output, "user") {
-		t.Errorf("pm guide principles should mention not committing without user approval")
+		t.Errorf("pm ai guide principles should mention not committing without user approval")
 	}
 }
 
@@ -100,9 +100,9 @@ func TestGuideInvalidSection(t *testing.T) {
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide", "nonexistent")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide", "nonexistent")
 	if err == nil {
-		t.Fatalf("pm guide nonexistent should have failed, got output: %s", output)
+		t.Fatalf("pm ai guide nonexistent should have failed, got output: %s", output)
 	}
 
 	if !strings.Contains(output, "nonexistent") {
@@ -120,15 +120,15 @@ func TestGuideFullIsPipeable(t *testing.T) {
 	initGitRepo(t, workspace)
 	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	output, err := runPM(t, pmBinary, workspace, "guide")
+	output, err := runPM(t, pmBinary, workspace, "ai", "guide")
 	if err != nil {
-		t.Fatalf("pm guide failed: %v\nOutput: %s", err, output)
+		t.Fatalf("pm ai guide failed: %v\nOutput: %s", err, output)
 	}
 	if len(output) == 0 {
-		t.Fatal("pm guide produced empty output")
+		t.Fatal("pm ai guide produced empty output")
 	}
 	if output[len(output)-1] != '\n' {
-		t.Error("pm guide output should end with newline (pipeable)")
+		t.Error("pm ai guide output should end with newline (pipeable)")
 	}
 }
 
@@ -146,9 +146,9 @@ func TestInitCreatesWorkflowGuide(t *testing.T) {
 	}
 
 	content := string(data)
-	// Must be a stub pointing to pm guide, not full content
-	if !strings.Contains(content, "pm guide") {
-		t.Errorf("WORKFLOW_GUIDE.md should reference 'pm guide', got: %s", content)
+	// Must be a stub pointing to pm ai guide, not full content
+	if !strings.Contains(content, "pm ai guide") {
+		t.Errorf("WORKFLOW_GUIDE.md should reference 'pm ai guide', got: %s", content)
 	}
 	// Should list sections
 	for _, section := range []string{"workflow", "schema", "commands", "principles"} {

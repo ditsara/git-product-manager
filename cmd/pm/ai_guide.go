@@ -9,22 +9,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var guideCmd = &cobra.Command{
+var aiGuideCmd = &cobra.Command{
 	Use:   "guide [section]",
 	Short: "Display workflow guidance for LLM assistants",
 	Long: `Display GPM workflow guidance as Markdown.
 
-With no arguments, outputs the full guide — suitable for piping to a context file:
+Sections:
+  workflow    Step-by-step development process (read this first)
+  schema      Ticket YAML field reference
+  commands    Command cheat sheet
+  principles  Key rules and conventions
 
-  pm guide > CLAUDE.md
-  pm guide > AGENTS.md
+With no arguments, outputs all sections — useful for manual one-shot loading:
+  pm ai guide > CLAUDE.md
 
 With a section name, outputs only that section:
-
-  pm guide workflow    # Development workflow process
-  pm guide schema      # Ticket YAML schema reference
-  pm guide commands    # Commands cheat sheet
-  pm guide principles  # Key principles (including git commit rules)`,
+  pm ai guide workflow`,
 	ValidArgsFunction: completeGuideSections,
 	Args:              cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -49,5 +49,5 @@ With a section name, outputs only that section:
 }
 
 func init() {
-	rootCmd.AddCommand(guideCmd)
+	aiCmd.AddCommand(aiGuideCmd)
 }

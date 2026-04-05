@@ -1,23 +1,21 @@
 ---
-id: GPM-82
-title: "Reorganize pm guide under pm ai subcommand"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-81"  # Parent epic or story
-depends_on: []  # Must complete these first
+assignee: ""
 blocks:
-  - GPM-83
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+    - GPM-83
 created_at: "2026-04-05T09:12:26Z"
-updated_at: "2026-04-05T09:12:26Z"
+depends_on: []
+id: GPM-82
+labels: []
+parent: GPM-81
+points: 0
+priority: medium
+related: []
+status: done
+title: Reorganize pm guide under pm ai subcommand
+type: task
+updated_at: "2026-04-05T09:52:01Z"
 ---
+
 
 # Description
 
