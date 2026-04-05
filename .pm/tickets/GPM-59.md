@@ -1,16 +1,19 @@
 ---
-id: GPM-59
-title: "Fix: pm list --completed --all causes SQL syntax error"
-type: bug
-status: backlog
-priority: high
-points: 3
-
-labels: [bug, list-command, database]
 assignee: ""
 created_at: "2026-02-09T16:27:09Z"
-updated_at: "2026-02-09T16:27:09Z"
+id: GPM-59
+labels:
+    - bug
+    - list-command
+    - database
+points: 3
+priority: high
+status: canceled
+title: 'Fix: pm list --completed --all causes SQL syntax error'
+type: bug
+updated_at: "2026-04-05T08:58:02Z"
 ---
+
 
 # Description
 
@@ -111,3 +114,10 @@ pm list --completed --all | grep -E "done|canceled"
 - State filtering is applied at lines 159-188
 - The issue appears to be that includeStates gets set but showAll also affects query structure
 - Need to ensure WHERE clause is not duplicated or malformed
+## Resolution
+
+**Bug no longer reproducible.** All flag combinations (`--completed --all`, `--active --all`, `--incomplete --all`, etc.) work correctly and return valid results with no SQL errors.
+
+**Root cause fixed as a side effect of GPM-69** (commit `426bf99`): the raw SQL query builder in `list.go` was replaced wholesale with a Bob ORM implementation in `internal/cache/query.go`. The new implementation builds each query path correctly, eliminating the malformed `WHERE … AND` construction that caused this error.
+
+Verified 2026-04-05 against current codebase — no action required.

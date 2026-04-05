@@ -1,22 +1,20 @@
 ---
-id: GPM-72
-title: "Code Cleanup: Large Functions and Raw SQL"
-type: epic
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic (for nested epics)
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-03-26T01:45:52Z"
-updated_at: "2026-03-26T01:45:52Z"
+depends_on: []
+id: GPM-72
+labels: []
+parent: ""
+points: 0
+priority: medium
+related: []
+status: done
+title: 'Code Cleanup: Large Functions and Raw SQL'
+type: epic
+updated_at: "2026-04-05T08:51:46Z"
 ---
+
 
 # Description
 
@@ -44,3 +42,14 @@ One additional raw SQL instance (`showGlobalBlockedView` in `cmd/pm/blocked.go`)
 
 - All sub-tickets (GPM-73–GPM-76) resolved
 - No regressions: `make test` passes
+
+## Completion Notes
+
+| Ticket | Status | Notes |
+|--------|--------|-------|
+| GPM-73 | ✅ done | `SyncCache` reduced from 243 → 59 lines; 5 helpers extracted |
+| GPM-74 | ✅ done | `ShouldSync` SELECT now uses Bob `sm.Select` |
+| GPM-75 | ✅ done | `SyncMilestones` DELETE now uses `clearTable` helper |
+| GPM-76 | ✅ done | `SyncMilestones` INSERT loop replaced with Bob bulk insert |
+
+`showGlobalBlockedView` in `cmd/pm/blocked.go` intentionally skipped — `GROUP_CONCAT` + `HAVING` with dynamic `NOT IN` is not cleanly expressible in Bob Layer 1; raw SQL with a documented comment is the correct call here.

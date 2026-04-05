@@ -10,7 +10,7 @@ labels:
     - config
     - ux
     - stage-2
-parent: ""
+parent: "GPM-78"
 points: 2
 priority: low
 related:
