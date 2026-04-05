@@ -161,14 +161,12 @@ func ShouldSync(pmPath string) (bool, error) {
 func SyncCache(pmPath string) error {
 	dbPath := filepath.Join(pmPath, ".cache.db")
 
-	// Open database
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer db.Close()
 
-	// Begin transaction
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -183,210 +181,30 @@ func SyncCache(pmPath string) error {
 		}
 	}
 
-	// Scan tickets directory
 	ticketsPath := filepath.Join(pmPath, "tickets")
 	files, err := os.ReadDir(ticketsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// No tickets yet, just update timestamp
 			return updateSyncTimestamp(tx)
 		}
 		return fmt.Errorf("failed to read tickets directory: %w", err)
 	}
 
-	// Collect all data for bulk inserts
-	var tickets []ticketData
-	var comments []commentData
-	var relationships []relationshipData
+	tickets, relationships := scanTicketFiles(ticketsPath, files)
+	comments := scanCommentDirs(ticketsPath, files)
 
-	// Process each ticket file
-	for _, file := range files {
-		// Handle both ticket files (.md) and comment directories
-		if strings.HasSuffix(file.Name(), ".md") {
-			// Process ticket file
-			filePath := filepath.Join(ticketsPath, file.Name())
-			content, err := os.ReadFile(filePath)
-			if err != nil {
-				continue // Skip files we can't read
-			}
-
-			t, err := ticket.Parse(content)
-			if err != nil {
-				continue // Skip invalid tickets
-			}
-
-			// Extract body (everything after the second ---)
-			parts := strings.SplitN(string(content), "---", 3)
-			body := ""
-			if len(parts) == 3 {
-				body = strings.TrimSpace(parts[2])
-			}
-
-			tickets = append(tickets, ticketData{
-				id:         t.ID,
-				title:      t.Title,
-				typ:        t.Type,
-				status:     t.Status,
-				priority:   t.Priority,
-				assignee:   t.Assignee,
-				parent:     t.Parent,
-				createdAt:  t.CreatedAt,
-				updatedAt:  t.UpdatedAt,
-				body:       body,
-				milestones: strings.Join(t.Milestones, ","),
-			})
-
-			// Collect relationships from depends_on array
-			for _, depID := range t.DependsOn {
-				relationships = append(relationships, relationshipData{
-					fromTicket: t.ID,
-					toTicket:   depID,
-					relType:    "depends-on",
-				})
-			}
-
-			// Collect relationships from blocks array
-			for _, blockedID := range t.Blocks {
-				relationships = append(relationships, relationshipData{
-					fromTicket: t.ID,
-					toTicket:   blockedID,
-					relType:    "blocks",
-				})
-			}
-		}
+	if err := syncTickets(ctx, tx, tickets); err != nil {
+		return err
 	}
-
-	// Compute materialized paths for all tickets.
-	// A materialized path encodes the full ancestor chain (e.g., "GPM-1/GPM-2/GPM-3"),
-	// enabling subtree queries via a simple LIKE predicate instead of a recursive CTE.
-	byID := make(map[string]*ticketData, len(tickets))
-	for i := range tickets {
-		byID[tickets[i].id] = &tickets[i]
+	if err := syncComments(ctx, tx, comments); err != nil {
+		return err
 	}
-
-	for i := range tickets {
-		if tickets[i].path == "" {
-			buildPath(tickets[i].id, byID, make(map[string]bool))
-		}
+	if err := syncRelationships(ctx, tx, relationships); err != nil {
+		return err
 	}
-
-	// Collect comments from comment directories
-	for _, file := range files {
-		if !file.IsDir() {
-			continue
-		}
-
-		ticketID := file.Name()
-		commentDir := filepath.Join(ticketsPath, ticketID)
-		commentEntries, err := os.ReadDir(commentDir)
-		if err != nil {
-			continue // Skip if we can't read the directory
-		}
-
-		for _, commentFile := range commentEntries {
-			if commentFile.IsDir() || !strings.HasSuffix(commentFile.Name(), ".md") {
-				continue
-			}
-
-			commentPath := filepath.Join(commentDir, commentFile.Name())
-			relPath := filepath.Join(ticketID, commentFile.Name())
-
-			// Parse comment to get metadata
-			comment, err := ticket.ParseCommentFile(commentPath)
-			if err != nil {
-				continue // Skip invalid comment files
-			}
-
-			comments = append(comments, commentData{
-				ticketID:  ticketID,
-				author:    comment.Author,
-				timestamp: comment.CreatedAt.Format(time.RFC3339),
-				filepath:  relPath,
-			})
-		}
-	}
-
-	// Bulk insert tickets using Bob
-	if len(tickets) > 0 {
-		insertTickets := sqlite.Insert(
-			im.Into("tickets",
-				"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body", "path", "milestones",
-			),
-		)
-		
-		for _, t := range tickets {
-			insertTickets.Apply(
-				im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body, t.path, t.milestones)),
-			)
-		}
-
-		insertTicketsSQL, insertTicketsArgs, err := insertTickets.Build(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to build INSERT tickets query: %w", err)
-		}
-
-		_, err = tx.Exec(insertTicketsSQL, insertTicketsArgs...)
-		if err != nil {
-			return fmt.Errorf("failed to insert tickets: %w", err)
-		}
-	}
-
-	// Bulk insert comments using Bob.
-	// OR IGNORE handles the edge case where two comments are created in the same
-	// second by the same author on the same ticket (identical PRIMARY KEY). The
-	// files remain on disk as the source of truth; the cache keeps the first one.
-	if len(comments) > 0 {
-		insertComments := sqlite.Insert(
-			im.Into("comments", "ticket_id", "author", "timestamp", "filepath"),
-			im.OrIgnore(),
-		)
-
-		for _, c := range comments {
-			insertComments.Apply(
-				im.Values(sqlite.Arg(c.ticketID, c.author, c.timestamp, c.filepath)),
-			)
-		}
-
-		insertCommentsSQL, insertCommentsArgs, err := insertComments.Build(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to build INSERT comments query: %w", err)
-		}
-
-		_, err = tx.Exec(insertCommentsSQL, insertCommentsArgs...)
-		if err != nil {
-			return fmt.Errorf("failed to insert comments: %w", err)
-		}
-	}
-
-	// Bulk insert relationships using Bob
-	if len(relationships) > 0 {
-		insertRelationships := sqlite.Insert(
-			im.Into("relationships", "from_ticket", "to_ticket", "relationship_type"),
-		)
-
-		for _, r := range relationships {
-			insertRelationships.Apply(
-				im.Values(sqlite.Arg(r.fromTicket, r.toTicket, r.relType)),
-			)
-		}
-
-		insertRelationshipsSQL, insertRelationshipsArgs, err := insertRelationships.Build(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to build INSERT relationships query: %w", err)
-		}
-
-		_, err = tx.Exec(insertRelationshipsSQL, insertRelationshipsArgs...)
-		if err != nil {
-			return fmt.Errorf("failed to insert relationships: %w", err)
-		}
-	}
-
-	// Update sync timestamp
 	if err := updateSyncTimestamp(tx); err != nil {
 		return err
 	}
-
-	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -398,6 +216,105 @@ func SyncCache(pmPath string) error {
 	}
 
 	return nil
+}
+
+// scanTicketFiles reads all .md ticket files from ticketsPath, parsing each into
+// ticketData and collecting any relationship edges declared in the ticket front matter.
+// Materialized paths are computed across all tickets after parsing.
+func scanTicketFiles(ticketsPath string, files []os.DirEntry) ([]ticketData, []relationshipData) {
+	var tickets []ticketData
+	var relationships []relationshipData
+
+	for _, file := range files {
+		if !strings.HasSuffix(file.Name(), ".md") {
+			continue
+		}
+		filePath := filepath.Join(ticketsPath, file.Name())
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+		t, err := ticket.Parse(content)
+		if err != nil {
+			continue
+		}
+		parts := strings.SplitN(string(content), "---", 3)
+		body := ""
+		if len(parts) == 3 {
+			body = strings.TrimSpace(parts[2])
+		}
+		tickets = append(tickets, ticketData{
+			id:         t.ID,
+			title:      t.Title,
+			typ:        t.Type,
+			status:     t.Status,
+			priority:   t.Priority,
+			assignee:   t.Assignee,
+			parent:     t.Parent,
+			createdAt:  t.CreatedAt,
+			updatedAt:  t.UpdatedAt,
+			body:       body,
+			milestones: strings.Join(t.Milestones, ","),
+		})
+		for _, depID := range t.DependsOn {
+			relationships = append(relationships, relationshipData{fromTicket: t.ID, toTicket: depID, relType: "depends-on"})
+		}
+		for _, blockedID := range t.Blocks {
+			relationships = append(relationships, relationshipData{fromTicket: t.ID, toTicket: blockedID, relType: "blocks"})
+		}
+	}
+
+	// Compute materialized paths for all tickets.
+	// A materialized path encodes the full ancestor chain (e.g., "GPM-1/GPM-2/GPM-3"),
+	// enabling subtree queries via a simple LIKE predicate instead of a recursive CTE.
+	byID := make(map[string]*ticketData, len(tickets))
+	for i := range tickets {
+		byID[tickets[i].id] = &tickets[i]
+	}
+	for i := range tickets {
+		if tickets[i].path == "" {
+			buildPath(tickets[i].id, byID, make(map[string]bool))
+		}
+	}
+
+	return tickets, relationships
+}
+
+// scanCommentDirs reads all comment directories from ticketsPath and returns
+// a flat list of commentData for bulk insertion.
+func scanCommentDirs(ticketsPath string, files []os.DirEntry) []commentData {
+	var comments []commentData
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+		ticketID := file.Name()
+		commentDir := filepath.Join(ticketsPath, ticketID)
+		commentEntries, err := os.ReadDir(commentDir)
+		if err != nil {
+			continue
+		}
+		for _, commentFile := range commentEntries {
+			if commentFile.IsDir() || !strings.HasSuffix(commentFile.Name(), ".md") {
+				continue
+			}
+			commentPath := filepath.Join(commentDir, commentFile.Name())
+			relPath := filepath.Join(ticketID, commentFile.Name())
+			c, err := ticket.ParseCommentFile(commentPath)
+			if err != nil {
+				continue
+			}
+			comments = append(comments, commentData{
+				ticketID:  ticketID,
+				author:    c.Author,
+				timestamp: c.CreatedAt.Format(time.RFC3339),
+				filepath:  relPath,
+			})
+		}
+	}
+
+	return comments
 }
 
 // updateSyncTimestamp updates the last_sync_timestamp in cache_metadata
@@ -424,6 +341,75 @@ func updateSyncTimestamp(tx *sql.Tx) error {
 	_, err = tx.Exec(updateSQL, updateArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to update sync timestamp: %w", err)
+	}
+	return nil
+}
+
+// syncTickets bulk-inserts ticket rows into the cache within an existing transaction.
+func syncTickets(ctx context.Context, tx *sql.Tx, tickets []ticketData) error {
+	if len(tickets) == 0 {
+		return nil
+	}
+	q := sqlite.Insert(
+		im.Into("tickets",
+			"id", "title", "type", "status", "priority", "assignee", "parent", "created_at", "updated_at", "body", "path", "milestones",
+		),
+	)
+	for _, t := range tickets {
+		q.Apply(im.Values(sqlite.Arg(t.id, t.title, t.typ, t.status, t.priority, t.assignee, t.parent, t.createdAt, t.updatedAt, t.body, t.path, t.milestones)))
+	}
+	querySQL, queryArgs, err := q.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build INSERT tickets query: %w", err)
+	}
+	if _, err = tx.Exec(querySQL, queryArgs...); err != nil {
+		return fmt.Errorf("failed to insert tickets: %w", err)
+	}
+	return nil
+}
+
+// syncComments bulk-inserts comment rows into the cache within an existing transaction.
+// OR IGNORE handles the edge case where two comments are created in the same second by
+// the same author on the same ticket (identical PRIMARY KEY). Files on disk are the
+// source of truth; the cache keeps the first one.
+func syncComments(ctx context.Context, tx *sql.Tx, comments []commentData) error {
+	if len(comments) == 0 {
+		return nil
+	}
+	q := sqlite.Insert(
+		im.Into("comments", "ticket_id", "author", "timestamp", "filepath"),
+		im.OrIgnore(),
+	)
+	for _, c := range comments {
+		q.Apply(im.Values(sqlite.Arg(c.ticketID, c.author, c.timestamp, c.filepath)))
+	}
+	querySQL, queryArgs, err := q.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build INSERT comments query: %w", err)
+	}
+	if _, err = tx.Exec(querySQL, queryArgs...); err != nil {
+		return fmt.Errorf("failed to insert comments: %w", err)
+	}
+	return nil
+}
+
+// syncRelationships bulk-inserts relationship rows into the cache within an existing transaction.
+func syncRelationships(ctx context.Context, tx *sql.Tx, relationships []relationshipData) error {
+	if len(relationships) == 0 {
+		return nil
+	}
+	q := sqlite.Insert(
+		im.Into("relationships", "from_ticket", "to_ticket", "relationship_type"),
+	)
+	for _, r := range relationships {
+		q.Apply(im.Values(sqlite.Arg(r.fromTicket, r.toTicket, r.relType)))
+	}
+	querySQL, queryArgs, err := q.Build(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build INSERT relationships query: %w", err)
+	}
+	if _, err = tx.Exec(querySQL, queryArgs...); err != nil {
+		return fmt.Errorf("failed to insert relationships: %w", err)
 	}
 	return nil
 }

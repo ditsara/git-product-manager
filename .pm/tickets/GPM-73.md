@@ -1,22 +1,20 @@
 ---
-id: GPM-73
-title: "Refactor SyncCache: break up 243-line function"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-72"  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-03-26T01:46:01Z"
-updated_at: "2026-03-26T01:46:01Z"
+depends_on: []
+id: GPM-73
+labels: []
+parent: GPM-72
+points: 0
+priority: medium
+related: []
+status: done
+title: 'Refactor SyncCache: break up 243-line function'
+type: task
+updated_at: "2026-04-05T08:46:14Z"
 ---
+
 
 # Description
 
