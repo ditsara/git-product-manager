@@ -131,12 +131,12 @@ Examples:
 			}
 			listRows = append(listRows, []string{
 				displayID,
-				truncate(t.Title, 50),
+				t.Title,
 				t.Type,
 				t.Status,
 			})
 		}
-		fmt.Println(renderTable(listCols, listRows, 3))
+		fmt.Println(renderTable(listCols, listRows, 3, 1))
 
 		if len(tickets) == 0 && parentFilter != "" {
 			fmt.Printf("\nNo children found for %s\n", parentFilter)

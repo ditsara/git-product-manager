@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+
+	cterm "github.com/charmbracelet/x/term"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 )
@@ -25,16 +28,49 @@ type TableColumn struct {
 	Width  int
 }
 
+// termWidth returns the current terminal width, falling back to 100.
+func termWidth() int {
+	w, _, err := cterm.GetSize(os.Stdout.Fd())
+	if err != nil || w <= 0 {
+		return 100
+	}
+	return w
+}
+
 // renderTable renders a borderless, optionally color-coded table.
 //
 // statusColIndex is the 0-based column index whose values are color-coded by
 // status. Pass -1 to disable status coloring.
-func renderTable(cols []TableColumn, rows [][]string, statusColIndex int) string {
-	// Pad all cells and headers to their minimum column widths up front.
+//
+// expandCol is the 0-based column index that should absorb any spare terminal
+// width (typically the TITLE column). Pass -1 to use fixed widths only.
+func renderTable(cols []TableColumn, rows [][]string, statusColIndex, expandCol int) string {
+	// Resolve effective column widths, expanding one column to fill the terminal.
+	effective := make([]TableColumn, len(cols))
+	copy(effective, cols)
+
+	if expandCol >= 0 && expandCol < len(cols) {
+		tw := termWidth()
+		// Account for the single space lipgloss HiddenBorder adds between columns.
+		separators := len(cols) - 1
+		fixed := separators
+		for i, c := range cols {
+			if i != expandCol {
+				fixed += c.Width
+			}
+		}
+		expanded := tw - fixed
+		if expanded < cols[expandCol].Width {
+			expanded = cols[expandCol].Width
+		}
+		effective[expandCol].Width = expanded
+	}
+
+	// Pad all cells and headers to their effective column widths.
 	// lipgloss/table v1 doesn't expose per-column width directly, so we
-	// enforce widths by padding values.
-	paddedHeaders := make([]string, len(cols))
-	for i, c := range cols {
+	// enforce widths by padding (and truncating) values.
+	paddedHeaders := make([]string, len(effective))
+	for i, c := range effective {
 		paddedHeaders[i] = padRight(c.Header, c.Width)
 	}
 
@@ -42,11 +78,11 @@ func renderTable(cols []TableColumn, rows [][]string, statusColIndex int) string
 	for i, r := range rows {
 		paddedRows[i] = make([]string, len(r))
 		for j, cell := range r {
-			minW := 0
-			if j < len(cols) {
-				minW = cols[j].Width
+			w := 0
+			if j < len(effective) {
+				w = effective[j].Width
 			}
-			paddedRows[i][j] = padRight(cell, minW)
+			paddedRows[i][j] = padRight(truncate(cell, w), w)
 		}
 	}
 

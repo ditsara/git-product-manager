@@ -205,13 +205,13 @@ Examples:
 					daysOverdue = fmt.Sprintf("%d", days)
 				}
 				overdueRows = append(overdueRows, []string{
-					truncate(m.ID, 20),
-					truncate(m.Title, 40),
+					m.ID,
+					m.Title,
 					dueDateStr,
 					daysOverdue,
 				})
 			}
-			fmt.Println(renderTable(overdueCols, overdueRows, -1))
+			fmt.Println(renderTable(overdueCols, overdueRows, -1, 1))
 			return
 		}
 
@@ -237,14 +237,14 @@ Examples:
 				info := milestone.CalculateProgress(summaries, m.DueDate, doneStates)
 				progressStr := fmt.Sprintf("%d%% (%d/%d)", pct(info.DoneTickets, info.TotalTickets), info.DoneTickets, info.TotalTickets)
 				progRows = append(progRows, []string{
-					truncate(m.ID, 20),
-					truncate(m.Title, 30),
+					m.ID,
+					m.Title,
 					dueDateStr,
 					m.State,
 					progressStr,
 				})
 			}
-			fmt.Println(renderTable(progCols, progRows, -1))
+			fmt.Println(renderTable(progCols, progRows, -1, 1))
 			return
 		}
 
@@ -265,13 +265,13 @@ Examples:
 				}
 			}
 			milestoneRows = append(milestoneRows, []string{
-				truncate(m.ID, 20),
-				truncate(m.Title, 40),
+				m.ID,
+				m.Title,
 				dueDateStr,
 				m.State,
 			})
 		}
-		fmt.Println(renderTable(milestoneCols, milestoneRows, -1))
+		fmt.Println(renderTable(milestoneCols, milestoneRows, -1, 1))
 	},
 }
 
