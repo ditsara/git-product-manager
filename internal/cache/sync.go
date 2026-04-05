@@ -15,6 +15,7 @@ import (
 	"github.com/stephenafamo/bob/dialect/sqlite"
 	"github.com/stephenafamo/bob/dialect/sqlite/dm"
 	"github.com/stephenafamo/bob/dialect/sqlite/im"
+	"github.com/stephenafamo/bob/dialect/sqlite/sm"
 )
 
 // ticketData holds the fields extracted from a ticket file for bulk cache insertion.
@@ -101,7 +102,16 @@ func ShouldSync(pmPath string) (bool, error) {
 
 	// Get last sync timestamp
 	var lastSyncStr string
-	err = db.QueryRow("SELECT value FROM cache_metadata WHERE key = 'last_sync_timestamp'").Scan(&lastSyncStr)
+	ctx := context.Background()
+	querySQL, queryArgs, err := sqlite.Select(
+		sm.Columns("value"),
+		sm.From("cache_metadata"),
+		sm.Where(sqlite.Quote("key").EQ(sqlite.Arg("last_sync_timestamp"))),
+	).Build(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to build sync timestamp query: %w", err)
+	}
+	err = db.QueryRowContext(ctx, querySQL, queryArgs...).Scan(&lastSyncStr)
 	if err != nil {
 		// If metadata doesn't exist, we need to sync
 		if err == sql.ErrNoRows {
@@ -431,8 +441,9 @@ func SyncMilestones(pmPath string) error {
 	}
 	defer tx.Rollback()
 
-	// Clear existing milestones
-	if _, err := tx.Exec("DELETE FROM milestones"); err != nil {
+	ctx := context.Background()
+
+	if err := clearTable(ctx, tx, "milestones"); err != nil {
 		return fmt.Errorf("failed to clear milestones table: %w", err)
 	}
 
@@ -446,14 +457,20 @@ func SyncMilestones(pmPath string) error {
 		return fmt.Errorf("failed to list milestones: %w", err)
 	}
 
-	for _, m := range milestones {
-		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO milestones (id, title, description, due_date, state, created_at, closed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			m.ID, m.Title, m.Description, m.DueDate, m.State, m.CreatedAt, m.ClosedAt,
+	if len(milestones) > 0 {
+		q := sqlite.Insert(
+			im.Into("milestones", "id", "title", "description", "due_date", "state", "created_at", "closed_at"),
+			im.OrReplace(),
 		)
+		for _, m := range milestones {
+			q.Apply(im.Values(sqlite.Arg(m.ID, m.Title, m.Description, m.DueDate, m.State, m.CreatedAt, m.ClosedAt)))
+		}
+		insertSQL, insertArgs, err := q.Build(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to insert milestone %s: %w", m.ID, err)
+			return fmt.Errorf("failed to build milestones insert: %w", err)
+		}
+		if _, err = tx.Exec(insertSQL, insertArgs...); err != nil {
+			return fmt.Errorf("failed to insert milestones: %w", err)
 		}
 	}
 

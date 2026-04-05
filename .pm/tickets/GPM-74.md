@@ -1,22 +1,20 @@
 ---
-id: GPM-74
-title: "Replace raw SQL in ShouldSync with Bob query builder"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-72"  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-03-26T01:46:01Z"
-updated_at: "2026-03-26T01:46:01Z"
+depends_on: []
+id: GPM-74
+labels: []
+parent: GPM-72
+points: 0
+priority: medium
+related: []
+status: done
+title: Replace raw SQL in ShouldSync with Bob query builder
+type: task
+updated_at: "2026-04-05T08:47:55Z"
 ---
+
 
 # Description
 
