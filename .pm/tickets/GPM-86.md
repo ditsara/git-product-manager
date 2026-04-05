@@ -1,24 +1,22 @@
 ---
-id: GPM-86
-title: "Deduplicate and consolidate LLM guidance in AGENTS.md"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-81"  # Parent epic or story
-depends_on:
-  - GPM-82
-  - GPM-83
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T09:30:17Z"
-updated_at: "2026-04-05T09:45:45Z"
+depends_on:
+    - GPM-82
+    - GPM-83
+id: GPM-86
+labels: []
+parent: GPM-81
+points: 0
+priority: medium
+related: []
+status: done
+title: Deduplicate and consolidate LLM guidance in AGENTS.md
+type: task
+updated_at: "2026-04-05T10:02:16Z"
 ---
+
 # Description
 
 Get this repo's LLM context files into shape now that `pm ai guide` and

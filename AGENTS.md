@@ -19,20 +19,17 @@ read specifications.
 ## LLM Workflow Guidance
 
 This project uses GPM's ticket-driven workflow for LLM-human collaboration.
-For current guidance, run:
+For guidance, run:
 
 ```
-pm guide workflow
-pm guide schema
-pm guide commands
-pm guide principles
+pm ai guide workflow
+pm ai guide schema
+pm ai guide commands
+pm ai guide principles
 ```
 
-Or generate a complete guidance file:
-
-```
-pm guide > CLAUDE.md
-```
+**Important:** Never create or edit ticket files directly — always use the `pm`
+CLI commands (`pm new`, `pm edit`, `pm move`, etc.).
 
 ---
 
@@ -50,23 +47,24 @@ project-root/
 │   │   ├── workflow.yaml     # State definitions
 │   │   ├── labels.yaml       # Allowed tags
 │   │   ├── templates/        # Ticket templates (story, task, bug, epic, milestone)
-│   │   └── WORKFLOW_GUIDE.md # Stub pointing to `pm guide`
+│   │   └── WORKFLOW_GUIDE.md # Stub pointing to `pm ai guide`
+│   ├── AGENTS.md             # This file
 │   ├── .gitignore            # Ignores .cache.db
 │   └── .cache.db             # Git-ignored SQLite index
 ```
 
 ### Technology Stack
 
-| Concern | Library |
-|---------|---------|
-| CLI framework | `github.com/spf13/cobra` + `github.com/spf13/viper` |
-| YAML parsing | `gopkg.in/yaml.v3` (strict mode) |
-| Git operations | Shell out to `git` CLI |
-| SQLite driver | `modernc.org/sqlite` (CGo-free) |
-| ORM / Query Builder | `github.com/stephenafamo/bob` (Layer 1) |
-| Markdown rendering | `github.com/charmbracelet/glamour` |
-| Database migrations | `github.com/golang-migrate/migrate/v4` |
-| Embedded assets | `embed.FS` (migrations + guide) |
+| Concern          | Library                                          |
+|------------------|--------------------------------------------------|
+| CLI framework    | `github.com/spf13/cobra` + `github.com/spf13/viper` |
+| YAML parsing     | `gopkg.in/yaml.v3` (strict mode)                 |
+| Git operations   | Shell out to `git` CLI                           |
+| SQLite driver    | `modernc.org/sqlite` (CGo-free)                  |
+| ORM              | `github.com/stephenafamo/bob` (Layer 1 only)     |
+| Markdown render  | `github.com/charmbracelet/glamour`               |
+| DB migrations    | `github.com/golang-migrate/migrate/v4`           |
+| Embedded assets  | `embed.FS` (migrations + guide)                  |
 
 ### Project Structure
 
@@ -74,7 +72,7 @@ project-root/
 cmd/pm/               # Cobra commands (one file per command)
   main.go
   init.go, new.go, list.go, show.go, move.go, edit.go
-  comment.go, history.go, assign.go, guide.go
+  comment.go, history.go, assign.go, ai.go, ai_guide.go, ai_init.go
   link.go, unlink.go, blocked.go, milestone.go
   completion.go, completion_helpers.go, common.go
 internal/
@@ -101,68 +99,95 @@ make clean            # remove bin/ sandbox/
 go install ./cmd/pm   # install to $GOPATH/bin
 ```
 
-Use `t.TempDir()` for all filesystem-based tests. Integration tests are split by
-command group (e.g., `integration_list_test.go`, `integration_comment_test.go`).
+Use `t.TempDir()` for all filesystem-based tests. Integration tests are split
+by command group (e.g., `integration_list_test.go`, `integration_ai_test.go`).
 
 ### Database Migrations
 
 Migrations are **embedded in the binary** via `internal/migrations/embed.go`
 (`//go:embed *.sql`). They are applied automatically on every command invocation
-via a lazy migration check (GPM-10).
+via a lazy migration check.
 
-**Naming:** `{version}_{description}.{up|down}.sql`, version is 6-digit zero-padded.
+**Naming:** `{version}_{description}.{up|down}.sql`, zero-padded to 6 digits.
 
-**Current migrations (000001–000008):**
+| # | Description                              |
+|---|------------------------------------------|
+| 1 | Initial schema: `tickets`, `relationships` |
+| 2 | Cache metadata table                     |
+| 3 | Comments table                           |
+| 4 | Relationships table                      |
+| 5 | Path column (materialized paths)         |
+| 6 | Milestones table                         |
+| 7 | `milestones` column on tickets           |
+| 8 | `idx_ticket_milestones` index            |
 
-| # | Description |
-|---|-------------|
-| 000001 | Initial schema: `tickets`, `relationships` |
-| 000002 | Cache metadata table |
-| 000003 | Comments table |
-| 000004 | Relationships table |
-| 000005 | Path column (materialized paths for hierarchy) |
-| 000006 | Milestones table |
-| 000007 | `milestones` column on tickets |
-| 000008 | `idx_ticket_milestones` index |
+When adding a migration use the next sequential number. Never reuse or skip.
 
-When adding a new migration, use the next sequential number (000009, etc.).
-Never reuse or skip numbers.
+---
 
-### Key Design Decisions
+## Cache Data Model
 
-**Ticket IDs — sequential integers, filesystem-first**
+The cache is a SQLite database (`.pm/.cache.db`) providing fast ticket queries
+without parsing YAML on every command. Ticket files are the source of truth;
+the cache is rebuilt automatically when stale.
+
+### Sync Strategy
+
+`ShouldSync()` compares `cache_metadata.last_sync_timestamp` against the
+most-recent file mtime in `.pm/tickets/`. If any file is newer, `SyncCache()`
+runs a full rebuild inside a transaction.
+
+### Tables
+
+**`tickets`** — primary index of ticket metadata (id, title, type, status,
+priority, assignee, parent, created_at, updated_at, body, milestones, path).
+
+**`cache_metadata`** — key/value sync state. Key `last_sync_timestamp` tracks
+the last successful sync (ISO8601 UTC). Initialized to epoch to force first
+sync.
+
+**`comments`** — index of comment file metadata (ticket_id, author, timestamp,
+filepath). Content is NOT cached; `filepath` is used to read on demand.
+
+**`relationships`** — directed graph of ticket relationships
+(from_ticket, to_ticket, relationship_type). Types: `depends-on`, `blocks`,
+`parent`, `related`.
+
+**`milestones`** — index of milestone metadata (id, title, status, due_date).
+
+### Bob ORM (Layer 1 only)
+
+Use `bob.NewQuery(...)` / `sqlite.Insert(...)` / `sm.Select(...)` etc. for all
+DB operations. Do NOT add Layer 2 code generation.
+
+---
+
+## Key Design Decisions
+
+**Ticket IDs — sequential integers, filesystem-first.**
 Format: `PREFIX-N` (e.g., `GPM-42`). Generated by scanning `.pm/tickets/` for
 the highest existing number. Does NOT rely on the SQLite cache. Gaps in the
 sequence are handled gracefully (1,2,4,5 → next is 6).
 
-**Milestone IDs — kebab-case slugs**
-Derived from the milestone title. Example: `v1-0-release`. Separate validation
-from ticket IDs. Stored in `.pm/milestones/`.
+**Milestone IDs — kebab-case slugs** derived from title (e.g., `v1-0-release`).
+Stored in `.pm/milestones/`.
 
-**Ticket IDs are case-insensitive in all commands** (GPM-13). Internally
-stored as uppercase; matched case-insensitively on lookup.
+**Ticket IDs are case-insensitive** in all commands. Internally stored as
+uppercase; matched case-insensitively on lookup.
 
-**Array fields REPLACE, not append** (GPM-4). When updating `labels`,
-`depends_on`, `milestones`, etc. via `pm edit --field`, the new value replaces
-the entire array. Consistent with single-value field behaviour.
+**Array fields REPLACE, not append.** When updating `labels`, `depends_on`,
+`milestones`, etc. via `pm edit --field`, the new value replaces the entire
+array.
 
-**Bob ORM — Layer 1 only** (GPM-61). Use the query builder (`bob.NewQuery(...)`)
-for all database operations. Do not add Layer 2 (code generation) unless there
-is a specific, justified need. Layer 1 is sufficient and avoids generated-code
-maintenance burden.
+**Error messages** must include: ticket ID, field name, expected vs actual
+value, and a suggestion.
 
-**`pm edit --field milestones=...`** validates each milestone ID against the
-`.pm/milestones/` filesystem before writing (GPM-54).
+Example: `Error: Invalid status 'done-ish' for GPM-42. Valid states:
+[backlog, todo, in-progress, done, canceled].`
 
-**Error messages must include:**
-- Ticket ID (if applicable)
-- Field name causing the error
-- Expected vs. actual value
-- Suggestion for fix
+---
 
-Example: `Error: Invalid status 'done-ish' for GPM-42. Valid states: [backlog, todo, in-progress, done, canceled].`
-
-### Current Roadmap
+## Current Roadmap
 
 **Completed stages:**
 - ✅ Stage 1 — Core ticket management (init, new, list, show, edit, move)
@@ -170,13 +195,14 @@ Example: `Error: Invalid status 'done-ish' for GPM-42. Valid states: [backlog, t
 - ✅ Stage 1.6 — Lazy migration check, improved help messages
 - ✅ Stage 2 — Comments, history, assign, pm show with comments
 - ✅ Stage 2+ — pm link, pm unlink, pm blocked, pm assign, bash completion
-- ✅ Milestones (GPM-14) — pm milestone create/list/show/close, ticket milestone field
-- ✅ Bob ORM migration (GPM-61) — cache/sync, list, blocked queries
-- ✅ pm guide (GPM-28) — embedded workflow guidance for LLM agents
+- ✅ Milestones (GPM-14)
+- ✅ Bob ORM migration (GPM-61)
+- ✅ pm ai guide (GPM-28, GPM-82)
+- ✅ pm ai init + AGENTS.md bootstrap (GPM-83, GPM-87)
 
-**Backlog (see `pm list` for full list):**
+**Backlog (run `pm list` for full list):**
 - GPM-2 — Stage 3 partial: pm tree, pm search, enhanced list filtering
-- GPM-5 — Bad YAML validation guardrails (standalone)
+- GPM-5 — Bad YAML validation guardrails
 - GPM-17 — Cache metadata / staleness tracking
 - GPM-70 — pm validate command (milestone reference checking)
-- See `.pm/tickets/` for all open tickets
+
