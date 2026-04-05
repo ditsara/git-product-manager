@@ -47,7 +47,6 @@ project-root/
 │   │   ├── workflow.yaml     # State definitions
 │   │   ├── labels.yaml       # Allowed tags
 │   │   ├── templates/        # Ticket templates (story, task, bug, epic, milestone)
-│   │   └── WORKFLOW_GUIDE.md # Stub pointing to `pm ai guide`
 │   ├── AGENTS.md             # This file
 │   ├── .gitignore            # Ignores .cache.db
 │   └── .cache.db             # Git-ignored SQLite index

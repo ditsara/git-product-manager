@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -132,32 +130,4 @@ func TestGuideFullIsPipeable(t *testing.T) {
 	}
 }
 
-// TestInitCreatesWorkflowGuide verifies pm init creates WORKFLOW_GUIDE.md stub.
-func TestInitCreatesWorkflowGuide(t *testing.T) {
-	pmBinary := buildPMBinary(t)
-	workspace := t.TempDir()
-	initGitRepo(t, workspace)
-	initWorkspace(t, pmBinary, workspace, "GUIDE")
 
-	guidePath := filepath.Join(workspace, ".pm", "config", "WORKFLOW_GUIDE.md")
-	data, err := os.ReadFile(guidePath)
-	if err != nil {
-		t.Fatalf("WORKFLOW_GUIDE.md not created: %v", err)
-	}
-
-	content := string(data)
-	// Must be a stub pointing to pm ai guide, not full content
-	if !strings.Contains(content, "pm ai guide") {
-		t.Errorf("WORKFLOW_GUIDE.md should reference 'pm ai guide', got: %s", content)
-	}
-	// Should list sections
-	for _, section := range []string{"workflow", "schema", "commands", "principles"} {
-		if !strings.Contains(content, section) {
-			t.Errorf("WORKFLOW_GUIDE.md should mention section %q", section)
-		}
-	}
-	// Should NOT be excessively long (it's a stub, not full content)
-	if len(content) > 2000 {
-		t.Errorf("WORKFLOW_GUIDE.md seems too long for a stub: %d chars", len(content))
-	}
-}

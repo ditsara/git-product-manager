@@ -183,7 +183,6 @@ func TestInitIdempotent(t *testing.T) {
 		filepath.Join(".pm", "config", "project.yaml"),
 		filepath.Join(".pm", "config", "workflow.yaml"),
 		filepath.Join(".pm", "config", "labels.yaml"),
-		filepath.Join(".pm", "config", "WORKFLOW_GUIDE.md"),
 		filepath.Join(".pm", "AGENTS.md"),
 	}
 	snapshots := make(map[string]string)

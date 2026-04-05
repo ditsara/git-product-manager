@@ -10,7 +10,6 @@ import (
 
 	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
-	"github.com/ditsara/git-product-manager/internal/guide"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -68,7 +67,6 @@ var initCmd = &cobra.Command{
 		createDefaultTemplates(pmPath)
 		createGitignore(pmPath)
 		createProjectConfig(pmPath, prefix)
-		createWorkflowGuide(pmPath)
 		createAgentsFile(pmPath)
 
 		// Initialize database
@@ -186,35 +184,6 @@ func createProjectConfig(pmPath string, prefix string) {
 		os.Exit(1)
 	}
 	fmt.Printf("  ✓ Created %s (prefix: %s)\n", path, prefix)
-}
-
-func createWorkflowGuide(pmPath string) {
-	path := filepath.Join(pmPath, "config", "WORKFLOW_GUIDE.md")
-	if _, err := os.Stat(path); err == nil {
-		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
-		return
-	}
-	sections := guide.SectionNames()
-	lines := []string{
-		"# GPM Workflow Guide",
-		"",
-		"This project uses Git Product Manager (GPM).",
-		"For current guidance, run:",
-		"",
-	}
-	for _, s := range sections {
-		lines = append(lines, "  pm ai guide "+s)
-	}
-	lines = append(lines, "")
-	content := ""
-	for _, l := range lines {
-		content += l + "\n"
-	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		fmt.Printf("Error creating WORKFLOW_GUIDE.md: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("  ✓ Created %s\n", path)
 }
 
 func init() {
