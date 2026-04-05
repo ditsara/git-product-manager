@@ -35,15 +35,15 @@ user's LLM tool.
   by calling the binary.
 - **Short bootstrap**: `pm ai init` writes ~5 lines. The LLM calls
   `pm ai guide <section>` when it needs detail.
-- **No silent overwrites**: `pm ai init` skips existing files unless
-  `--force` is passed.
+- **No silent overwrites**: `pm ai init` only appends to tool config
+  files — existing content is never modified or replaced. Idempotent.
 
 ## Sub-tickets
 
 | Ticket | Title                                          | Notes                                    |
 |--------|------------------------------------------------|------------------------------------------|
 | GPM-82 | Reorganize `pm guide` → `pm ai guide`          | Clean rename, no backward compat needed  |
-| GPM-83 | Add `pm ai init` bootstrap command             | Writes stub to Claude/Copilot/Cursor/Aider targets |
+| GPM-83 | Add `pm ai init` + generate `.pm/AGENTS.md`    | Appends pointer to tool configs; AGENTS.md written at pm init |
 | GPM-84 | Audit guide content for CLI-first instructions | Ensure LLMs use `pm` commands, not file edits |
 | GPM-85 | Add guide content: markdown formatting conventions | 80-col wrap, table alignment rules for ticket descriptions |
 
@@ -52,7 +52,9 @@ GPM-83 and GPM-84 both depend on GPM-82.
 ## Acceptance Criteria
 
 - [ ] `pm guide` removed; `pm ai guide [section]` works in its place
-- [ ] `pm ai init [--for <tool>] [--force]` generates correct bootstrap stub
+- [ ] `pm init` generates `.pm/AGENTS.md` with top-level CLI instructions
+- [ ] `pm ai init [--for <tool>]` appends a pointer to `.pm/AGENTS.md`
+      in tool config files — never overwrites, idempotent
 - [ ] Bootstrap stub is ~5 lines pointing to `pm ai guide --help`
 - [ ] Guide content directs LLMs to use `pm` CLI for all ticket operations
 - [ ] `make test` passes

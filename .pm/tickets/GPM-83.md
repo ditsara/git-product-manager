@@ -1,6 +1,6 @@
 ---
 id: GPM-83
-title: "Add pm ai init command to bootstrap LLM agent files"
+title: "Add pm ai init command and generate .pm/AGENTS.md on pm init"
 type: task
 status: backlog  # Current workflow state
 priority: medium  # low, medium, high, critical
@@ -16,63 +16,94 @@ related: []  # Related work (duplicates, see-also)
 labels: []  # Tags from labels.yaml
 assignee: ""  # GitHub username or email
 created_at: "2026-04-05T09:12:26Z"
-updated_at: "2026-04-05T09:12:26Z"
+updated_at: "2026-04-05T09:41:56Z"
 ---
 
 # Description
 
-Add `pm ai init` — a command that writes a short bootstrap stub file into the correct location for a given LLM tool. The stub tells the LLM that GPM is installed and how to get context, keeping nothing static that could go stale.
+Two related changes that together give LLMs a discoverable, GPM-owned
+entry point without touching any user-managed files.
 
-## Design
+## Part 1: Generate `.pm/AGENTS.md` on `pm init`
 
-**Bootstrap stub content** (same for all tools):
+`pm init` already creates `project.yaml`, `workflow.yaml`, etc. Add
+`.pm/AGENTS.md` to that set. It is a static file, written once, never
+regenerated. Since it lives inside `.pm/`, it is clearly GPM-owned and
+users know not to hand-edit it.
+
+**Content** (defined as a `const` in the binary):
 
 ```markdown
 # GPM — Git Product Manager
 
-This project uses GPM for ticket management. Do not create or edit ticket files manually.
+This project uses GPM for ticket management.
+Do not create or edit ticket files manually — use the `pm` CLI.
 
-Run `pm ai guide --help` to see available guidance sections.
-Run `pm ai guide workflow` before starting any task.
-Run `pm list` to see open tickets. Run `pm show <id>` to read a spec.
+Get started:
+  pm --help                   # list all commands
+  pm ai guide workflow        # read the development workflow
+  pm ai guide --help          # see all available guide sections
+  pm list                     # show open tickets
+  pm show <id>                # read a ticket
+```
+
+## Part 2: `pm ai init` appends a pointer to tool config files
+
+`pm ai init` appends a short reference to `.pm/AGENTS.md` into the
+user's LLM tool config file(s). It never overwrites — only appends —
+so existing content is always preserved. It checks for idempotency
+before appending (won't add the line twice).
+
+**Appended text** (same for all tools):
+
+```
+# GPM
+See .pm/AGENTS.md for project management instructions.
 ```
 
 **File targets by tool:**
 
-| Tool | File |
-|------|------|
-| `claude` | `CLAUDE.md` |
-| `copilot` | `.github/copilot-instructions.md` |
-| `cursor` | `.cursor/rules/gpm.mdc` |
-| `aider` | `CONVENTIONS.md` |
+| Tool       | File                              |
+|------------|-----------------------------------|
+| `claude`   | `CLAUDE.md`                       |
+| `copilot`  | `.github/copilot-instructions.md` |
+| `cursor`   | `.cursor/rules/gpm.mdc`           |
+| `aider`    | `CONVENTIONS.md`                  |
 
 **Command flags:**
 
 ```
-pm ai init [--for <tool>] [--force]
+pm ai init [--for <tool>]
 ```
 
-- `--for`: one of `claude`, `copilot`, `cursor`, `aider`, or `all` (default: `all`)
-- `--force`: overwrite existing file(s); without it, skip any file that already exists and print a notice
+- `--for`: one of `claude`, `copilot`, `cursor`, `aider`, or `all`
+  (default: `all`)
+- No `--force` flag — append is always safe
+
+**Behavior per target:**
+
+- File exists, pointer not yet present → append, print
+  `✓ Updated <file>`
+- File exists, pointer already present → skip, print
+  `✓ <file> already configured`
+- File does not exist → create with pointer text, print
+  `✓ Created <file>`
+- Create parent directories as needed (e.g. `.github/`)
 
 ## Implementation
 
-**`cmd/pm/ai_init.go`**
-
-- Define `aiInitCmd` registered under `aiCmd`
-- Stub content defined as a `const` in the same file
-- For each targeted tool, check if file exists:
-  - Exists + no `--force` → print `⚠ Skipped <file> (already exists — use --force to overwrite)`
-  - Exists + `--force` → overwrite, print `✓ Overwrote <file>`
-  - Does not exist → write, print `✓ Created <file>`
-- Create parent directories as needed (e.g. `.github/`, `.cursor/rules/`)
+- `cmd/pm/init.go`: call `createAgentsFile(pmPath)` alongside existing
+  `createProjectConfig`, `createWorkflowGuide`, etc.
+- `cmd/pm/ai_init.go`: define `aiInitCmd` registered under `aiCmd`;
+  pointer text and AGENTS.md content as `const` values in the file
 
 ## Acceptance Criteria
 
-- [ ] `pm ai init` writes stub to all tool targets that don't yet exist
-- [ ] `pm ai init --for claude` writes only `CLAUDE.md`
-- [ ] Existing files are skipped with a notice (no silent overwrite)
-- [ ] `pm ai init --force` overwrites existing files
+- [ ] `pm init` generates `.pm/AGENTS.md` with the stub content above
+- [ ] `pm ai init` appends the pointer to all tool targets (default)
+- [ ] `pm ai init --for claude` appends only to `CLAUDE.md`
+- [ ] Append is idempotent — running twice does not duplicate the line
+- [ ] Existing file content is never modified, only appended to
 - [ ] Parent directories are created if absent
-- [ ] Stub content is a `const` in the binary — no external template files
+- [ ] All content is `const` in the binary — no external templates
 - [ ] `make test` passes
