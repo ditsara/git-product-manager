@@ -1,22 +1,20 @@
 ---
-id: GPM-78
-title: "Improve UX around users and assignments"
-type: epic
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic (for nested epics)
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T08:45:05Z"
-updated_at: "2026-04-05T08:52:28Z"
+depends_on: []
+id: GPM-78
+labels: []
+parent: ""
+points: 0
+priority: medium
+related: []
+status: done
+title: Improve UX around users and assignments
+type: epic
+updated_at: "2026-04-05T10:29:23Z"
 ---
+
 
 # Description
 

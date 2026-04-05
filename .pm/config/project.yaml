@@ -1,1 +1,4 @@
 prefix: GPM
+# assignee_domain: "mycompany.com"  # optional — appended when assigning without @
+members:  # optional — used for tab completion on pm assign
+  - dan.itsara@gmail.com

@@ -10,16 +10,17 @@ labels:
     - config
     - ux
     - stage-2
-parent: "GPM-78"
+parent: GPM-78
 points: 2
 priority: low
 related:
     - GPM-22
-status: backlog
+status: done
 title: Add optional domain suffix configuration for assignees
 type: task
-updated_at: "2026-02-08T08:11:20Z"
+updated_at: "2026-04-05T10:29:23Z"
 ---
+
 
 
 # Description

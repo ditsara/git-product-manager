@@ -1,23 +1,21 @@
 ---
-id: GPM-80
-title: "Warn when assigning to user not in member list"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-78"  # Parent epic or story
-depends_on:
-  - GPM-79
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T08:54:17Z"
-updated_at: "2026-04-05T08:54:17Z"
+depends_on:
+    - GPM-79
+id: GPM-80
+labels: []
+parent: GPM-78
+points: 0
+priority: medium
+related: []
+status: done
+title: Warn when assigning to user not in member list
+type: task
+updated_at: "2026-04-05T10:29:23Z"
 ---
+
 
 # Description
 

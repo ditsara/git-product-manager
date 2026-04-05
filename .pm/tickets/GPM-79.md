@@ -1,23 +1,21 @@
 ---
-id: GPM-79
-title: "Add configurable member list with assignee autocomplete"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-78"  # Parent epic or story
-depends_on: []  # Must complete these first
+assignee: ""
 blocks:
-  - GPM-80
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+    - GPM-80
 created_at: "2026-04-05T08:54:17Z"
-updated_at: "2026-04-05T08:54:17Z"
+depends_on: []
+id: GPM-79
+labels: []
+parent: GPM-78
+points: 0
+priority: medium
+related: []
+status: done
+title: Add configurable member list with assignee autocomplete
+type: task
+updated_at: "2026-04-05T10:29:23Z"
 ---
+
 
 # Description
 
