@@ -1,24 +1,22 @@
 ---
-id: GPM-87
-title: "Fix pm init idempotency: skip existing files, generate missing ones"
-type: task
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: "GPM-81"  # Parent epic or story
-depends_on:
-  - GPM-83
-blocks: []  # This blocks these tickets
-related:
-  - GPM-86
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-04-05T09:45:52Z"
-updated_at: "2026-04-05T09:45:52Z"
+depends_on:
+    - GPM-83
+id: GPM-87
+labels: []
+parent: GPM-81
+points: 0
+priority: medium
+related:
+    - GPM-86
+status: done
+title: 'Fix pm init idempotency: skip existing files, generate missing ones'
+type: task
+updated_at: "2026-04-05T09:58:12Z"
 ---
+
 
 # Description
 

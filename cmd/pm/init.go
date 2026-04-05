@@ -42,12 +42,12 @@ var initCmd = &cobra.Command{
 		}
 
 		pmPath := filepath.Join(root, ".pm")
-		if _, err := os.Stat(pmPath); !os.IsNotExist(err) {
-			fmt.Println("Error: .pm directory already exists. Use --force to reinitialize.")
-			os.Exit(1)
-		}
 
-		fmt.Printf("Initializing Git Product Manager in %s\n", pmPath)
+		if _, err := os.Stat(pmPath); !os.IsNotExist(err) {
+			fmt.Printf("GPM already initialised at %s — regenerating missing files...\n", pmPath)
+		} else {
+			fmt.Printf("Initializing Git Product Manager in %s\n", pmPath)
+		}
 
 		// Create directories
 		dirs := []string{
@@ -93,80 +93,91 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Println("✓ Initialized .pm directory")
-		fmt.Println("✓ Created default workflow with 4 states")
-		fmt.Println("✓ Created default labels")
-		fmt.Println("✓ Created 5 ticket templates")
-		fmt.Println("✓ Created workflow guide")
-		fmt.Printf("✓ Project prefix set to: %s\n", prefix)
 		fmt.Println("\nNext steps:")
 		fmt.Println("  pm new \"Your first ticket\"")
 		fmt.Println("  pm list")
-		fmt.Println("  pm guide > CLAUDE.md   # generate LLM guidance file")
+		fmt.Println("  pm ai guide      # read workflow guidance")
 	},
 }
 
 func createDefaultWorkflow(pmPath string) {
-	// Read workflow from embedded filesystem
+	path := filepath.Join(pmPath, "config", "workflow.yaml")
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+		return
+	}
 	content, err := templateFS.ReadFile("templates/workflow.yaml")
 	if err != nil {
 		fmt.Printf("Error reading embedded workflow.yaml: %v\n", err)
 		os.Exit(1)
 	}
-
-	path := filepath.Join(pmPath, "config", "workflow.yaml")
 	if err := os.WriteFile(path, content, 0644); err != nil {
 		fmt.Printf("Error creating workflow.yaml: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("  ✓ Created %s\n", path)
 }
 
 func createDefaultLabels(pmPath string) {
-	// Read labels from embedded filesystem
+	path := filepath.Join(pmPath, "config", "labels.yaml")
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+		return
+	}
 	content, err := templateFS.ReadFile("templates/labels.yaml")
 	if err != nil {
 		fmt.Printf("Error reading embedded labels.yaml: %v\n", err)
 		os.Exit(1)
 	}
-
-	path := filepath.Join(pmPath, "config", "labels.yaml")
 	if err := os.WriteFile(path, content, 0644); err != nil {
 		fmt.Printf("Error creating labels.yaml: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("  ✓ Created %s\n", path)
 }
 
 func createDefaultTemplates(pmPath string) {
 	templateNames := []string{"story.md", "task.md", "bug.md", "epic.md", "milestone.md"}
 
 	for _, name := range templateNames {
-		// Read template from embedded filesystem
+		path := filepath.Join(pmPath, "config", "templates", name)
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+			continue
+		}
 		content, err := templateFS.ReadFile(filepath.Join("templates", name))
 		if err != nil {
 			fmt.Printf("Error reading embedded template %s: %v\n", name, err)
 			os.Exit(1)
 		}
-
-		// Write to .pm/config/templates/
-		path := filepath.Join(pmPath, "config", "templates", name)
 		if err := os.WriteFile(path, content, 0644); err != nil {
 			fmt.Printf("Error creating template %s: %v\n", name, err)
 			os.Exit(1)
 		}
+		fmt.Printf("  ✓ Created %s\n", path)
 	}
 }
 
 func createGitignore(pmPath string) {
-	content := `
-.cache.db
-`
 	path := filepath.Join(pmPath, ".gitignore")
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+		return
+	}
+	content := "\n.cache.db\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Printf("Error creating .gitignore: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("  ✓ Created %s\n", path)
 }
 
 func createProjectConfig(pmPath string, prefix string) {
+	path := filepath.Join(pmPath, "config", "project.yaml")
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+		return
+	}
 	project := &config.Project{
 		Prefix: prefix,
 	}
@@ -174,9 +185,15 @@ func createProjectConfig(pmPath string, prefix string) {
 		fmt.Printf("Error creating project.yaml: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("  ✓ Created %s (prefix: %s)\n", path, prefix)
 }
 
 func createWorkflowGuide(pmPath string) {
+	path := filepath.Join(pmPath, "config", "WORKFLOW_GUIDE.md")
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("  ✓ %s (exists, skipping)\n", path)
+		return
+	}
 	sections := guide.SectionNames()
 	lines := []string{
 		"# GPM Workflow Guide",
@@ -186,24 +203,18 @@ func createWorkflowGuide(pmPath string) {
 		"",
 	}
 	for _, s := range sections {
-		lines = append(lines, "  pm guide "+s)
+		lines = append(lines, "  pm ai guide "+s)
 	}
-	lines = append(lines,
-		"",
-		"Or generate a complete guidance file for your LLM:",
-		"",
-		"  pm guide > CLAUDE.md",
-		"",
-	)
+	lines = append(lines, "")
 	content := ""
 	for _, l := range lines {
 		content += l + "\n"
 	}
-	path := filepath.Join(pmPath, "config", "WORKFLOW_GUIDE.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Printf("Error creating WORKFLOW_GUIDE.md: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("  ✓ Created %s\n", path)
 }
 
 func init() {
