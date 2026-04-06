@@ -253,3 +253,140 @@ func TestListTickets_CaseInsensitiveParent(t *testing.T) {
 		t.Errorf("case-insensitive parent match failed, got: %v", ids(tickets))
 	}
 }
+
+// setupRelationshipDB extends setupListDB with relationship fixtures:
+//
+//	CHILD-2  depends-on  ORPHAN-5   → (CHILD-2, ORPHAN-5, depends-on)
+//	GRAND-3  depends-on  ROOT-1     → (GRAND-3, ROOT-1, depends-on)
+//	CHILD-4  related     ORPHAN-5   → (CHILD-4, ORPHAN-5, related)
+func setupRelationshipDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, _ := setupListDB(t)
+
+	rels := []struct{ from, to, typ string }{
+		{"CHILD-2", "ORPHAN-5", "depends-on"},
+		{"GRAND-3", "ROOT-1", "depends-on"},
+		{"CHILD-4", "ORPHAN-5", "related"},
+	}
+	for _, r := range rels {
+		_, err := db.Exec(
+			`INSERT INTO relationships (from_ticket, to_ticket, relationship_type) VALUES (?, ?, ?)`,
+			r.from, r.to, r.typ,
+		)
+		if err != nil {
+			t.Fatalf("insert relationship %s->%s: %v", r.from, r.to, err)
+		}
+	}
+	return db
+}
+
+func TestListTickets_DependsOn(t *testing.T) {
+	db := setupRelationshipDB(t)
+	defer db.Close()
+
+	// Tickets that depend on ORPHAN-5: CHILD-2
+	tickets, err := ListTickets(db, ListOptions{Subtree: true, DependsOn: "ORPHAN-5"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 1 || !containsID(tickets, "CHILD-2") {
+		t.Errorf("expected [CHILD-2], got %v", ids(tickets))
+	}
+
+	// Tickets that depend on ROOT-1: GRAND-3
+	tickets, err = ListTickets(db, ListOptions{Subtree: true, DependsOn: "ROOT-1"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 1 || !containsID(tickets, "GRAND-3") {
+		t.Errorf("expected [GRAND-3], got %v", ids(tickets))
+	}
+}
+
+func TestListTickets_DependsOn_CaseInsensitive(t *testing.T) {
+	db := setupRelationshipDB(t)
+	defer db.Close()
+
+	tickets, err := ListTickets(db, ListOptions{Subtree: true, DependsOn: "orphan-5"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if !containsID(tickets, "CHILD-2") {
+		t.Errorf("expected CHILD-2 with lowercase depends-on filter, got %v", ids(tickets))
+	}
+}
+
+func TestListTickets_Blocks(t *testing.T) {
+	db := setupRelationshipDB(t)
+	defer db.Close()
+
+	// Tickets blocking CHILD-2 (i.e., CHILD-2 depends on them): ORPHAN-5
+	tickets, err := ListTickets(db, ListOptions{Subtree: true, Blocks: "CHILD-2"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 1 || !containsID(tickets, "ORPHAN-5") {
+		t.Errorf("expected [ORPHAN-5], got %v", ids(tickets))
+	}
+
+	// Tickets blocking GRAND-3: ROOT-1
+	tickets, err = ListTickets(db, ListOptions{Subtree: true, Blocks: "GRAND-3"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 1 || !containsID(tickets, "ROOT-1") {
+		t.Errorf("expected [ROOT-1], got %v", ids(tickets))
+	}
+}
+
+func TestListTickets_Related(t *testing.T) {
+	db := setupRelationshipDB(t)
+	defer db.Close()
+
+	// ORPHAN-5 has: CHILD-2 depends-on it, CHILD-4 related to it
+	tickets, err := ListTickets(db, ListOptions{Subtree: true, Related: "ORPHAN-5"})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if !containsID(tickets, "CHILD-2") {
+		t.Errorf("expected CHILD-2 in related results, got %v", ids(tickets))
+	}
+	if !containsID(tickets, "CHILD-4") {
+		t.Errorf("expected CHILD-4 in related results, got %v", ids(tickets))
+	}
+	// ORPHAN-5 itself should not appear
+	if containsID(tickets, "ORPHAN-5") {
+		t.Error("ORPHAN-5 should not appear in its own related results")
+	}
+}
+
+func TestListTickets_DependsOn_CombinedWithStatus(t *testing.T) {
+	db := setupRelationshipDB(t)
+	defer db.Close()
+
+	// CHILD-2 (in-progress) and nothing else depends on ORPHAN-5 with status todo
+	tickets, err := ListTickets(db, ListOptions{
+		Subtree:       true,
+		DependsOn:     "ORPHAN-5",
+		IncludeStates: []string{"in-progress"},
+	})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 1 || !containsID(tickets, "CHILD-2") {
+		t.Errorf("expected [CHILD-2], got %v", ids(tickets))
+	}
+
+	// Filter by a status CHILD-2 doesn't have — should return nothing
+	tickets, err = ListTickets(db, ListOptions{
+		Subtree:       true,
+		DependsOn:     "ORPHAN-5",
+		IncludeStates: []string{"done"},
+	})
+	if err != nil {
+		t.Fatalf("ListTickets: %v", err)
+	}
+	if len(tickets) != 0 {
+		t.Errorf("expected no results, got %v", ids(tickets))
+	}
+}

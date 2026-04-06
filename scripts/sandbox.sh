@@ -83,33 +83,21 @@ set_parent() {
 }
 
 set_dependency() {
-    local id=$1
-    shift
-    local deps="$@"
-    
-    if [ -n "$deps" ]; then
-        ../bin/pm edit "$id" --field depends_on="$deps" > /dev/null 2>&1
-    fi
+    local from=$1
+    local to=$2
+    ../bin/pm link "$from" "$to" --type depends-on > /dev/null 2>&1
 }
 
 set_blocking() {
-    local id=$1
-    shift
-    local blocks="$@"
-    
-    if [ -n "$blocks" ]; then
-        ../bin/pm edit "$id" --field blocks="$blocks" > /dev/null 2>&1
-    fi
+    local from=$1
+    local to=$2
+    ../bin/pm link "$from" "$to" --type blocks > /dev/null 2>&1
 }
 
 set_related() {
-    local id=$1
-    shift
-    local related="$@"
-    
-    if [ -n "$related" ]; then
-        ../bin/pm edit "$id" --field related="$related" > /dev/null 2>&1
-    fi
+    local from=$1
+    local to=$2
+    ../bin/pm link "$from" "$to" --type related > /dev/null 2>&1
 }
 
 create_milestone() {
@@ -267,9 +255,9 @@ echo "   • $MS_2 — v1.0 Release          (due 2026-12-31, active,  26 pts)"
 echo ""
 echo "🔗 Relationships:"
 echo "   • Parent-child hierarchy (Epic → Stories → Tasks)"
-echo "   • 5 dependency chains (depends_on)"
-echo "   • 2 blocking relationships (blocks)"
-echo "   • 2 related associations"
+echo "   • 5 dependency chains (pm link --type depends-on, symmetric blocks)"
+echo "   • 1 blocking relationship (pm link --type blocks, symmetric depends-on)"
+echo "   • 1 related association (pm link --type related)"
 echo ""
 echo "👥 Assignees: alice, bob, charlie"
 echo "🏷️  Labels: feature, backend, frontend, bug"
@@ -301,6 +289,20 @@ echo "  ../bin/pm list --status in-progress"
 echo ""
 echo -e "${YELLOW}Filter by assignee:${NC}"
 echo "  ../bin/pm list --assignee alice"
+echo ""
+echo -e "${BLUE}── Relationship Filters ────────────────────────────────────${NC}"
+echo ""
+echo -e "${YELLOW}Who is waiting on a ticket to finish?${NC}"
+echo "  ../bin/pm list --depends-on $TASK_4 --all"
+echo ""
+echo -e "${YELLOW}What is blocking a ticket?${NC}"
+echo "  ../bin/pm list --blocks $TASK_8 --all"
+echo ""
+echo -e "${YELLOW}Show all tickets related to a ticket:${NC}"
+echo "  ../bin/pm list --related $TASK_7 --all"
+echo ""
+echo -e "${YELLOW}Combine: blocked work that is actively in-progress:${NC}"
+echo "  ../bin/pm list --depends-on $TASK_4 --status in-progress --all"
 echo ""
 echo -e "${BLUE}── Milestones ──────────────────────────────────────────────${NC}"
 echo ""
