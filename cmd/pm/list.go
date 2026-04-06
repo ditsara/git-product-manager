@@ -41,7 +41,10 @@ Examples:
   pm list --completed          # Only completed tickets
   pm list --active             # Only active work (todo, in-progress)
   pm list --parent GPM-1       # Show direct children of GPM-1
-  pm list --status todo        # Filter by specific status`,
+  pm list --status todo        # Filter by specific status
+  pm list --depends-on GPM-10  # Tickets that depend on GPM-10
+  pm list --blocks GPM-50      # Tickets that are blocking GPM-50
+  pm list --related GPM-5      # Tickets with any relationship to GPM-5`,
 	Run: func(cmd *cobra.Command, cmdArgs []string) {
 		statusFilter, _ := cmd.Flags().GetString("status")
 		showAll, _ := cmd.Flags().GetBool("all")
@@ -50,6 +53,9 @@ Examples:
 		showIncomplete, _ := cmd.Flags().GetBool("incomplete")
 		parentFilter, _ := cmd.Flags().GetString("parent")
 		milestoneFilter, _ := cmd.Flags().GetString("milestone")
+		dependsOnFilter, _ := cmd.Flags().GetString("depends-on")
+		blocksFilter, _ := cmd.Flags().GetString("blocks")
+		relatedFilter, _ := cmd.Flags().GetString("related")
 		pmPath := ".pm"
 
 		// Ensure cache database exists and has current schema
@@ -94,8 +100,11 @@ Examples:
 		// Determine which states to filter based on flags
 		opts := cache.ListOptions{
 			ParentFilter:    parentFilter,
-			Subtree:         showAll || (milestoneFilter != "" && parentFilter == ""),
+			Subtree:         showAll || ((milestoneFilter != "" || dependsOnFilter != "" || blocksFilter != "" || relatedFilter != "") && parentFilter == ""),
 			MilestoneFilter: milestoneFilter,
+			DependsOn:       dependsOnFilter,
+			Blocks:          blocksFilter,
+			Related:         relatedFilter,
 		}
 
 		if statusFilter != "" {
@@ -152,11 +161,17 @@ func init() {
 	listCmd.Flags().Bool("incomplete", false, "Show only incomplete tickets")
 	listCmd.Flags().StringP("parent", "P", "", "Show direct children of specified ticket ID")
 	listCmd.Flags().String("milestone", "", "Filter tickets by milestone ID")
+	listCmd.Flags().String("depends-on", "", "Show tickets that depend on specified ticket ID")
+	listCmd.Flags().String("blocks", "", "Show tickets that block the specified ticket ID")
+	listCmd.Flags().String("related", "", "Show tickets with any relationship to specified ticket ID")
 
 	// Register completion functions for flags
 	listCmd.RegisterFlagCompletionFunc("status", completeStates)
 	listCmd.RegisterFlagCompletionFunc("parent", completeTicketIDs)
 	listCmd.RegisterFlagCompletionFunc("milestone", completeMilestoneIDs)
+	listCmd.RegisterFlagCompletionFunc("depends-on", completeTicketIDs)
+	listCmd.RegisterFlagCompletionFunc("blocks", completeTicketIDs)
+	listCmd.RegisterFlagCompletionFunc("related", completeTicketIDs)
 
 	rootCmd.AddCommand(listCmd)
 }

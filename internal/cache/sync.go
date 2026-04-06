@@ -272,6 +272,9 @@ func scanTicketFiles(ticketsPath string, files []os.DirEntry) ([]ticketData, []r
 		for _, blockedID := range t.Blocks {
 			relationships = append(relationships, relationshipData{fromTicket: t.ID, toTicket: blockedID, relType: "blocks"})
 		}
+		for _, relatedID := range t.Related {
+			relationships = append(relationships, relationshipData{fromTicket: t.ID, toTicket: relatedID, relType: "related"})
+		}
 	}
 
 	// Compute materialized paths for all tickets.

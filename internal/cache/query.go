@@ -34,6 +34,12 @@ type ListOptions struct {
 	ExcludeStates []string
 	// MilestoneFilter limits results to tickets belonging to this milestone ID.
 	MilestoneFilter string
+	// DependsOn limits results to tickets whose depends_on includes this ticket ID.
+	DependsOn string
+	// Blocks limits results to tickets that block (are depended upon by) this ticket ID.
+	Blocks string
+	// Related limits results to tickets with any relationship to this ticket ID.
+	Related string
 }
 
 // hasChildrenSQL is the computed column expression that detects whether a ticket
@@ -104,6 +110,28 @@ func ListTickets(db *sql.DB, opts ListOptions) ([]CachedTicket, error) {
 				sqlite.Quote("milestones").Like(sqlite.Arg("%,"+pattern+",%")),
 			),
 		))
+	}
+
+	// Relationship filtering — each uses an EXISTS subquery against the relationships table.
+	// UPPER() normalises ticket IDs so filters are case-insensitive.
+	if opts.DependsOn != "" {
+		mods = append(mods, sm.Where(sqlite.Raw(
+			"EXISTS (SELECT 1 FROM relationships WHERE UPPER(from_ticket) = UPPER(tickets.id) AND UPPER(to_ticket) = UPPER(?) AND relationship_type = 'depends-on')",
+			opts.DependsOn,
+		)))
+	}
+	if opts.Blocks != "" {
+		// "blocks <id>" = tickets that <id> depends on (tickets blocking <id>)
+		mods = append(mods, sm.Where(sqlite.Raw(
+			"EXISTS (SELECT 1 FROM relationships WHERE UPPER(to_ticket) = UPPER(tickets.id) AND UPPER(from_ticket) = UPPER(?) AND relationship_type = 'depends-on')",
+			opts.Blocks,
+		)))
+	}
+	if opts.Related != "" {
+		mods = append(mods, sm.Where(sqlite.Raw(
+			"EXISTS (SELECT 1 FROM relationships WHERE (UPPER(from_ticket) = UPPER(tickets.id) AND UPPER(to_ticket) = UPPER(?)) OR (UPPER(to_ticket) = UPPER(tickets.id) AND UPPER(from_ticket) = UPPER(?)))",
+			opts.Related, opts.Related,
+		)))
 	}
 
 	querySQL, queryArgs, err := sqlite.Select(mods...).Build(ctx)
