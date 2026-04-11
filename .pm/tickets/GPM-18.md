@@ -1,32 +1,36 @@
 ---
-id: GPM-18
-title: "Implement pm sync for cross-branch ticket synchronization"
-type: task
-status: backlog  # Current workflow state
-priority: high  # low, medium, high, critical
-points: 5  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: ""  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: [GPM-1]  # Related work (duplicates, see-also)
-
-labels: [git, collaboration]  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-02-03T08:52:05Z"
-updated_at: "2026-02-03T08:52:05Z"
+depends_on: []
+id: GPM-18
+labels:
+    - git
+    - collaboration
+parent: ""
+points: 5
+priority: high
+related:
+    - GPM-1
+status: done
+title: Implement pm sync for cross-branch ticket synchronization
+type: task
+updated_at: "2026-04-11T13:04:51Z"
 ---
+
 
 # Description
 
 [Sonnet 4.5]
 
-Implement `pm sync` command to synchronize the `.pm/` directory between branches, ensuring ticket changes and comments are visible across the team even when working on feature branches.
+Implement `pm sync` command to synchronize the `.pm/` directory between
+branches, ensuring ticket changes and comments are visible across the team even
+when working on feature branches.
 
 ## Current Problem
 
-All ticket operations modify files in the `.pm/` directory, which are version-controlled in git. This creates a branch isolation problem:
+All ticket operations modify files in the `.pm/` directory, which are
+version-controlled in git. This creates a branch isolation problem:
 
 **Scenario:**
 1. Developer creates feature branch `feature/auth`
@@ -69,26 +73,27 @@ The sync operation performs targeted git operations on the `.pm/` directory:
 
 ### Configuration
 
-Add `.pm/config/sync.yaml`:
+Add sync settings to `.pm/config/project.yaml` under the `sync:` key:
 
 ```yaml
-# Branch to sync with (auto-detected from git: main or master)
-# If not set, auto-detects by checking remote HEAD or local branches
-sync_branch: ""  # Empty = auto-detect
+sync:
+  # Branch to sync with (auto-detected from git: main or master)
+  # If not set, auto-detects by checking remote HEAD or local branches
+  branch: ""  # Empty = auto-detect
 
-# Auto-sync behavior (default: manual)
-auto_sync:
-  pull_on_list: false   # Auto-pull before pm list
-  push_on_change: false # Auto-push after pm new/edit/comment
-  
-# Conflict resolution strategy
-conflict_strategy: prompt  # Options: prompt, theirs, ours, manual
+  # Auto-sync behavior (default: manual)
+  auto_sync:
+    pull_on_list: false   # Auto-pull before pm list
+    push_on_change: false # Auto-push after pm new/edit/comment
+
+  # Conflict resolution strategy
+  conflict_strategy: prompt  # Options: prompt, theirs, ours, manual
 ```
 
 ### Edge Cases
 
 **Case 1: Sync branch doesn't exist**
-- Error message: "Sync branch 'main' does not exist. Configure with: pm config set sync.sync_branch <branch>"
+- Error message: "Sync branch 'main' does not exist. Configure with: pm config set sync.branch <branch>"
 
 **Case 2: Uncommitted changes in .pm/**
 - Error message: "You have uncommitted changes in .pm/. Commit or stash them before syncing."
@@ -128,10 +133,10 @@ conflict_strategy: prompt  # Options: prompt, theirs, ours, manual
   - [ ] Check `git symbolic-ref refs/remotes/origin/HEAD` (remote default)
   - [ ] Fallback: check if `main` exists, then `master`
   - [ ] Fallback: use first branch found
-  - [ ] Cache result in config after first detection
+  - [ ] Cache result in `sync.branch` after first detection
 
 - [ ] **Configuration**
-  - [ ] Add `sync.yaml` schema to internal/config
+  - [ ] Extend `.pm/config/project.yaml` schema in `internal/config` with a `sync` section
   - [ ] Implement config loading with auto-detection fallback
   - [ ] Validate sync branch existence after resolution
 
@@ -170,8 +175,8 @@ conflict_strategy: prompt  # Options: prompt, theirs, ours, manual
   - [ ] Atomic rollback if push fails
 
 - [ ] **Configuration commands**
-  - [ ] `pm config get sync.sync_branch` - show current sync branch
-  - [ ] `pm config set sync.sync_branch <branch>` - change sync branch
+  - [ ] `pm config get sync.branch` - show current sync branch
+  - [ ] `pm config set sync.branch <branch>` - change sync branch
   - [ ] `pm config set sync.auto_sync.pull_on_list true` - enable auto-pull
 
 - [ ] **Error handling**
@@ -185,7 +190,7 @@ conflict_strategy: prompt  # Options: prompt, theirs, ours, manual
 - [ ] `pm sync push` commits and pushes `.pm/` changes to sync branch
 - [ ] `pm sync` performs both pull and push in sequence
 - [ ] Auto-detects default branch (main/master) when not configured
-- [ ] Configuration file allows overriding auto-detected sync branch
+- [ ] Configuration in `.pm/config/project.yaml` under `sync` allows overriding the auto-detected sync branch
 - [ ] Errors gracefully when not in a git repository
 - [ ] Errors gracefully when uncommitted changes exist in `.pm/`
 - [ ] Detects and reports merge conflicts with clear resolution options

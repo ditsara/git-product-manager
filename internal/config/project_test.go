@@ -31,6 +31,47 @@ func TestLoadProject(t *testing.T) {
 	}
 }
 
+func TestLoadProjectWithSyncConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	pmPath := filepath.Join(tempDir, ".pm")
+	configDir := filepath.Join(pmPath, "config")
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directories: %v", err)
+	}
+
+	projectYAML := `prefix: TESTPROJECT
+sync:
+  branch: main
+  auto_sync:
+    pull_on_list: true
+    push_on_change: false
+  conflict_strategy: ours
+`
+	projectPath := filepath.Join(configDir, "project.yaml")
+	if err := os.WriteFile(projectPath, []byte(projectYAML), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	project, err := LoadProject(pmPath)
+	if err != nil {
+		t.Fatalf("LoadProject() unexpected error = %v", err)
+	}
+
+	if project.Sync.Branch != "main" {
+		t.Fatalf("LoadProject() Sync.Branch = %q, want main", project.Sync.Branch)
+	}
+	if !project.Sync.AutoSync.PullOnList {
+		t.Error("LoadProject() Sync.AutoSync.PullOnList = false, want true")
+	}
+	if project.Sync.AutoSync.PushOnChange {
+		t.Error("LoadProject() Sync.AutoSync.PushOnChange = true, want false")
+	}
+	if project.Sync.ConflictStrategy != "ours" {
+		t.Fatalf("LoadProject() Sync.ConflictStrategy = %q, want ours", project.Sync.ConflictStrategy)
+	}
+}
+
 func TestLoadProjectInvalidPath(t *testing.T) {
 	_, err := LoadProject("/nonexistent/path")
 	if err == nil {
@@ -91,6 +132,47 @@ func TestSaveProject(t *testing.T) {
 
 	if loaded.Prefix != "MYPROJECT" {
 		t.Errorf("SaveProject() then LoadProject() Prefix = %v, want 'MYPROJECT'", loaded.Prefix)
+	}
+}
+
+func TestSaveProjectWithSyncConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	pmPath := filepath.Join(tempDir, ".pm")
+	configDir := filepath.Join(pmPath, "config")
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directories: %v", err)
+	}
+
+	project := &Project{
+		Prefix: "MYPROJECT",
+		Sync: Sync{
+			Branch: "main",
+			AutoSync: AutoSync{
+				PullOnList:   true,
+				PushOnChange: true,
+			},
+			ConflictStrategy: "theirs",
+		},
+	}
+
+	if err := SaveProject(pmPath, project); err != nil {
+		t.Fatalf("SaveProject() unexpected error = %v", err)
+	}
+
+	loaded, err := LoadProject(pmPath)
+	if err != nil {
+		t.Fatalf("LoadProject() after save unexpected error = %v", err)
+	}
+
+	if loaded.Sync.Branch != "main" {
+		t.Fatalf("loaded Sync.Branch = %q, want main", loaded.Sync.Branch)
+	}
+	if !loaded.Sync.AutoSync.PullOnList || !loaded.Sync.AutoSync.PushOnChange {
+		t.Fatalf("loaded Sync.AutoSync = %+v, want both true", loaded.Sync.AutoSync)
+	}
+	if loaded.Sync.ConflictStrategy != "theirs" {
+		t.Fatalf("loaded Sync.ConflictStrategy = %q, want theirs", loaded.Sync.ConflictStrategy)
 	}
 }
 

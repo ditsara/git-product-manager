@@ -179,7 +179,13 @@ func createProjectConfig(pmPath string, prefix string) {
 		"# assignee_domain: \"\"  # optional — appended when assigning without @\n" +
 		"# members:               # optional — used for tab completion on pm assign\n" +
 		"#   - alice\n" +
-		"#   - bob\n"
+		"#   - bob\n" +
+		"# sync:\n" +
+		"#   branch: \"\"              # optional — auto-detects main/master when empty\n" +
+		"#   auto_sync:\n" +
+		"#     pull_on_list: false   # optional — auto-pull before pm list\n" +
+		"#     push_on_change: false # optional — auto-push after ticket changes\n" +
+		"#   conflict_strategy: prompt # optional — prompt, theirs, ours, manual\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Printf("Error creating project.yaml: %v\n", err)
 		os.Exit(1)

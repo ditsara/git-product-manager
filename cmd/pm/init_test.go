@@ -205,6 +205,10 @@ func TestCreateProjectConfig(t *testing.T) {
 			if project.Prefix != tt.expectedPrefix {
 				t.Errorf("%s: Expected prefix %q, got %q", tt.description, tt.expectedPrefix, project.Prefix)
 			}
+
+			if !strings.Contains(string(content), "sync:") {
+				t.Errorf("%s: Expected sync comment in project.yaml, got: %s", tt.description, string(content))
+			}
 		})
 	}
 }

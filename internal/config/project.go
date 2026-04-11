@@ -11,6 +11,18 @@ type Project struct {
 	Prefix         string   `yaml:"prefix"`
 	AssigneeDomain string   `yaml:"assignee_domain,omitempty"`
 	Members        []string `yaml:"members,omitempty"`
+	Sync           Sync     `yaml:"sync,omitempty"`
+}
+
+type Sync struct {
+	Branch           string   `yaml:"branch,omitempty"`
+	AutoSync         AutoSync `yaml:"auto_sync,omitempty"`
+	ConflictStrategy string   `yaml:"conflict_strategy,omitempty"`
+}
+
+type AutoSync struct {
+	PullOnList   bool `yaml:"pull_on_list,omitempty"`
+	PushOnChange bool `yaml:"push_on_change,omitempty"`
 }
 
 func LoadProject(pmPath string) (*Project, error) {
