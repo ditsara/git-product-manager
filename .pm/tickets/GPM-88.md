@@ -9,18 +9,22 @@ parent: ""
 points: 0
 priority: low
 related: []
-status: backlog
+status: done
 title: Add --description flag to pm edit
 type: task
-updated_at: "2026-04-06T14:22:27Z"
+updated_at: "2026-04-11T12:04:14Z"
 ---
+
 
 
 # Description
 
 ## Motivation
 
-`pm edit` currently only supports `--field` for YAML frontmatter fields, or opening the ticket in `$EDITOR`. The body/description is not addressable as a named flag, which makes scripted or automated ticket updates awkward (requires a custom `EDITOR` shim).
+`pm edit` currently only supports `--field` for YAML frontmatter fields, or
+opening the ticket in `$EDITOR`. The body/description is not addressable as a
+named flag, which makes scripted or automated ticket updates awkward (requires
+a custom `EDITOR` shim).
 
 ## Proposed Change
 
@@ -30,7 +34,13 @@ Add a `--description` flag (string) to `pm edit`:
 pm edit GPM-50 --description "New body text here"
 ```
 
-When `--description` is provided, replace the ticket body (everything after the closing `---` of the frontmatter) with the supplied text and update `updated_at`, without opening an editor.
+When `--description` is provided, replace the ticket body (everything after the
+closing `---` of the frontmatter) with the supplied text and update
+`updated_at`, without opening an editor.
+
+Note that `--description ""` should clear the ticket body (replace it with an
+empty string), while `--description` alone should trigger an error because an
+argument was not provided.
 
 ## Implementation Notes
 

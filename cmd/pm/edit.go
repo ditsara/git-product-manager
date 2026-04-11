@@ -27,6 +27,9 @@ Examples:
   # Update a single field
   pm edit GPM-1 --field assignee=alice
 
+  # Replace the ticket description/body
+  pm edit GPM-1 --description "New body text here"
+
   # Update array field (replaces all values)
   pm edit GPM-1 --field labels=bug,critical,p1
 
@@ -39,6 +42,9 @@ Examples:
   # Update enum field
   pm edit GPM-1 --field priority=high
 
+  # Update a field and description together
+  pm edit GPM-1 --field priority=high --description "Revised body"
+
 Note: Array fields use comma (,) as delimiter. Values are trimmed.
 Array updates REPLACE existing values, they do not append.`,
 	Args: cobra.ExactArgs(1),
@@ -46,34 +52,53 @@ Array updates REPLACE existing values, they do not append.`,
 		ticketID := args[0]
 		ticketPath := getTicketPath(ticketID)
 
-		// Check if --field flag is used
 		field, _ := cmd.Flags().GetString("field")
-		if field != "" {
+		description, _ := cmd.Flags().GetString("description")
+		hasField := field != ""
+		hasDescription := cmd.Flags().Changed("description")
+
+		if hasField || hasDescription {
 			// Parse field=value
-			parts := strings.SplitN(field, "=", 2)
-			if len(parts) != 2 {
-				fmt.Println("Error: --field must be in format field=value")
-				os.Exit(1)
-			}
-			fieldName, fieldValue := parts[0], parts[1]
-			// Validate milestone IDs exist before writing
-			if fieldName == "milestones" && fieldValue != "" {
-				pmPath := ".pm"
-				milestonesDir := filepath.Join(pmPath, "milestones")
-				for _, mid := range strings.Split(fieldValue, ",") {
-					mid = strings.TrimSpace(mid)
-					if mid == "" {
-						continue
-					}
-					milePath := filepath.Join(milestonesDir, mid+".md")
-					if _, err := os.Stat(milePath); os.IsNotExist(err) {
-						fmt.Fprintf(os.Stderr, "Error: milestone not found: %q\nRun `pm milestone list` to see available milestones.\n", mid)
-						os.Exit(1)
+			if hasField {
+				parts := strings.SplitN(field, "=", 2)
+				if len(parts) != 2 {
+					fmt.Println("Error: --field must be in format field=value")
+					os.Exit(1)
+				}
+				fieldName, fieldValue := parts[0], parts[1]
+				// Validate milestone IDs exist before writing
+				if fieldName == "milestones" && fieldValue != "" {
+					pmPath := ".pm"
+					milestonesDir := filepath.Join(pmPath, "milestones")
+					for _, mid := range strings.Split(fieldValue, ",") {
+						mid = strings.TrimSpace(mid)
+						if mid == "" {
+							continue
+						}
+						milePath := filepath.Join(milestonesDir, mid+".md")
+						if _, err := os.Stat(milePath); os.IsNotExist(err) {
+							fmt.Fprintf(os.Stderr, "Error: milestone not found: %q\nRun `pm milestone list` to see available milestones.\n", mid)
+							os.Exit(1)
+						}
 					}
 				}
+
+				updateTicketField(ticketPath, fieldName, fieldValue)
 			}
-			updateTicketField(ticketPath, fieldName, fieldValue)
-			fmt.Printf("✓ Updated %s for %s\n", fieldName, ticketID)
+
+			if hasDescription {
+				updateTicketDescription(ticketPath, description)
+			}
+
+			switch {
+			case hasField && hasDescription:
+				fmt.Printf("✓ Updated fields and description for %s\n", ticketID)
+			case hasField:
+				fieldName := strings.SplitN(field, "=", 2)[0]
+				fmt.Printf("✓ Updated %s for %s\n", fieldName, ticketID)
+			default:
+				fmt.Printf("✓ Updated description for %s\n", ticketID)
+			}
 			return
 		}
 
@@ -142,6 +167,7 @@ func getEditor() string {
 
 func init() {
 	editCmd.Flags().String("field", "", "Update a specific field (format: field=value)")
+	editCmd.Flags().String("description", "", "Replace the ticket body/description")
 	rootCmd.AddCommand(editCmd)
 }
 
@@ -180,6 +206,40 @@ func updateTicketField(ticketPath, field, value string) {
 
 	// Reconstruct the file
 	newContent := "---\n" + string(newYAML) + "---" + parts[2]
+	if err := os.WriteFile(ticketPath, []byte(newContent), 0644); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// updateTicketDescription replaces the markdown body of a ticket.
+func updateTicketDescription(ticketPath, description string) {
+	content, err := os.ReadFile(ticketPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	parts := strings.SplitN(string(content), "---", 3)
+	if len(parts) != 3 {
+		log.Fatal("Invalid ticket format")
+	}
+
+	var metadata map[string]interface{}
+	if err := yaml.Unmarshal([]byte(parts[1]), &metadata); err != nil {
+		log.Fatal(err)
+	}
+
+	metadata["updated_at"] = time.Now().UTC().Format(time.RFC3339)
+
+	newYAML, err := yaml.Marshal(metadata)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	newContent := fmt.Sprintf("---\n%s---\n", string(newYAML))
+	if description != "" {
+		newContent += "\n" + description
+	}
+
 	if err := os.WriteFile(ticketPath, []byte(newContent), 0644); err != nil {
 		log.Fatal(err)
 	}

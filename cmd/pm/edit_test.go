@@ -592,3 +592,108 @@ Test ticket
 		t.Error("Markdown body was not preserved after update")
 	}
 }
+
+func TestUpdateTicketDescriptionReplacesBody(t *testing.T) {
+	tmpDir := t.TempDir()
+	ticketPath := filepath.Join(tmpDir, "TEST-1.md")
+
+	originalTime := "2026-02-01T10:00:00Z"
+	originalContent := `---
+id: TEST-1
+title: "Test Ticket"
+type: task
+status: backlog
+priority: medium
+points: 0
+assignee: ""
+parent: ""
+depends_on: []
+blocks: []
+related: []
+labels: []
+created_at: 2026-02-01T09:00:00Z
+updated_at: ` + originalTime + `
+---
+
+# Description
+Original body
+`
+	if err := os.WriteFile(ticketPath, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	newBody := "# Description\nUpdated body\n\nWith more detail."
+	updateTicketDescription(ticketPath, newBody)
+
+	content, err := os.ReadFile(ticketPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	parts := strings.SplitN(string(content), "---", 3)
+	if len(parts) != 3 {
+		t.Fatalf("Expected valid front matter, got %d parts", len(parts))
+	}
+
+	var metadata map[string]interface{}
+	if err := yaml.Unmarshal([]byte(parts[1]), &metadata); err != nil {
+		t.Fatalf("Failed to parse YAML: %v", err)
+	}
+
+	if metadata["title"] != "Test Ticket" {
+		t.Errorf("expected title to be preserved, got %v", metadata["title"])
+	}
+
+	if metadata["updated_at"] == originalTime {
+		t.Error("updated_at should have been changed")
+	}
+
+	if got := strings.TrimSpace(parts[2]); got != newBody {
+		t.Errorf("expected body %q, got %q", newBody, got)
+	}
+}
+
+func TestUpdateTicketDescriptionClearsBody(t *testing.T) {
+	tmpDir := t.TempDir()
+	ticketPath := filepath.Join(tmpDir, "TEST-1.md")
+
+	originalContent := `---
+id: TEST-1
+title: "Test Ticket"
+type: task
+status: backlog
+priority: medium
+points: 0
+assignee: ""
+parent: ""
+depends_on: []
+blocks: []
+related: []
+labels: []
+created_at: 2026-02-01T09:00:00Z
+updated_at: 2026-02-01T10:00:00Z
+---
+
+# Description
+Original body
+`
+	if err := os.WriteFile(ticketPath, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	updateTicketDescription(ticketPath, "")
+
+	content, err := os.ReadFile(ticketPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	parts := strings.SplitN(string(content), "---", 3)
+	if len(parts) != 3 {
+		t.Fatalf("Expected valid front matter, got %d parts", len(parts))
+	}
+
+	if got := strings.TrimSpace(parts[2]); got != "" {
+		t.Errorf("expected empty body, got %q", got)
+	}
+}

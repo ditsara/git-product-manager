@@ -27,6 +27,7 @@ var rootCmd = &cobra.Command{
   # Move work forward
   pm move GPM-42 in-progress
   pm edit GPM-42 --field priority=high
+  pm edit GPM-42 --description "Refined implementation notes"
   pm edit GPM-42 --field labels=bug,auth
   pm assign GPM-42 alice
 
