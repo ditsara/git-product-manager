@@ -93,7 +93,7 @@ Examples:
 
 		searchCols := []TableColumn{
 			{Header: "ID", Width: 15},
-			{Header: "TITLE", Width: 20},
+			{Header: "TITLE", Width: 15},
 			{Header: "MATCH", Width: 20}, // expanding column
 			{Header: "TYPE", Width: 10},
 			{Header: "STATUS", Width: 15},
@@ -103,7 +103,7 @@ Examples:
 			displayID := truncateID(r.ID, 15)
 			searchRows = append(searchRows, []string{
 				displayID,
-				r.Title,
+				truncate(r.Title, 13), // truncate at 13 so padRight always leaves ≥2 trailing spaces
 				r.Snippet,
 				r.Type,
 				r.Status,
