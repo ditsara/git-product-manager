@@ -13,11 +13,12 @@ points: 3
 priority: medium
 related:
     - GPM-45
-status: backlog
+status: done
 title: 'Cache sync: detect and warn on broken relationship symmetry'
 type: task
-updated_at: "2026-04-12T12:11:54Z"
+updated_at: "2026-04-12T12:47:42Z"
 ---
+
 
 ## Overview
 
@@ -25,13 +26,18 @@ Detect broken relationship symmetry during cache sync (when users manually
 edit ticket files) and warn users about inconsistencies.
 
 While `pm link` / `pm unlink` maintain symmetry automatically, direct YAML
-edits can break the inverse relationship:
+edits can break the inverse relationship. Two symmetric pairs must be checked:
+
+- `depends_on` ↔ `blocks` (directed: A depends_on B → B blocks A)
+- `related` ↔ `related` (bidirectional: A related B → B related A)
+
+Example broken state:
 
 ```yaml
 # GPM-5.md
 depends_on: [GPM-10]
 # GPM-10.md
-blocks: []   # should contain GPM-5 but doesn't
+blocks: []   # should contain GPM-5 but does not
 ```
 
 This creates silent inconsistencies: `pm show GPM-5` reports the dependency but
@@ -40,16 +46,29 @@ This creates silent inconsistencies: `pm show GPM-5` reports the dependency but
 ## Current codebase context (2026-04-12)
 
 - `internal/cache/sync.go` — all sync logic lives here. `scanTicketFiles()`
-  already parses DependsOn and Blocks into `[]relationshipData`. This is the
-  right place to add symmetry validation.
+  already parses DependsOn, Blocks, and Related into `[]relationshipData`.
 - The sync pipeline is: parse files → compute paths → syncTickets →
   syncComments → syncRelationships → updateSyncTimestamp. Validation fits
-  after parsing, before DB writes.
-- `SyncCache` is the single entry point; warnings should be returned from
-  it (or printed to stderr) so callers don't need to change their call site.
-- There is no `pm repair` command yet; auto-heal is optional scope.
-- `cache_metadata` table exists and could store warnings, but logging to
-  stderr is simpler for v1.
+  after `scanTicketFiles` returns, before DB writes.
+- `SyncCache` is the single entry point; print warnings to `os.Stderr`.
+  Warnings are non-fatal — sync continues regardless.
+- No `pm repair` command yet. Users fix problems manually with `pm link`.
+
+## Warning Format
+
+Each warning is two lines: what is wrong, then the exact `pm link` command
+to fix it.
+
+```
+⚠  GPM-5 depends_on GPM-10, but GPM-10 does not block GPM-5; to fix:
+   pm link GPM-10 GPM-5 --type blocks
+
+⚠  GPM-3 related GPM-7, but GPM-7 does not relate back to GPM-3; to fix:
+   pm link GPM-7 GPM-3 --type related
+
+⚠  GPM-999 blocks GPM-1000, but GPM-1000 does not depends_on GPM-999; to fix:
+   pm link GPM-1000 GPM-999 --type depends-on
+```
 
 ## Implementation Plan
 
@@ -58,38 +77,31 @@ This creates silent inconsistencies: `pm show GPM-5` reports the dependency but
 Keep validation logic separate from sync.go for clarity.
 
 ```go
-// validateRelationshipSymmetry checks that depends_on / blocks pairs are
-// mirrored. Returns a list of human-readable warning strings.
+// validateRelationshipSymmetry checks that depends_on/blocks pairs and
+// related/related pairs are mirrored. Returns human-readable warning strings.
 func validateRelationshipSymmetry(tickets []ticketData) []string
 ```
 
-Algorithm:
-1. Build expected-blocks map: for each ticket A with depends_on=[B,...], expect B.blocks to contain A.
-2. Build actual-blocks map from ticket data.
-3. Report missing entries (A depends on B but B doesn't block A).
-4. Report orphaned entries (B blocks A but A doesn't depend on B).
+Algorithm for `depends_on` ↔ `blocks`:
+1. For each ticket A with depends_on=[B,...], expect B.blocks to contain A.
+2. For each ticket B with blocks=[A,...], expect A.depends_on to contain B.
+3. Report any missing entries.
+
+Algorithm for `related` ↔ `related`:
+1. For each ticket A with related=[B,...], expect B.related to contain A.
+2. Report any missing entries (only report each pair once).
 
 ### Hook into SyncCache (internal/cache/sync.go)
 
 After `scanTicketFiles` returns, call `validateRelationshipSymmetry` and
-collect warnings. Print each warning to `os.Stderr` prefixed with ⚠.
-Warnings are non-fatal — sync continues.
-
-### Optional: pm repair --fix-symmetry (cmd/pm/repair.go)
-
-New command that:
-1. Reads all ticket files.
-2. Rebuilds blocks arrays from depends_on (source of truth).
-3. Writes corrected YAML back.
-4. Reports what was fixed.
-
-Not required for first iteration; can be a follow-up.
+print each warning to `os.Stderr`.
 
 ## Acceptance Criteria
 
-- [ ] `validateRelationshipSymmetry` in internal/cache/validate.go
-- [ ] Called from SyncCache after ticket file scan
-- [ ] Warnings printed to stderr (non-fatal)
-- [ ] Unit tests: missing blocks, orphaned blocks, clean data
-- [ ] Integration test: manually break symmetry, verify warning appears
-- [ ] Optional: pm repair --fix-symmetry auto-heals
+- [ ] `validateRelationshipSymmetry` in `internal/cache/validate.go`
+- [ ] Checks `depends_on` ↔ `blocks` symmetry
+- [ ] Checks `related` ↔ `related` symmetry
+- [ ] Called from `SyncCache` after `scanTicketFiles`; warnings printed to stderr (non-fatal)
+- [ ] Warning includes exact `pm link` command to fix
+- [ ] Unit tests: missing blocks, orphaned blocks, missing related, clean data
+- [ ] Integration test: manually break symmetry, verify warning appears on next `pm list`

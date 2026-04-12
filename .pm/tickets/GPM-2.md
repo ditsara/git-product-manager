@@ -1,19 +1,24 @@
 ---
-id: GPM-2
-title: "Stage 3: Advanced Relationships and Search"
-type: epic
-status: backlog
-priority: medium
-points: 0
-parent: ""
-depends_on: [GPM-1]
-blocks: []
-related: []
-labels: [relationships, search, visualization]
 assignee: ""
+blocks: []
 created_at: 2026-02-02T03:57:21Z
-updated_at: 2026-02-02T03:57:21Z
+depends_on:
+    - GPM-1
+id: GPM-2
+labels:
+    - relationships
+    - search
+    - visualization
+parent: ""
+points: 0
+priority: medium
+related: []
+status: done
+title: 'Stage 3: Advanced Relationships and Search'
+type: epic
+updated_at: "2026-04-12T12:47:42Z"
 ---
+
 
 # Description
 
