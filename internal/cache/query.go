@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/stephenafamo/bob"
 	"github.com/stephenafamo/bob/dialect/sqlite"
@@ -187,4 +188,115 @@ func stringsToArgs(ss []string) []bob.Expression {
 		exprs[i] = sqlite.Arg(s)
 	}
 	return exprs
+}
+
+// SearchResult is a ticket row returned by SearchTickets, including a body snippet.
+type SearchResult struct {
+	ID      string
+	Title   string
+	Type    string
+	Status  string
+	Snippet string // short excerpt from body around the first match; empty for id/title matches
+}
+
+// SearchOptions controls filtering for SearchTickets.
+type SearchOptions struct {
+	// IncludeStates is a whitelist of statuses. Mutually exclusive with ExcludeStates.
+	IncludeStates []string
+	// ExcludeStates is a blacklist of statuses. Mutually exclusive with IncludeStates.
+	ExcludeStates []string
+}
+
+// SearchTickets searches the tickets cache for query across id, title, and body.
+// Results are ordered by relevance: id match first, then title, then body.
+func SearchTickets(db *sql.DB, query string, opts SearchOptions) ([]SearchResult, error) {
+	ctx := context.Background()
+
+	pattern := "%" + query + "%"
+
+	mods := []bob.Mod[*sqldialect.SelectQuery]{
+		sm.Columns(
+			sqlite.Quote("id"),
+			sqlite.Quote("title"),
+			sqlite.Quote("type"),
+			sqlite.Quote("status"),
+			sqlite.Quote("body"),
+		),
+		sm.From("tickets"),
+		sm.Where(sqlite.Or(
+			sqlite.Quote("id").Like(sqlite.Arg(pattern)),
+			sqlite.Quote("title").Like(sqlite.Arg(pattern)),
+			sqlite.Quote("body").Like(sqlite.Arg(pattern)),
+		)),
+		sm.OrderBy(sqlite.Raw(
+			"CASE WHEN UPPER(id) LIKE UPPER(?) THEN 0 WHEN UPPER(title) LIKE UPPER(?) THEN 1 ELSE 2 END",
+			pattern, pattern,
+		)),
+		sm.OrderBy(sqlite.Quote("updated_at")).Desc(),
+	}
+
+	if len(opts.IncludeStates) > 0 {
+		mods = append(mods, sm.Where(sqlite.Quote("status").In(stringsToArgs(opts.IncludeStates)...)))
+	} else if len(opts.ExcludeStates) > 0 {
+		mods = append(mods, sm.Where(sqlite.Quote("status").NotIn(stringsToArgs(opts.ExcludeStates)...)))
+	}
+
+	querySQL, queryArgs, err := sqlite.Select(mods...).Build(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build search query: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, querySQL, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute search query: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var r SearchResult
+		var body sql.NullString
+		if err := rows.Scan(&r.ID, &r.Title, &r.Type, &r.Status, &body); err != nil {
+			return nil, fmt.Errorf("failed to scan search row: %w", err)
+		}
+		if body.Valid {
+			r.Snippet = extractSnippet(body.String, query, 60)
+		}
+		results = append(results, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate search rows: %w", err)
+	}
+	return results, nil
+}
+
+// extractSnippet finds the first case-insensitive occurrence of query in text and
+// returns a short excerpt of contextWidth characters on each side, wrapped in "...".
+func extractSnippet(text, query string, contextWidth int) string {
+	lower := strings.ToLower(text)
+	lowerQ := strings.ToLower(query)
+	idx := strings.Index(lower, lowerQ)
+	if idx < 0 {
+		return ""
+	}
+	start := idx - contextWidth
+	if start < 0 {
+		start = 0
+	}
+	end := idx + len(query) + contextWidth
+	if end > len(text) {
+		end = len(text)
+	}
+	excerpt := strings.TrimSpace(text[start:end])
+	// Replace newlines with spaces for single-line display
+	excerpt = strings.ReplaceAll(excerpt, "\n", " ")
+	excerpt = strings.ReplaceAll(excerpt, "\r", "")
+	prefix, suffix := "...", "..."
+	if start == 0 {
+		prefix = ""
+	}
+	if end == len(text) {
+		suffix = ""
+	}
+	return prefix + excerpt + suffix
 }
