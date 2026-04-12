@@ -90,16 +90,26 @@ Examples:
 			fmt.Print("es")
 		}
 		fmt.Println("):")
-		fmt.Println()
 
-		for _, r := range results {
-			fmt.Printf("%s: %s\n", r.ID, r.Title)
-			fmt.Printf("  Type: %s | Status: %s\n", r.Type, r.Status)
-			if r.Snippet != "" {
-				fmt.Printf("  Match: %s\n", r.Snippet)
-			}
-			fmt.Println()
+		searchCols := []TableColumn{
+			{Header: "ID", Width: 15},
+			{Header: "TITLE", Width: 20},
+			{Header: "MATCH", Width: 20}, // expanding column
+			{Header: "TYPE", Width: 10},
+			{Header: "STATUS", Width: 15},
 		}
+		var searchRows [][]string
+		for _, r := range results {
+			displayID := truncateID(r.ID, 15)
+			searchRows = append(searchRows, []string{
+				displayID,
+				r.Title,
+				r.Snippet,
+				r.Type,
+				r.Status,
+			})
+		}
+		fmt.Println(renderTable(searchCols, searchRows, 4, 2))
 	},
 }
 

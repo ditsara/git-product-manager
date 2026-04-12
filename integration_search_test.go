@@ -38,8 +38,9 @@ func TestIntegrationSearch(t *testing.T) {
 		if !strings.Contains(output, "SRCH-3") {
 			t.Errorf("expected SRCH-3 in results, got:\n%s", output)
 		}
-		if !strings.Contains(output, "Match:") {
-			t.Errorf("expected snippet in results, got:\n%s", output)
+		// snippet appears in the MATCH column (no "Match:" label in table format)
+		if !strings.Contains(output, "database refactoring") {
+			t.Errorf("expected snippet text in results, got:\n%s", output)
 		}
 	})
 
@@ -108,6 +109,18 @@ func TestIntegrationSearch(t *testing.T) {
 		}
 		if !strings.Contains(output, "2 matches") {
 			t.Errorf("expected '2 matches' in header, got:\n%s", output)
+		}
+	})
+
+	t.Run("table_headers", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "search", "authentication")
+		if err != nil {
+			t.Fatalf("pm search failed: %v\nOutput: %s", err, output)
+		}
+		for _, header := range []string{"ID", "TITLE", "MATCH", "TYPE", "STATUS"} {
+			if !strings.Contains(output, header) {
+				t.Errorf("expected column header %q in output, got:\n%s", header, output)
+			}
 		}
 	})
 }
