@@ -4,8 +4,6 @@ A Git-native project management system that stores tickets as structured YAML +
 Markdown files within your repository, eliminating context-switching between
 code and project management.
 
-This is experimental; do not use for production.
-
 ## Philosophy
 
 **Single Source of Truth:** Keep tasks and code together in one repository. No
@@ -32,22 +30,39 @@ difference: it's all version-controlled files instead of a web UI.
 
 ```bash
 # Initialize in your project
-pm init .
+pm init . --prefix MYPROJECT
 
-# Create your first ticket
+# Create tickets
 pm new "Add user authentication"
+pm new "Auth overhaul" --type epic
+pm new "Login form" --parent MYPROJECT-2
 
-# List tickets
+# Browse and triage
 pm list
+pm list --active
+pm list --parent MYPROJECT-2
+pm show MYPROJECT-1
 
-# View a ticket
-pm show PROJ-123
+# Move work forward
+pm move MYPROJECT-1 in-progress
+pm edit MYPROJECT-1 --field priority=high
+pm assign MYPROJECT-1 alice
 
-# Update ticket status
-pm move PROJ-123 in-progress
+# Collaborate
+pm comment MYPROJECT-1 -m "Started implementation"
+pm link MYPROJECT-1 --depends-on MYPROJECT-3
+pm blocked
 
-# Add a comment
-pm comment PROJ-123 -m "Started implementation"
+# Search
+pm search "authentication"
+
+# Milestones
+pm milestone create "v1.0 Release" --due 2026-06-01
+pm list --milestone v1-0-release
+
+# AI/LLM integration
+pm ai init
+pm ai guide
 ```
 
 ## Installation
@@ -184,43 +199,21 @@ See [AGENTS.md](AGENTS.md) for the complete technical specification.
 
 ## Features
 
-### Stage 1: Core Ticket Management (MVP) ✅
-- ✅ Initialize `.pm/` directory structure
-- ✅ Create tickets from templates (story, task, bug, epic)
-- ✅ List tickets with filtering (status, type)
-- ✅ Display ticket details
-- ✅ Edit ticket metadata (including `--field` for direct updates)
-- ✅ Update ticket status
-- ✅ YAML validation and parsing
-- ✅ SQLite database for ticket indexing
-- ✅ Type-aware field parsing (arrays, integers, enums)
-
-### Stage 1.5: Refinements ✅
-- ✅ Sequential ticket IDs (PREFIX-1, PREFIX-2, etc.)
-- ✅ Configurable prefix (uppercase)
-- ✅ Filesystem-based ID generation
-- ✅ Column alignment with truncation
-
-### Stage 1.6: UX Polish & CLI Refinements ✅
-- ✅ Help improvements (contextual help for no-arg commands)
-- ✅ Lazy cache synchronization with auto-recovery
-- ✅ State groups for semantic filtering (--completed, --active, --incomplete)
-- ✅ Shell completion for bash, zsh, fish, and PowerShell
-- ✅ Visual hierarchy indicators in ticket lists
-- ✅ Error message formatting improvements
-
-### Stage 2: Collaboration & History (Planned)
-- ✅ Comment system (conflict-free)
-- ✅ Display comments in `pm show`
-- ✅ State change audit trail (`pm history`)
-- ✅ Assignee shorthand (`pm assign`)
-
-### Stage 3: Relationships & Search (Planned)
-- ⬜ Full-text search
-- ⬜ Relationship management (`pm link`, `pm unlink`)
-- ⬜ Hierarchy visualization (`pm tree`)
-- ⬜ Dependency tracking (`pm blocked`)
-- ⬜ Advanced filtering
+- **Ticket management** — Create, edit, move, and view tickets across types: story, task, bug, epic
+- **Hierarchies** — Parent/child relationships with `--parent` flag; visualize with `pm tree`
+- **Milestones** — Group tickets toward a release goal with progress tracking
+- **Relationships & dependencies** — Link tickets with `pm link` (depends-on, blocks, related); surface blockers with `pm blocked`
+- **Comments & history** — Conflict-free comment threads; full status-change audit trail via `pm history`
+- **Assignees** — Assign tickets with `pm assign`; configurable member list with domain suffix support
+- **Full-text search** — Search across ticket IDs, titles, and body content with `pm search`
+- **Smart filtering** — Filter by status, type, parent, milestone, assignee, or relationship (--depends-on, --blocks, --related)
+- **Shell completion** — Tab completion for ticket IDs, commands, statuses, and flags (bash, zsh, fish, PowerShell)
+- **Color output** — Status- and type-aware color coding across all commands; disable with `--no-color`
+- **SQLite index** — Fast queries backed by auto-syncing cache; YAML files remain the source of truth
+- **AI/LLM integration** — `pm ai guide` provides embedded workflow guidance; `pm ai init` bootstraps your LLM tool config
+- **Cross-branch sync** — `pm sync` propagates ticket changes across branches
+- **GitOps workflow** — All ticket data is version-controlled; git history is the audit trail
+- **Process as code** — Workflows, labels, and members are version-controlled config files
 
 ## License
 
