@@ -9,44 +9,46 @@ labels:
     - cli
     - visualization
     - optional
-parent: GPM-48
+parent: GPM-2
 points: 0
 priority: medium
 related: []
 status: backlog
-title: Add color support to pm tree
+title: Add consistent color output by status and type across CLI commands
 type: task
-updated_at: "2026-04-12T09:34:54Z"
+updated_at: "2026-04-12T10:09:23Z"
 ---
 
 ## Overview
 
-Add color support to the pm tree command to enhance visual differentiation between ticket types and statuses.
+Add ANSI color support across `pm tree` and `pm search` (and any future
+commands) to provide consistent visual differentiation by ticket status and
+type. Colors should be defined in a single shared utility so all commands
+render identically.
 
 ## Features to Implement
 
-- Different colors for different ticket types (epic, story, task, bug)
-- Highlight active tickets (todo, in-progress) vs completed tickets (done)
-- Optional flag to disable colors (e.g., --no-color)
-- ANSI color codes for terminal compatibility
+- **By status**: color-code tickets based on their status (e.g. in-progress highlighted, done dimmed)
+- **By type**: differentiate epics, stories, tasks, and bugs visually
+- `--no-color` flag (or respect `NO_COLOR` env var) to disable for non-TTY / scripting use
 
-## Implementation Details
+## Shared Color Utility
 
-- Use existing color utilities if available in codebase
-- Ensure compatibility with all terminal types
-- Test with various color schemes
-- Make colors configurable/optional
+Define a central color mapping (e.g. `internal/ui/colors.go`) so that `pm tree`, `pm search`, and future commands all use the same palette. No per-command color logic.
 
-## Example Output
+## Suggested Palette
 
-- Epic: Bold blue
-- Story: Blue
-- Task: Green
-- Bug: Red
-- Done/Completed: Dim/gray
+- Epic: bold blue
+- Story: blue
+- Task: green
+- Bug: red
+- Done / canceled: dim / gray
+- In-progress: bold / highlighted
 
-## References
+## Acceptance Criteria
 
-- Parent: GPM-48 (pm tree command)
-- Optional feature marked in original spec
-- Enhances UX of hierarchy visualization
+- [ ] `pm tree` renders tickets with color by type and status
+- [ ] `pm search` renders results with the same color scheme
+- [ ] Single shared color utility used by both commands
+- [ ] `--no-color` flag and `NO_COLOR` env var both suppress color output
+- [ ] All tests pass
