@@ -13,17 +13,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// truncate truncates a string to maxLen characters, adding "..." if truncated.
+// truncate truncates a string to maxLen characters, adding "…" if truncated.
 // Uses rune counting for proper Unicode/emoji handling.
 func truncate(s string, maxLen int) string {
 	runes := []rune(s)
 	if len(runes) <= maxLen {
 		return s
 	}
-	if maxLen < 3 {
-		return "..."
+	if maxLen < 1 {
+		return "…"
 	}
-	return string(runes[:maxLen-3]) + "..."
+	return string(runes[:maxLen-1]) + "…"
 }
 
 var listCmd = &cobra.Command{
@@ -138,7 +138,7 @@ Examples:
 			if t.HasChildren > 0 {
 				displayID = t.ID + " (+)"
 			}
-			displayID = truncateID(displayID, 15)
+			displayID = truncateID(displayID, 14)
 			listRows = append(listRows, []string{
 				displayID,
 				t.Title,

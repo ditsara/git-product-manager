@@ -31,8 +31,8 @@ func TestTruncate(t *testing.T) {
 			name:        "truncation_needed",
 			input:       "This is a very long string",
 			maxLen:      10,
-			expected:    "This is...",
-			description: "String longer than maxLen should be truncated with ...",
+			expected:    "This is a…",
+			description: "String longer than maxLen should be truncated with …",
 		},
 		{
 			name:        "single_character",
@@ -45,22 +45,22 @@ func TestTruncate(t *testing.T) {
 			name:        "truncate_maxlen_less_than_3",
 			input:       "Hello",
 			maxLen:      2,
-			expected:    "...",
-			description: "When maxLen < 3, should return just ... (since can't show any chars)",
+			expected:    "H…",
+			description: "When maxLen is 2, should show 1 char + …",
 		},
 		{
 			name:        "unicode_characters",
 			input:       "こんにちは世界",
 			maxLen:      5,
-			expected:    "こん...",
-			description: "Unicode characters should be counted as runes, not bytes (5-3=2 chars + ...)",
+			expected:    "こんにち…",
+			description: "Unicode characters should be counted as runes, not bytes (5-1=4 chars + …)",
 		},
 		{
 			name:        "emoji_handling",
 			input:       "Hello 👋 World 🌍",
 			maxLen:      12,
-			expected:    "Hello 👋 W...",
-			description: "Emoji should be counted as single runes (12-3=9 chars + ...)",
+			expected:    "Hello 👋 Wor…",
+			description: "Emoji should be counted as single runes (12-1=11 chars + …)",
 		},
 		{
 			name:        "empty_string",
@@ -70,25 +70,25 @@ func TestTruncate(t *testing.T) {
 			description: "Empty string should remain empty",
 		},
 		{
-			name:        "maxLen_exactly_3",
+			name:        "maxLen_exactly_1",
 			input:       "Hello",
-			maxLen:      3,
-			expected:    "...",
-			description: "maxLen of 3 should result in no content chars + ...",
+			maxLen:      1,
+			expected:    "…",
+			description: "maxLen of 1 on longer string should return just …",
 		},
 		{
-			name:        "maxLen_greater_than_3",
+			name:        "maxLen_greater_than_1",
 			input:       "HelloWorld",
 			maxLen:      5,
-			expected:    "He...",
-			description: "With maxLen=5 on 10-char string, should show 5-3=2 chars + ...",
+			expected:    "Hell…",
+			description: "With maxLen=5 on 10-char string, should show 5-1=4 chars + …",
 		},
 		{
 			name:        "spaces_count",
 			input:       "A B C D E",
 			maxLen:      5,
-			expected:    "A ...",
-			description: "Spaces should be counted as characters (5-3=2 chars + ...)",
+			expected:    "A B …",
+			description: "Spaces should be counted as characters (5-1=4 chars + …)",
 		},
 	}
 
@@ -120,7 +120,7 @@ func TestTruncateEdgeCases(t *testing.T) {
 			name:        "zero_maxLen",
 			input:       "Hello",
 			maxLen:      0,
-			description: "Zero maxLen should result in ...",
+			description: "Zero maxLen should result in …",
 		},
 		{
 			name:        "very_large_maxLen",
@@ -134,7 +134,7 @@ func TestTruncateEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := truncate(tt.input, tt.maxLen)
 			// Just verify it doesn't panic and returns a string
-			if result == "" && tt.input != "" && tt.maxLen >= 3 {
+			if result == "" && tt.input != "" && tt.maxLen >= 1 {
 				t.Errorf("%s: Unexpected empty result", tt.description)
 			}
 		})

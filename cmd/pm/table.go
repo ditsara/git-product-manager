@@ -87,7 +87,7 @@ func renderTable(cols []TableColumn, rows [][]string, statusColIndex, expandCol 
 			if j < len(effective) {
 				w = effective[j].Width
 			}
-			paddedRows[i][j] = padRight(truncate(cell, w), w)
+			paddedRows[i][j] = padRight(truncate(cell, w-1), w)
 		}
 	}
 

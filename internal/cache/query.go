@@ -291,7 +291,7 @@ func extractSnippet(text, query string, contextWidth int) string {
 	// Replace newlines with spaces for single-line display
 	excerpt = strings.ReplaceAll(excerpt, "\n", " ")
 	excerpt = strings.ReplaceAll(excerpt, "\r", "")
-	prefix, suffix := "...", "..."
+	prefix, suffix := "…", "…"
 	if start == 0 {
 		prefix = ""
 	}

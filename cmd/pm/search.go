@@ -100,10 +100,10 @@ Examples:
 		}
 		var searchRows [][]string
 		for _, r := range results {
-			displayID := truncateID(r.ID, 15)
+			displayID := truncateID(r.ID, 14)
 			searchRows = append(searchRows, []string{
 				displayID,
-				truncate(r.Title, 13), // truncate at 13 so padRight always leaves ≥2 trailing spaces
+				r.Title,
 				r.Snippet,
 				r.Type,
 				r.Status,
