@@ -1,21 +1,23 @@
 ---
-id: GPM-48
-title: "Implement pm tree for hierarchy visualization"
-type: task
-status: backlog
-priority: medium
-points: 3
-
-parent: GPM-2
-depends_on: []
-blocks: []
-related: []
-
-labels: [relationships, cli, visualization]
 assignee: ""
+blocks: []
 created_at: "2026-02-08T14:55:00Z"
-updated_at: "2026-02-08T14:55:00Z"
+depends_on: []
+id: GPM-48
+labels:
+    - relationships
+    - cli
+    - visualization
+parent: GPM-2
+points: 3
+priority: medium
+related: []
+status: done
+title: Implement pm tree for hierarchy visualization
+type: task
+updated_at: "2026-04-12T09:32:58Z"
 ---
+
 
 # Description
 
@@ -93,21 +95,21 @@ GPM-1: Stage 2: Collaboration & History
 
 ## Implementation Steps
 
-- [ ] Create `cmd/pm/tree.go`
-- [ ] Implement tree node structure:
-  - [ ] Recursive tree building
-  - [ ] Depth limiting
-- [ ] Implement rendering:
-  - [ ] Box-drawing character selection
-  - [ ] Proper indentation
-  - [ ] Title truncation
-- [ ] Add error handling:
-  - [ ] Ticket doesn't exist
-  - [ ] Invalid depth parameter
+- [x] Create `cmd/pm/tree.go`
+- [x] Implement tree node structure:
+  - [x] Recursive tree building
+  - [x] Depth limiting
+- [x] Implement rendering:
+  - [x] Box-drawing character selection
+  - [x] Proper indentation
+  - [x] Title truncation
+- [x] Add error handling:
+  - [x] Ticket doesn't exist
+  - [x] Invalid depth parameter
 - [ ] Add color support (optional):
   - [ ] Different colors for different ticket types
   - [ ] Highlight completed vs. active tickets
-- [ ] Add shell completion for ticket IDs
+- [x] Add shell completion for ticket IDs
 
 ## Examples
 
@@ -135,22 +137,22 @@ GPM-5: Implement Bad YAML validation
 
 ## Testing
 
-- [ ] Unit test: Build tree structure correctly
-- [ ] Unit test: Respect depth limits
-- [ ] Unit test: Render box-drawing characters correctly
-- [ ] Integration test: Display hierarchy for epic with multiple levels
-- [ ] Integration test: Handle no children case
-- [ ] Integration test: Truncate long titles
+- [x] Unit test: Build tree structure correctly
+- [x] Unit test: Respect depth limits
+- [x] Unit test: Render box-drawing characters correctly
+- [x] Integration test: Display hierarchy for epic with multiple levels
+- [x] Integration test: Handle no children case
+- [x] Integration test: Truncate long titles
 - [ ] Test performance with 1000+ tickets
 
 ## Acceptance Criteria
 
-- [ ] `pm tree <id>` displays parent-child hierarchy correctly
-- [ ] Box-drawing characters render properly in all shells
-- [ ] Depth limiting works (`--depth` flag)
-- [ ] Tickets without children don't show empty subtrees
-- [ ] Titles are truncated to maintain readability
-- [ ] Output is properly indented and formatted
-- [ ] Error handling covers edge cases
-- [ ] All tests pass
-- [ ] Shell completion works for ticket IDs
+- [x] `pm tree <id>` displays parent-child hierarchy correctly
+- [x] Box-drawing characters render properly in all shells
+- [x] Depth limiting works (`--depth` flag)
+- [x] Tickets without children don't show empty subtrees
+- [x] Titles are truncated to maintain readability
+- [x] Output is properly indented and formatted
+- [x] Error handling covers edge cases
+- [x] All tests pass
+- [x] Shell completion works for ticket IDs
