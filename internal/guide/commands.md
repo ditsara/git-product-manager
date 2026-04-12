@@ -10,8 +10,10 @@ pm ai init                       # Append a GPM pointer to LLM tool config files
 pm ai init --for claude          # Append only to CLAUDE.md
 ```
 
-> **Important:** Never create or edit ticket files directly. Use `pm new`, `pm edit`,
-> and `pm move` to manage tickets — the CLI handles IDs, validation, and git tracking.
+> **Important:** Never create new tickets or edit ticket yaml directly. Use `pm
+> new`, `pm edit`, and `pm move` to manage tickets — the CLI handles IDs,
+> validation, and git tracking. Editing ticket markdown content directly is
+> okay.
 
 ## Tickets
 
