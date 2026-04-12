@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	cterm "github.com/charmbracelet/x/term"
 	"github.com/charmbracelet/lipgloss"
@@ -131,5 +132,51 @@ func padRight(s string, minWidth int) string {
 		runes = append(runes, ' ')
 	}
 	return string(runes)
+}
+
+// truncateID truncates a ticket ID to maxWidth runes, preserving the numeric
+// suffix ("-NNNN" and optional " (+)") and using a single "…" marker so the ID
+// remains identifiable. If the ID already fits, it is returned unchanged.
+//
+// Example (maxWidth=15):
+//
+//	"MYLONGPREFIX-1234"      → "MYLONG…-1234"
+//	"MYLONGPREFIX-1234 (+)"  → "MYLO…-1234 (+)"
+//	"GPM-42"                 → "GPM-42"
+func truncateID(id string, maxWidth int) string {
+	runes := []rune(id)
+	if len(runes) <= maxWidth {
+		return id
+	}
+
+	// Separate the " (+)" children indicator if present.
+	childSuffix := ""
+	bare := id
+	if len(id) >= 4 && id[len(id)-4:] == " (+)" {
+		childSuffix = " (+)"
+		bare = id[:len(id)-4]
+	}
+
+	// Split on the last "-" to isolate the numeric part.
+	lastDash := strings.LastIndex(bare, "-")
+	if lastDash < 0 {
+		// No dash — fall back to plain rune truncation with ellipsis.
+		if maxWidth < 1 {
+			return "…"
+		}
+		return string([]rune(id)[:maxWidth-1]) + "…"
+	}
+
+	numericSuffix := bare[lastDash:] + childSuffix // e.g. "-1234" + " (+)"
+	// Available runes for the prefix: maxWidth minus suffix minus 1 for "…"
+	available := maxWidth - len([]rune(numericSuffix)) - 1
+	if available < 1 {
+		available = 1
+	}
+	prefix := []rune(bare[:lastDash])
+	if len(prefix) > available {
+		prefix = prefix[:available]
+	}
+	return string(prefix) + "…" + numericSuffix
 }
 

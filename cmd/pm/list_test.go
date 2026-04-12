@@ -199,3 +199,63 @@ func TestTruncateWithFixedWidth(t *testing.T) {
 
 // TestQueryBuilding was removed in GPM-69. Query logic now lives in internal/cache/query.go
 // and is tested via TestListTickets_* in internal/cache/query_test.go.
+
+// TestTruncateID tests smart ID truncation that preserves the numeric suffix.
+func TestTruncateID(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       string
+		maxWidth int
+		expected string
+	}{
+		{
+			name:     "fits_exactly",
+			id:       "GPM-42",
+			maxWidth: 15,
+			expected: "GPM-42",
+		},
+		{
+			name:     "fits_with_children",
+			id:       "GPM-1234 (+)",
+			maxWidth: 15,
+			expected: "GPM-1234 (+)",
+		},
+		{
+			name:     "long_prefix_truncated",
+			id:       "MYLONGPREFIX-1234",
+			maxWidth: 15,
+			expected: "MYLONGPRE…-1234",
+		},
+		{
+			name:     "long_prefix_with_children",
+			id:       "MYLONGPREFIX-1234 (+)",
+			maxWidth: 15,
+			expected: "MYLON…-1234 (+)",
+		},
+		{
+			name:     "short_prefix_no_truncation",
+			id:       "PROJ-99",
+			maxWidth: 15,
+			expected: "PROJ-99",
+		},
+		{
+			name:     "exactly_at_limit",
+			id:       "ABCDE-1234 (+)",
+			maxWidth: 14,
+			expected: "ABCDE-1234 (+)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateID(tt.id, tt.maxWidth)
+			if got != tt.expected {
+				t.Errorf("truncateID(%q, %d) = %q, want %q", tt.id, tt.maxWidth, got, tt.expected)
+			}
+			gotRunes := len([]rune(got))
+			if gotRunes > tt.maxWidth {
+				t.Errorf("truncateID(%q, %d) result %q has %d runes, exceeds maxWidth", tt.id, tt.maxWidth, got, gotRunes)
+			}
+		})
+	}
+}

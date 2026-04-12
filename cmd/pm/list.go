@@ -127,7 +127,7 @@ Examples:
 		}
 
 		listCols := []TableColumn{
-			{Header: "ID", Width: 20},
+			{Header: "ID", Width: 15},
 			{Header: "TITLE", Width: 50},
 			{Header: "TYPE", Width: 10},
 			{Header: "STATUS", Width: 15},
@@ -138,6 +138,7 @@ Examples:
 			if t.HasChildren > 0 {
 				displayID = t.ID + " (+)"
 			}
+			displayID = truncateID(displayID, 15)
 			listRows = append(listRows, []string{
 				displayID,
 				t.Title,
