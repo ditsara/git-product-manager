@@ -21,9 +21,9 @@ updated_at: "2026-04-12T10:09:23Z"
 
 ## Overview
 
-Add ANSI color support across `pm tree` and `pm search` (and any future
-commands) to provide consistent visual differentiation by ticket status and
-type. Colors should be defined in a single shared utility so all commands
+Add ANSI color support across `pm tree`, `pm list`, and `pm search` (and any
+future commands) to provide consistent visual differentiation by ticket status
+and type. Colors should be defined in a single shared utility so all commands
 render identically.
 
 ## Features to Implement
@@ -34,7 +34,9 @@ render identically.
 
 ## Shared Color Utility
 
-Define a central color mapping (e.g. `internal/ui/colors.go`) so that `pm tree`, `pm search`, and future commands all use the same palette. No per-command color logic.
+Define a central color mapping (e.g. `internal/ui/colors.go`) so that `pm
+tree`, `pm search`, and future commands all use the same palette. No
+per-command color logic.
 
 ## Suggested Palette
 
