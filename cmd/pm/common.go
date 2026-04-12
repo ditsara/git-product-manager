@@ -7,6 +7,19 @@ import (
 	"strings"
 )
 
+// noColor is set by the --no-color persistent flag.
+var noColor bool
+
+// colorEnabled returns true unless --no-color was passed or the NO_COLOR
+// environment variable is set (per https://no-color.org/).
+func colorEnabled() bool {
+	if noColor {
+		return false
+	}
+	_, set := os.LookupEnv("NO_COLOR")
+	return !set
+}
+
 // resolveTicketID locates a ticket by ID and returns the normalized ID string.
 // Returns empty string if not found.
 // Matching is case-insensitive for user convenience.

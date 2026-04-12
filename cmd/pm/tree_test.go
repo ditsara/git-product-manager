@@ -68,11 +68,11 @@ func TestFormatNode(t *testing.T) {
 			}
 
 			// Check for truncation
-			if tt.expectEllipsis && !contains(output, "...") {
+			if tt.expectEllipsis && !contains(output, "…") {
 				t.Errorf("Expected ellipsis in output, got: %s", output)
 			}
 
-			if !tt.expectEllipsis && contains(output, "...") {
+			if !tt.expectEllipsis && contains(output, "…") {
 				t.Errorf("Should not have ellipsis in output, got: %s", output)
 			}
 		})

@@ -240,7 +240,7 @@ func TestTreeLongTitleTruncation(t *testing.T) {
 	}
 
 	// But should show the start of the title and ellipsis
-	if !strings.Contains(output, "...") {
+	if !strings.Contains(output, "…") {
 		t.Errorf("Output should contain ellipsis for truncated title: %s", output)
 	}
 }

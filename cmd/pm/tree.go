@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ditsara/git-product-manager/internal/cache"
+	"github.com/ditsara/git-product-manager/internal/ui"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +19,7 @@ type TreeNode struct {
 	ID       string
 	Title    string
 	Type     string
+	Status   string
 	Children []*TreeNode
 	Depth    int
 }
@@ -73,10 +76,11 @@ var treeCmd = &cobra.Command{
 
 		// Build tree recursively
 		root := &TreeNode{
-			ID:    rootTicket.ID,
-			Title: rootTicket.Title,
-			Type:  rootTicket.Type,
-			Depth: 0,
+			ID:     rootTicket.ID,
+			Title:  rootTicket.Title,
+			Type:   rootTicket.Type,
+			Status: rootTicket.Status,
+			Depth:  0,
 		}
 
 		if treeFlags.depth == 0 {
@@ -137,10 +141,11 @@ func buildTree(db *sql.DB, node *TreeNode, maxDepth int) error {
 	// Create tree nodes for each child
 	for _, child := range children {
 		childNode := &TreeNode{
-			ID:    child.ID,
-			Title: child.Title,
-			Type:  child.Type,
-			Depth: node.Depth + 1,
+			ID:     child.ID,
+			Title:  child.Title,
+			Type:   child.Type,
+			Status: child.Status,
+			Depth:  node.Depth + 1,
 		}
 
 		// Recursively build subtree
@@ -186,16 +191,27 @@ func renderChildren(children []*TreeNode, prefix string) {
 	}
 }
 
-// formatNode formats a single node for display.
+// formatNode formats a single node for display with optional color by type and status.
 // Truncates title to 60 chars if necessary.
 func formatNode(node *TreeNode) string {
 	title := node.Title
 	if len([]rune(title)) > 60 {
 		runes := []rune(title)
-		title = string(runes[:57]) + "..."
+		title = string(runes[:59]) + "…"
 	}
 
-	return fmt.Sprintf("%s: %s", node.ID, title)
+	line := fmt.Sprintf("%s: %s", node.ID, title)
+	if !colorEnabled() {
+		return line
+	}
+
+	// Dim done/canceled tickets; otherwise color by type.
+	base := lipgloss.NewStyle()
+	switch node.Status {
+	case "done", "canceled":
+		return base.Foreground(lipgloss.Color("238")).Render(line)
+	}
+	return ui.TypeStyle(node.Type, base).Render(line)
 }
 
 func init() {

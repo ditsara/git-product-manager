@@ -109,7 +109,7 @@ Examples:
 				r.Status,
 			})
 		}
-		fmt.Println(renderTable(searchCols, searchRows, 4, 2))
+		fmt.Println(renderTable(searchCols, searchRows, 4, 3, 2))
 	},
 }
 

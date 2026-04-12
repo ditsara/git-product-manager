@@ -7,16 +7,8 @@ import (
 	cterm "github.com/charmbracelet/x/term"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/ditsara/git-product-manager/internal/ui"
 )
-
-// Status color palette — applied to any cell whose column is the status column.
-var statusColors = map[string]lipgloss.Color{
-	"backlog":     lipgloss.Color("245"), // gray
-	"todo":        lipgloss.Color("12"),  // bright blue
-	"in-progress": lipgloss.Color("11"),  // yellow
-	"done":        lipgloss.Color("10"),  // green
-	"canceled":    lipgloss.Color("238"), // dark gray
-}
 
 var (
 	headerStyle = lipgloss.NewStyle().Bold(true)
@@ -43,9 +35,12 @@ func termWidth() int {
 // statusColIndex is the 0-based column index whose values are color-coded by
 // status. Pass -1 to disable status coloring.
 //
+// typeColIndex is the 0-based column index whose values are color-coded by
+// ticket type. Pass -1 to disable type coloring.
+//
 // expandCol is the 0-based column index that should absorb any spare terminal
 // width (typically the TITLE column). Pass -1 to use fixed widths only.
-func renderTable(cols []TableColumn, rows [][]string, statusColIndex, expandCol int) string {
+func renderTable(cols []TableColumn, rows [][]string, statusColIndex, typeColIndex, expandCol int) string {
 	// Resolve effective column widths, expanding one column to fill the terminal.
 	effective := make([]TableColumn, len(cols))
 	copy(effective, cols)
@@ -95,11 +90,14 @@ func renderTable(cols []TableColumn, rows [][]string, statusColIndex, expandCol 
 		if row == table.HeaderRow {
 			return headerStyle
 		}
+		if !colorEnabled() {
+			return baseStyle
+		}
 		if statusColIndex >= 0 && col == statusColIndex && row < len(rows) {
-			status := rows[row][statusColIndex]
-			if color, ok := statusColors[status]; ok {
-				return baseStyle.Foreground(color)
-			}
+			return ui.StatusStyle(rows[row][statusColIndex], baseStyle)
+		}
+		if typeColIndex >= 0 && col == typeColIndex && row < len(rows) {
+			return ui.TypeStyle(rows[row][typeColIndex], baseStyle)
 		}
 		return baseStyle
 	}

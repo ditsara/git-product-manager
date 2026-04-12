@@ -58,6 +58,10 @@ func Execute() {
 	}
 }
 
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable color output")
+}
+
 func main() {
 	Execute()
 }
