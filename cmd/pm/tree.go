@@ -113,7 +113,7 @@ var treeCmd = &cobra.Command{
 
 // getTicketFromCache retrieves a single ticket from the cache by ID.
 func getTicketFromCache(db *sql.DB, ticketID string) (*cache.CachedTicket, error) {
-	tickets, err := cache.ListTickets(db, cache.ListOptions{})
+	tickets, err := cache.ListTickets(db, cache.ListOptions{Subtree: true})
 	if err != nil {
 		return nil, err
 	}
