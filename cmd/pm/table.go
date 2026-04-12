@@ -7,7 +7,6 @@ import (
 	cterm "github.com/charmbracelet/x/term"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"github.com/ditsara/git-product-manager/internal/ui"
 )
 
 var (
@@ -32,15 +31,23 @@ func termWidth() int {
 
 // renderTable renders a borderless, optionally color-coded table.
 //
-// statusColIndex is the 0-based column index whose values are color-coded by
-// status. Pass -1 to disable status coloring.
+// statusColIndex is the 0-based index of the status column; statusStyle is
+// called with each cell value to obtain its lipgloss style. Pass -1 / nil to
+// disable status coloring.
 //
-// typeColIndex is the 0-based column index whose values are color-coded by
-// ticket type. Pass -1 to disable type coloring.
+// typeColIndex / typeStyle work the same way for the ticket-type column.
 //
 // expandCol is the 0-based column index that should absorb any spare terminal
-// width (typically the TITLE column). Pass -1 to use fixed widths only.
-func renderTable(cols []TableColumn, rows [][]string, statusColIndex, typeColIndex, expandCol int) string {
+// width. Pass -1 to use fixed widths only.
+func renderTable(
+	cols           []TableColumn,
+	rows           [][]string,
+	statusColIndex int,
+	statusStyle    func(string) lipgloss.Style,
+	typeColIndex   int,
+	typeStyle      func(string) lipgloss.Style,
+	expandCol      int,
+) string {
 	// Resolve effective column widths, expanding one column to fill the terminal.
 	effective := make([]TableColumn, len(cols))
 	copy(effective, cols)
@@ -93,11 +100,11 @@ func renderTable(cols []TableColumn, rows [][]string, statusColIndex, typeColInd
 		if !colorEnabled() {
 			return baseStyle
 		}
-		if statusColIndex >= 0 && col == statusColIndex && row < len(rows) {
-			return ui.StatusStyle(rows[row][statusColIndex], baseStyle)
+		if statusStyle != nil && col == statusColIndex && row < len(rows) {
+			return statusStyle(rows[row][statusColIndex])
 		}
-		if typeColIndex >= 0 && col == typeColIndex && row < len(rows) {
-			return ui.TypeStyle(rows[row][typeColIndex], baseStyle)
+		if typeStyle != nil && col == typeColIndex && row < len(rows) {
+			return typeStyle(rows[row][typeColIndex])
 		}
 		return baseStyle
 	}

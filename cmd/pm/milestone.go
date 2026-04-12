@@ -211,7 +211,7 @@ Examples:
 					daysOverdue,
 				})
 			}
-			fmt.Println(renderTable(overdueCols, overdueRows, -1, -1, 1))
+			fmt.Println(renderTable(overdueCols, overdueRows, -1, nil, -1, nil, 1))
 			return
 		}
 
@@ -244,7 +244,7 @@ Examples:
 					progressStr,
 				})
 			}
-			fmt.Println(renderTable(progCols, progRows, -1, -1, 1))
+			fmt.Println(renderTable(progCols, progRows, -1, nil, -1, nil, 1))
 			return
 		}
 
@@ -271,7 +271,7 @@ Examples:
 				m.State,
 			})
 		}
-		fmt.Println(renderTable(milestoneCols, milestoneRows, -1, -1, 1))
+		fmt.Println(renderTable(milestoneCols, milestoneRows, -1, nil, -1, nil, 1))
 	},
 }
 

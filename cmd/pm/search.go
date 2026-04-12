@@ -8,6 +8,7 @@ import (
 
 	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
+	"github.com/ditsara/git-product-manager/internal/ui"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -109,7 +110,7 @@ Examples:
 				r.Status,
 			})
 		}
-		fmt.Println(renderTable(searchCols, searchRows, 4, 3, 2))
+		fmt.Println(renderTable(searchCols, searchRows, 4, ui.StatusStyleFunc(workflow), 3, ui.TypeStyleFunc(), 2))
 	},
 }
 

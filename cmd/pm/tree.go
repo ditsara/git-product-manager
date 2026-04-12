@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ditsara/git-product-manager/internal/cache"
+	"github.com/ditsara/git-product-manager/internal/config"
 	"github.com/ditsara/git-product-manager/internal/ui"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
@@ -60,6 +61,13 @@ var treeCmd = &cobra.Command{
 			}
 		}
 
+		// Load workflow for status-based coloring
+		workflowPath := filepath.Join(pmPath, "config", "workflow.yaml")
+		workflow, err := config.LoadWorkflow(workflowPath)
+		if err != nil {
+			log.Fatalf("Error loading workflow: %v", err)
+		}
+
 		// Open database
 		dbPath := filepath.Join(pmPath, ".cache.db")
 		db, err := sql.Open("sqlite3", dbPath)
@@ -99,7 +107,7 @@ var treeCmd = &cobra.Command{
 		}
 
 		// Render the tree
-		renderTree(root)
+		renderTree(root, workflow)
 	},
 }
 
@@ -160,13 +168,13 @@ func buildTree(db *sql.DB, node *TreeNode, maxDepth int) error {
 }
 
 // renderTree renders the tree starting from a root node.
-func renderTree(root *TreeNode) {
-	fmt.Println(formatNode(root))
-	renderChildren(root.Children, "")
+func renderTree(root *TreeNode, workflow *config.Workflow) {
+	fmt.Println(formatNode(root, workflow))
+	renderChildren(root.Children, "", workflow)
 }
 
 // renderChildren recursively renders child nodes with proper indentation and box-drawing characters.
-func renderChildren(children []*TreeNode, prefix string) {
+func renderChildren(children []*TreeNode, prefix string, workflow *config.Workflow) {
 	for i, child := range children {
 		isLast := i == len(children)-1
 
@@ -182,18 +190,18 @@ func renderChildren(children []*TreeNode, prefix string) {
 		}
 
 		// Print this child
-		fmt.Println(prefix + connector + formatNode(child))
+		fmt.Println(prefix + connector + formatNode(child, workflow))
 
 		// Recursively print grandchildren
 		if len(child.Children) > 0 {
-			renderChildren(child.Children, childPrefix)
+			renderChildren(child.Children, childPrefix, workflow)
 		}
 	}
 }
 
 // formatNode formats a single node for display with optional color by type and status.
 // Truncates title to 60 chars if necessary.
-func formatNode(node *TreeNode) string {
+func formatNode(node *TreeNode, workflow *config.Workflow) string {
 	title := node.Title
 	if len([]rune(title)) > 60 {
 		runes := []rune(title)
@@ -205,11 +213,12 @@ func formatNode(node *TreeNode) string {
 		return line
 	}
 
-	// Dim done/canceled tickets; otherwise color by type.
 	base := lipgloss.NewStyle()
-	switch node.Status {
-	case "done", "canceled":
-		return base.Foreground(lipgloss.Color("238")).Render(line)
+	// Dim tickets in the completed group; color everything else by type.
+	if workflow != nil && workflow.IsCompleted(node.Status) {
+		if c, ok := ui.GroupColors["completed"]; ok {
+			return base.Foreground(c).Render(line)
+		}
 	}
 	return ui.TypeStyle(node.Type, base).Render(line)
 }

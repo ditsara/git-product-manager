@@ -60,7 +60,7 @@ func TestFormatNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := formatNode(tt.node)
+			output := formatNode(tt.node, nil)
 
 			// Should always contain ID
 			if len(output) == 0 || output[:len(tt.node.ID)] != tt.node.ID {

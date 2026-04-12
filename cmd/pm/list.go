@@ -9,6 +9,7 @@ import (
 
 	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
+	"github.com/ditsara/git-product-manager/internal/ui"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -146,7 +147,7 @@ Examples:
 				t.Status,
 			})
 		}
-		fmt.Println(renderTable(listCols, listRows, 3, 2, 1))
+		fmt.Println(renderTable(listCols, listRows, 3, ui.StatusStyleFunc(workflow), 2, ui.TypeStyleFunc(), 1))
 
 		if len(tickets) == 0 && parentFilter != "" {
 			fmt.Printf("\nNo children found for %s\n", parentFilter)
