@@ -203,6 +203,10 @@ func SyncCache(pmPath string) error {
 	tickets, relationships := scanTicketFiles(ticketsPath, files)
 	comments := scanCommentDirs(ticketsPath, files)
 
+	for _, w := range validateRelationshipSymmetry(relationships) {
+		fmt.Fprintf(os.Stderr, "⚠  %s\n", w)
+	}
+
 	if err := syncTickets(ctx, tx, tickets); err != nil {
 		return err
 	}

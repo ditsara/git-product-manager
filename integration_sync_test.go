@@ -173,3 +173,143 @@ func ensurePMDirs(t *testing.T, repo string) {
 		}
 	}
 }
+
+// runPMStderr runs the pm binary and returns stdout+stderr separately.
+func runPMStderr(t *testing.T, pmBinary, workDir string, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
+	cmd := exec.Command(pmBinary, args...)
+	cmd.Dir = workDir
+	var outBuf, errBuf strings.Builder
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	return outBuf.String(), errBuf.String(), err
+}
+
+func TestSymmetryWarningOnSync(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "SYM")
+
+	ticketsDir := filepath.Join(workspace, ".pm", "tickets")
+
+	// A depends_on B, but B does not block A — broken symmetry.
+	ticketA := `---
+id: SYM-1
+title: Ticket A
+type: task
+status: todo
+priority: medium
+depends_on: [SYM-2]
+blocks: []
+related: []
+created_at: "2026-01-01T00:00:00Z"
+updated_at: "2026-01-01T00:00:00Z"
+---
+`
+	ticketB := `---
+id: SYM-2
+title: Ticket B
+type: task
+status: todo
+priority: medium
+depends_on: []
+blocks: []
+related: []
+created_at: "2026-01-01T00:00:00Z"
+updated_at: "2026-01-01T00:00:00Z"
+---
+`
+	if err := os.WriteFile(filepath.Join(ticketsDir, "SYM-1.md"), []byte(ticketA), 0644); err != nil {
+		t.Fatalf("write SYM-1: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ticketsDir, "SYM-2.md"), []byte(ticketB), 0644); err != nil {
+		t.Fatalf("write SYM-2: %v", err)
+	}
+
+	// pm list triggers a cache sync which should print the symmetry warning to stderr.
+	_, stderr, _ := runPMStderr(t, pmBinary, workspace, "list")
+
+	if !strings.Contains(stderr, "SYM-1 depends_on SYM-2") {
+		t.Errorf("expected symmetry warning on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "pm link SYM-2 SYM-1 --type blocks") {
+		t.Errorf("expected pm link fix command on stderr, got:\n%s", stderr)
+	}
+}
+
+func TestSymmetryWarningRelated(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "REL")
+
+	ticketsDir := filepath.Join(workspace, ".pm", "tickets")
+
+	// A related B, but B does not relate back to A.
+	ticketA := `---
+id: REL-1
+title: Ticket A
+type: task
+status: todo
+priority: medium
+depends_on: []
+blocks: []
+related: [REL-2]
+created_at: "2026-01-01T00:00:00Z"
+updated_at: "2026-01-01T00:00:00Z"
+---
+`
+	ticketB := `---
+id: REL-2
+title: Ticket B
+type: task
+status: todo
+priority: medium
+depends_on: []
+blocks: []
+related: []
+created_at: "2026-01-01T00:00:00Z"
+updated_at: "2026-01-01T00:00:00Z"
+---
+`
+	if err := os.WriteFile(filepath.Join(ticketsDir, "REL-1.md"), []byte(ticketA), 0644); err != nil {
+		t.Fatalf("write REL-1: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ticketsDir, "REL-2.md"), []byte(ticketB), 0644); err != nil {
+		t.Fatalf("write REL-2: %v", err)
+	}
+
+	_, stderr, _ := runPMStderr(t, pmBinary, workspace, "list")
+
+	if !strings.Contains(stderr, "REL-1 related REL-2") {
+		t.Errorf("expected related symmetry warning on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "pm link REL-2 REL-1 --type related") {
+		t.Errorf("expected pm link fix command on stderr, got:\n%s", stderr)
+	}
+}
+
+func TestNoSymmetryWarningWhenClean(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "CLN")
+
+	// Create tickets via pm new + pm link so symmetry is correct from the start.
+	if _, err := runPM(t, pmBinary, workspace, "new", "Ticket A"); err != nil {
+		t.Fatalf("pm new A: %v", err)
+	}
+	if _, err := runPM(t, pmBinary, workspace, "new", "Ticket B"); err != nil {
+		t.Fatalf("pm new B: %v", err)
+	}
+	if _, err := runPM(t, pmBinary, workspace, "link", "CLN-1", "CLN-2", "--type", "depends-on"); err != nil {
+		t.Fatalf("pm link: %v", err)
+	}
+
+	_, stderr, _ := runPMStderr(t, pmBinary, workspace, "list")
+	if strings.Contains(stderr, "⚠") {
+		t.Errorf("expected no warnings for clean data, got stderr:\n%s", stderr)
+	}
+}
