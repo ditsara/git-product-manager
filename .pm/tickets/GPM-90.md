@@ -6,14 +6,15 @@ depends_on: []
 id: GPM-90
 labels: []
 parent: ""
-points: 0
-priority: medium
+points: 2
+priority: high
 related: []
-status: backlog
+status: done
 title: Support multiple --field flags in pm edit
 type: story
-updated_at: "2026-04-12T10:13:00Z"
+updated_at: "2026-04-12T11:46:12Z"
 ---
+
 
 ## Overview
 
@@ -29,9 +30,16 @@ Both fields should be applied atomically in a single edit.
 
 ## Implementation Notes
 
-- Change the `--field` flag from `StringVar` to `StringArrayVar` (or `StringSliceVar`) so cobra collects all occurrences
-- Iterate over all provided `--field` values and apply each in turn before writing the file
-- Ensure validation runs on all fields before any write occurs (fail fast, no partial updates)
+- Change the `--field` flag from `StringVar` to `StringArrayVar` (or
+  `StringSliceVar`) so cobra collects all occurrences
+- Iterate over all provided `--field` values and apply each in turn before
+  writing the file
+- Ensure validation runs on all fields before any write occurs (fail fast, no
+  partial updates)
+
+## Edge Cases
+
+If the user updates the same field twice, just apply each update in order.
 
 ## Acceptance Criteria
 

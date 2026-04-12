@@ -13,11 +13,12 @@ parent: GPM-2
 points: 0
 priority: medium
 related: []
-status: backlog
+status: done
 title: Add consistent color output by status and type across CLI commands
 type: task
-updated_at: "2026-04-12T10:09:23Z"
+updated_at: "2026-04-12T11:42:10Z"
 ---
+
 
 ## Overview
 
