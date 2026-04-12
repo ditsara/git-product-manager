@@ -14,6 +14,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// fieldUpdate is a pre-parsed name/value pair used by applyTicketFields.
+type fieldUpdate struct {
+	name  string
+	value interface{}
+}
+
 var editCmd = &cobra.Command{
 	Use:               "edit [id]",
 	Short:             "Edit a ticket",
@@ -26,6 +32,9 @@ Examples:
 
   # Update a single field
   pm edit GPM-1 --field assignee=alice
+
+  # Update multiple fields at once
+  pm edit GPM-1 --field priority=high --field parent=GPM-2
 
   # Replace the ticket description/body
   pm edit GPM-1 --description "New body text here"
@@ -42,8 +51,8 @@ Examples:
   # Update enum field
   pm edit GPM-1 --field priority=high
 
-  # Update a field and description together
-  pm edit GPM-1 --field priority=high --description "Revised body"
+  # Update multiple fields and description together
+  pm edit GPM-1 --field priority=high --field assignee=alice --description "Revised body"
 
 Note: Array fields use comma (,) as delimiter. Values are trimmed.
 Array updates REPLACE existing values, they do not append.`,
@@ -52,21 +61,24 @@ Array updates REPLACE existing values, they do not append.`,
 		ticketID := args[0]
 		ticketPath := getTicketPath(ticketID)
 
-		field, _ := cmd.Flags().GetString("field")
+		fields, _ := cmd.Flags().GetStringArray("field")
 		description, _ := cmd.Flags().GetString("description")
-		hasField := field != ""
+		hasFields := len(fields) > 0
 		hasDescription := cmd.Flags().Changed("description")
 
-		if hasField || hasDescription {
-			// Parse field=value
-			if hasField {
-				parts := strings.SplitN(field, "=", 2)
+		if hasFields || hasDescription {
+			// Parse and validate all field=value pairs before writing anything.
+			var parsed []fieldUpdate
+
+			for _, f := range fields {
+				parts := strings.SplitN(f, "=", 2)
 				if len(parts) != 2 {
 					fmt.Println("Error: --field must be in format field=value")
 					os.Exit(1)
 				}
 				fieldName, fieldValue := parts[0], parts[1]
-				// Validate milestone IDs exist before writing
+
+				// Validate milestone IDs exist before writing.
 				if fieldName == "milestones" && fieldValue != "" {
 					pmPath := ".pm"
 					milestonesDir := filepath.Join(pmPath, "milestones")
@@ -83,19 +95,35 @@ Array updates REPLACE existing values, they do not append.`,
 					}
 				}
 
-				updateTicketField(ticketPath, fieldName, fieldValue)
+				parsedValue, err := ticket.ParseFieldValue(fieldName, fieldValue)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					os.Exit(1)
+				}
+				parsed = append(parsed, fieldUpdate{name: fieldName, value: parsedValue})
 			}
 
+			// All validated — apply in a single read/write.
+			if hasFields {
+				applyTicketFields(ticketPath, parsed)
+			}
 			if hasDescription {
 				updateTicketDescription(ticketPath, description)
 			}
 
 			switch {
-			case hasField && hasDescription:
-				fmt.Printf("✓ Updated fields and description for %s\n", ticketID)
-			case hasField:
-				fieldName := strings.SplitN(field, "=", 2)[0]
-				fmt.Printf("✓ Updated %s for %s\n", fieldName, ticketID)
+			case hasFields && hasDescription:
+				names := make([]string, len(parsed))
+				for i, p := range parsed {
+					names[i] = p.name
+				}
+				fmt.Printf("✓ Updated %s and description for %s\n", strings.Join(names, ", "), ticketID)
+			case hasFields:
+				names := make([]string, len(parsed))
+				for i, p := range parsed {
+					names[i] = p.name
+				}
+				fmt.Printf("✓ Updated %s for %s\n", strings.Join(names, ", "), ticketID)
 			default:
 				fmt.Printf("✓ Updated description for %s\n", ticketID)
 			}
@@ -166,13 +194,14 @@ func getEditor() string {
 }
 
 func init() {
-	editCmd.Flags().String("field", "", "Update a specific field (format: field=value)")
+	editCmd.Flags().StringArray("field", nil, "Update a specific field (format: field=value, may be repeated)")
 	editCmd.Flags().String("description", "", "Replace the ticket body/description")
 	rootCmd.AddCommand(editCmd)
 }
 
-// updateTicketField updates a specific field in a ticket
-func updateTicketField(ticketPath, field, value string) {
+// applyTicketFields applies one or more pre-parsed field updates to a ticket in
+// a single read/modify/write pass.
+func applyTicketFields(ticketPath string, fields []fieldUpdate) {
 	content, err := os.ReadFile(ticketPath)
 	if err != nil {
 		log.Fatal(err)
@@ -188,15 +217,9 @@ func updateTicketField(ticketPath, field, value string) {
 		log.Fatal(err)
 	}
 
-	// Parse the value according to field type
-	parsedValue, err := ticket.ParseFieldValue(field, value)
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+	for _, f := range fields {
+		metadata[f.name] = f.value
 	}
-
-	// Update the field with the correctly typed value
-	metadata[field] = parsedValue
 	metadata["updated_at"] = time.Now().UTC().Format(time.RFC3339)
 
 	newYAML, err := yaml.Marshal(metadata)
@@ -204,11 +227,20 @@ func updateTicketField(ticketPath, field, value string) {
 		log.Fatal(err)
 	}
 
-	// Reconstruct the file
 	newContent := "---\n" + string(newYAML) + "---" + parts[2]
 	if err := os.WriteFile(ticketPath, []byte(newContent), 0644); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// updateTicketField updates a single named field in a ticket.
+func updateTicketField(ticketPath, field, value string) {
+	parsedValue, err := ticket.ParseFieldValue(field, value)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+	applyTicketFields(ticketPath, []fieldUpdate{{name: field, value: parsedValue}})
 }
 
 // updateTicketDescription replaces the markdown body of a ticket.
