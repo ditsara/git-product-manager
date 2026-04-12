@@ -1,5 +1,7 @@
 # Git Product Manager (GPM)
 
+BETA.
+
 A Git-native project management system that stores tickets as structured YAML +
 Markdown files within your repository, eliminating context-switching between
 code and project management.
@@ -25,6 +27,28 @@ difference: it's all version-controlled files instead of a web UI.
 - **Auditability:** Git history is the immutable audit trail; rely on audit and
   team conventions instead of restrictions (e.g., valid state transitions and
   permissions)
+
+## Who's It For
+
+Here's what AI told me when I discussed whether or not I was wasting my time
+with this:
+
+GPM is best suited for solo developers and small teams (roughly 2–8 people)
+who:
+* live in the terminal
+* work heavily with AI coding assistants
+* want project context to travel with the code.
+
+If you've ever pasted a JIRA ticket into a chat window so your LLM could
+understand what you're building, GPM solves that problem structurally — tickets
+are just files in the repo, so your AI assistant already has them.
+
+It's a poor fit if you have:
+* non-engineer stakeholders who need a web UI
+* a team large enough to require dashboards and reporting
+* workflows that depend on tight GitHub PR ↔ issue automation.
+
+For those cases, GitHub Issues, Linear, or JIRA will serve you better.
 
 ## Quick Start
 
