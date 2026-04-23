@@ -1,146 +1,72 @@
 ---
-id: GPM-27
-title: "Auto-update updated_at from git history with mtime fallback"
-type: story
-status: backlog  # Current workflow state
-priority: medium  # low, medium, high, critical
-points: 0  # Story points for estimation
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: GPM-44  # Parent epic or story
-depends_on: []  # Must complete these first
-blocks: []  # This blocks these tickets
-related: []  # Related work (duplicates, see-also)
-
-labels: []  # Tags from labels.yaml
-assignee: ""  # GitHub username or email
+assignee: ""
+blocks: []
 created_at: "2026-02-04T04:34:12Z"
-updated_at: "2026-02-04T04:34:12Z"
+depends_on: []
+id: GPM-27
+labels:
+    - ux
+    - cli
+parent: GPM-44
+points: 1
+priority: medium
+related: []
+status: done
+title: Add pm edit --touch to bump updated_at on manual edits
+type: task
+updated_at: "2026-04-23T16:23:45Z"
 ---
 
-**[Sonnet 4.5]** Implement incremental git-based timestamp computation for `updated_at` field to ensure consistency between CLI edits and manual file edits.
 
-# Problem Statement
+# Description
 
-Currently, `updated_at` timestamps behave inconsistently:
-- **CLI edits (`pm move`, `pm edit`)**: Update `updated_at` in YAML front-matter
-- **Manual edits (text editor)**: `updated_at` remains stale until next CLI operation
-- **Git clone**: Sets filesystem mtime to clone time, making all cached timestamps incorrect
+When a ticket is edited manually (outside the CLI), the `updated_at` field in its YAML
+front-matter stays stale. This means `pm list` sorts it as if unchanged, and the edit
+is invisible to sort order.
 
-This creates confusion about when tickets were actually last modified.
+CLI commands (`pm move`, `pm edit`) already update `updated_at` correctly. This ticket
+adds an explicit escape hatch for the manual-edit case.
 
-# Solution Approach
+## Why not auto-detect?
 
-Treat `updated_at` as a **computed persistent cache** using git commit history with mtime fallback:
+- **mtime** is reset to clone time on `git clone`, so using it as a fallback would stamp
+  all tickets with the clone timestamp after every fresh checkout — worse than the status quo.
+- **git log** is accurate but requires a subprocess per file and adds meaningful complexity.
+- The manual-edit case is rare enough that an explicit opt-in is the right tradeoff.
 
-1. **Primary source (committed files):** Parse `git log --format=%ct` for last commit timestamp
-2. **Fallback (uncommitted changes):** Use filesystem mtime if working tree modified
-3. **Incremental strategy:** Only recompute timestamps for files that changed since last cache sync
-4. **Cache storage:** Store computed timestamps in SQLite cache (already has `updated_at` column)
+## Solution
 
-**Key decision:** We KEEP the `updated_at` field in YAML front-matter (don't remove it). This maintains backward compatibility and human readability. The CLI just stops writing to it, treating it as read-only legacy data.
+Add a `--touch` flag to `pm edit` that sets `updated_at` to `time.Now()` without opening
+the editor or changing any other field.
 
-# Performance Analysis
+```bash
+# After manually editing a ticket file:
+pm edit GPM-42 --touch
 
-**Assumptions:**
-- `git log` takes ~5ms per file call
-- SQLite query takes <1ms
-- Filesystem mtime read: <0.1ms
+# Can be combined with other flags in a single write pass:
+pm edit GPM-42 --touch --field priority=high
+```
 
-**Scenarios:**
+## Implementation
 
-| Ticket Count | Changed Files | Strategy | Time (Normal) | Time (Fresh Clone) |
-|--------------|---------------|----------|---------------|---------------------|
-| 100 tickets  | 5 changed     | Incremental | 25ms (5×5ms git) | 500ms (100×5ms) |
-| 500 tickets  | 10 changed    | Incremental | 50ms (10×5ms git) | 2.5s (500×5ms) |
-| 1000 tickets | 20 changed    | Incremental | 100ms (20×5ms git) | 5s (1000×5ms) |
+1. **`cmd/pm/edit.go`** — add `--touch` flag:
+   - If `--touch` is set (with or without `--field` / `--description`), include
+     `updated_at = time.Now().UTC().Format(time.RFC3339)` in the field update pass.
+   - If `--touch` is the only flag, apply the single-field update and print
+     `✓ Touched updated_at for GPM-42` without opening the editor.
 
-**Normal operation (incremental):** Only recompute changed files → 0-100ms overhead
-**Fresh clone (all stale):** Recompute all 1000 tickets → ~5 seconds one-time cost
+2. **`cmd/pm/ai_init.go`** — update `agentsMDContent` to instruct LLMs:
+   - After directly editing a ticket's markdown body, run `pm edit <id> --touch` to
+     update the timestamp.
 
-**Conclusion:** Incremental strategy makes this O(changed files), not O(total tickets).
+## Acceptance Criteria
 
-# Future Optimizations (Out of Scope)
+- [ ] `pm edit GPM-X --touch` updates `updated_at` to now, prints confirmation, no editor opens
+- [ ] `pm edit GPM-X --touch --field priority=high` updates both in a single write pass
+- [ ] `pm edit GPM-X` (no flags, opens editor) continues to update `updated_at` as today
+- [ ] `agentsMDContent` in `ai_init.go` instructs LLMs to run `pm edit <id> --touch`
+      after directly editing ticket content
+- [ ] Unit test: `--touch` alone updates `updated_at` and no other fields
+- [ ] Unit test: `--touch` combined with `--field` updates both in one pass
 
-This ticket implements the basic incremental strategy. Future enhancements could include:
-
-1. **Skip "final" states:**  
-   - Don't recompute timestamps for tickets in terminal states (e.g., "done", "archived")
-   - Challenge: States are user-defined in `workflow.yaml` - would need `terminal: true` metadata
-   - Benefit: Reduce git calls by 50%+ in mature projects
-
-2. **Batch git query:**  
-   - Replace per-file `git log` calls with single `git log --name-status --format="%H %ct"` 
-   - Parse output to build timestamp map in one subprocess call
-   - Benefit: Reduce 1000 git calls to 1 call (~5s → ~50ms)
-
-3. **Commit hash cache:**  
-   - Store last processed commit SHA in cache metadata
-   - Skip git queries entirely if HEAD hasn't moved and file mtime unchanged
-   - Benefit: Zero git overhead for unchanged repositories
-
-4. **Configurable skip patterns:**  
-   - Add `.pm/config/cache.yaml` with `skip_timestamp_update: [done, archived]`
-   - Let users opt-in to skipping terminal states
-   - Benefit: Performance tuning per-project
-
-**Recommendation:** Implement basic incremental strategy now (this ticket). Defer optimizations until users report performance issues with 1000+ ticket repositories.
-
-# Implementation Steps
-
-- [ ] Add `GetLastModifiedTime(ticketPath string) (time.Time, error)` to `internal/ticket/`:
-  - [ ] Run `git log -1 --format=%ct -- <file>` to get commit timestamp
-  - [ ] If file is uncommitted (exit code 128 or no output), fall back to `os.Stat()` mtime
-  - [ ] Parse Unix timestamp and return `time.Time`
-- [ ] Update `internal/cache/sync.go`:
-  - [ ] In `syncTicketToCache()`, replace `ticket.UpdatedAt` with `GetLastModifiedTime(path)`
-  - [ ] Store computed timestamp in cache's `updated_at` column
-  - [ ] Add debug logging: `"Computed updated_at for TICKET-123: 2026-02-04 from git"`
-- [ ] Update CLI commands to stop writing `updated_at`:
-  - [ ] `cmd/pm/move.go`: Remove `ticket.UpdatedAt = time.Now()` line
-  - [ ] `cmd/pm/edit.go`: Remove `updated_at` update logic
-  - [ ] Keep `created_at` auto-update (still needed for new tickets)
-- [ ] Update `pm show` to display computed timestamp:
-  - [ ] Read `updated_at` from cache (already does this)
-  - [ ] No code change needed - cache already has computed value
-
-# Unit Tests
-
-- [ ] Test `GetLastModifiedTime()`:
-  - [ ] Committed file: Returns git commit timestamp
-  - [ ] Modified file: Returns filesystem mtime (newer than commit)
-  - [ ] Untracked file: Returns mtime
-  - [ ] Non-existent file: Returns error
-- [ ] Test git command parsing:
-  - [ ] Valid Unix timestamp: "1706853600" → 2024-02-02T00:00:00Z
-  - [ ] Empty output: Falls back to mtime
-  - [ ] Git not available: Falls back to mtime (graceful degradation)
-
-# Integration Tests
-
-Add to `integration_test.go`:
-
-- [ ] Create ticket, commit it, verify `pm show` displays git commit time
-- [ ] Edit ticket file manually (no git commit), verify `pm show` displays mtime
-- [ ] Move ticket with `pm move`, verify timestamp updates to latest commit
-- [ ] Modify ticket and commit with custom timestamp (e.g., 1 day ago), verify shows correct time
-
-# Acceptance Criteria
-
-- [ ] `pm show TICKET-123` displays timestamp from git commit (if committed)
-- [ ] `pm show TICKET-123` displays mtime (if modified but not committed)
-- [ ] Manual file edits are correctly reflected in `pm list` and `pm show`
-- [ ] Fresh git clone shows correct historical timestamps (not clone time)
-- [ ] Performance: <100ms overhead for `pm list` with 20 changed tickets
-- [ ] CLI commands (`pm move`, `pm edit`) no longer write to `updated_at` field in YAML
-- [ ] Existing tickets with `updated_at` in YAML are not broken (backward compatible)
-- [ ] All unit tests pass
-- [ ] All integration tests pass
-
-# Notes
-
-- **Backward compatibility:** Old tickets with `updated_at` in YAML won't break - we just ignore that field and use git/mtime
-- **Migration path:** No migration needed - system automatically computes correct timestamps on next cache sync
-- **Git dependency:** This makes git a hard requirement (already is for the project, so acceptable)
-- **Future-proof:** Incremental strategy keeps performance acceptable even at 10,000+ tickets
 

@@ -65,8 +65,9 @@ Array updates REPLACE existing values, they do not append.`,
 		description, _ := cmd.Flags().GetString("description")
 		hasFields := len(fields) > 0
 		hasDescription := cmd.Flags().Changed("description")
+		hasTouch := cmd.Flags().Changed("touch")
 
-		if hasFields || hasDescription {
+		if hasFields || hasDescription || hasTouch {
 			// Parse and validate all field=value pairs before writing anything.
 			var parsed []fieldUpdate
 
@@ -104,7 +105,7 @@ Array updates REPLACE existing values, they do not append.`,
 			}
 
 			// All validated — apply in a single read/write.
-			if hasFields {
+			if hasFields || hasTouch {
 				applyTicketFields(ticketPath, parsed)
 			}
 			if hasDescription {
@@ -112,6 +113,8 @@ Array updates REPLACE existing values, they do not append.`,
 			}
 
 			switch {
+			case hasTouch && !hasFields && !hasDescription:
+				fmt.Printf("✓ Touched updated_at for %s\n", ticketID)
 			case hasFields && hasDescription:
 				names := make([]string, len(parsed))
 				for i, p := range parsed {
@@ -181,6 +184,7 @@ Array updates REPLACE existing values, they do not append.`,
 func init() {
 	editCmd.Flags().StringArray("field", nil, "Update a specific field (format: field=value, may be repeated)")
 	editCmd.Flags().String("description", "", "Replace the ticket body/description")
+	editCmd.Flags().Bool("touch", false, "Set updated_at to now (use after manually editing a ticket file)")
 	rootCmd.AddCommand(editCmd)
 }
 
