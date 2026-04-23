@@ -1,22 +1,25 @@
 ---
-id: GPM-9
-title: "Auto-recovery on database errors"
-type: task
-status: backlog
-priority: high
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: GPM-44
-depends_on: [GPM-10]
-blocks: []
-related: [GPM-11]
-
-labels: [cache, reliability, ux]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T03:52:15Z"
-updated_at: "2026-02-03T03:52:15Z"
+depends_on:
+    - GPM-10
+id: GPM-9
+labels:
+    - cache
+    - reliability
+    - ux
+parent: GPM-44
+points: 3
+priority: high
+related:
+    - GPM-11
+status: done
+title: Auto-recovery on database errors
+type: task
+updated_at: "2026-04-23T15:51:22Z"
 ---
+
 
 # Description
 
