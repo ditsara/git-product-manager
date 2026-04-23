@@ -1,22 +1,25 @@
 ---
-id: GPM-11
-title: "Implement pm repair command"
-type: task
-status: backlog
-priority: medium
-points: 3
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: GPM-44
-depends_on: [GPM-10]
-blocks: []
-related: [GPM-9]
-
-labels: [cache, ux, troubleshooting]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T03:52:16Z"
-updated_at: "2026-02-03T03:52:16Z"
+depends_on:
+    - GPM-10
+id: GPM-11
+labels:
+    - cache
+    - ux
+    - troubleshooting
+parent: GPM-44
+points: 3
+priority: medium
+related:
+    - GPM-9
+status: canceled
+title: Implement pm repair command
+type: task
+updated_at: "2026-04-23T16:00:15Z"
 ---
+
 
 # Description
 
