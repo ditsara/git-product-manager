@@ -16,23 +16,6 @@ read specifications.
 
 ---
 
-## LLM Workflow Guidance
-
-This project uses GPM's ticket-driven workflow for LLM-human collaboration.
-For guidance, run:
-
-```
-pm ai guide workflow
-pm ai guide schema
-pm ai guide commands
-pm ai guide principles
-```
-
-**Important:** Never create or edit ticket files directly — always use the `pm`
-CLI commands (`pm new`, `pm edit`, `pm move`, etc.).
-
----
-
 ## Implementation Reference
 
 ### File Architecture

@@ -12,7 +12,9 @@ import (
 const agentsMDContent = `# GPM — Git Product Manager
 
 This project uses GPM for ticket management.
-Do not create or edit ticket files manually — use the ` + "`pm`" + ` CLI.
+
+Do not create files or edit YAML front matter manually -- use the ` + "`pm`" + ` CLI.
+Ticket, milestone, and comment markdown content can be edited directly.
 
 Get started:
   pm --help                   # list all commands
