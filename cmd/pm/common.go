@@ -3,9 +3,44 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
+
+// getEditor returns the editor to use for interactive editing.
+// Priority:
+//  1. $VISUAL environment variable (cross-platform)
+//  2. $EDITOR environment variable (cross-platform)
+//  3. Platform-specific fallback chain:
+//     - Windows: code.cmd → notepad++.exe → notepad.exe (always present)
+//     - Unix/macOS: editor (alternatives) → nano → vi (POSIX)
+func getEditor() string {
+	if editor := os.Getenv("VISUAL"); editor != "" {
+		return editor
+	}
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		return editor
+	}
+
+	if runtime.GOOS == "windows" {
+		for _, editor := range []string{"code.cmd", "notepad++.exe", "notepad.exe"} {
+			if path, err := exec.LookPath(editor); err == nil {
+				return path
+			}
+		}
+		return "notepad.exe" // Always present on Windows
+	}
+
+	// Unix/Linux/macOS fallback chain
+	for _, editor := range []string{"editor", "nano", "vi"} {
+		if path, err := exec.LookPath(editor); err == nil {
+			return path
+		}
+	}
+	return "vi" // POSIX fallback
+}
 
 // noColor is set by the --no-color persistent flag.
 var noColor bool

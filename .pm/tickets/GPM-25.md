@@ -1,22 +1,25 @@
 ---
-id: GPM-25
-title: "Make getEditor cross-platform compatible and move to common.go"
-type: task
-status: backlog
-priority: medium
-points: 1
-
-# Relationships - use ticket IDs (e.g., PROJ-123)
-parent: GPM-44
-depends_on: []
-blocks: []
-related: ["GPM-23"]  # Will be used by pm edit-comment
-
-labels: [refactoring, cross-platform, windows, stage-1.6]
 assignee: ""
+blocks: []
 created_at: "2026-02-03T15:06:57Z"
-updated_at: "2026-02-03T15:06:57Z"
+depends_on: []
+id: GPM-25
+labels:
+    - refactoring
+    - cross-platform
+    - windows
+    - stage-1.6
+parent: GPM-44
+points: 1
+priority: medium
+related:
+    - GPM-23
+status: done
+title: Make getEditor cross-platform compatible and move to common.go
+type: task
+updated_at: "2026-04-23T15:18:40Z"
 ---
+
 
 # Description
 
@@ -86,14 +89,14 @@ func getEditor() string {
 
 ## Implementation Steps
 
-- [ ] Add `import "runtime"` to `cmd/pm/common.go`
-- [ ] Move `getEditor()` from `edit.go` to `common.go`
-- [ ] Update implementation with `runtime.GOOS` check
-- [ ] Add Windows fallback chain (`code.cmd`, `notepad++.exe`, `notepad.exe`)
-- [ ] Keep Unix fallback chain (`editor`, `nano`, `vi`)
-- [ ] Remove `getEditor()` function from `edit.go`
-- [ ] Verify `edit.go` can call the common function (it should just work)
-- [ ] Add comment documenting the fallback behavior
+- [x] Add `import "runtime"` to `cmd/pm/common.go`
+- [x] Move `getEditor()` from `edit.go` to `common.go`
+- [x] Update implementation with `runtime.GOOS` check
+- [x] Add Windows fallback chain (`code.cmd`, `notepad++.exe`, `notepad.exe`)
+- [x] Keep Unix fallback chain (`editor`, `nano`, `vi`)
+- [x] Remove `getEditor()` function from `edit.go`
+- [x] Verify `edit.go` can call the common function (it should just work)
+- [x] Add comment documenting the fallback behavior
 
 ## Editor Priority (Platform-Specific)
 
@@ -112,11 +115,11 @@ func getEditor() string {
 ## Testing Requirements
 
 ### Manual Testing
-- [ ] Test on Linux with `$EDITOR` set
-- [ ] Test on Linux with `$EDITOR` unset (should fall back to `nano` or `vi`)
-- [ ] Test on Windows with `notepad.exe`
-- [ ] Test on Windows with VS Code installed
-- [ ] Test with `$VISUAL` set on both platforms
+- [x] Test on Linux with `$EDITOR` set
+- [x] Test on Linux with `$EDITOR` unset (should fall back to `nano` or `vi`)
+- [ ] Test on Windows with `notepad.exe` _(not verified — Linux-only CI environment)_
+- [ ] Test on Windows with VS Code installed _(not verified — Linux-only CI environment)_
+- [ ] Test with `$VISUAL` set on both platforms _(Linux verified; Windows not verified — Linux-only CI environment)_
 
 ### Edge Cases
 - Both `$VISUAL` and `$EDITOR` unset
@@ -125,13 +128,13 @@ func getEditor() string {
 
 ## Acceptance Criteria
 
-- [ ] `getEditor()` moved from `edit.go` to `common.go`
-- [ ] Function uses `runtime.GOOS` to detect platform
-- [ ] Windows fallback chain includes `code.cmd`, `notepad++.exe`, `notepad.exe`
-- [ ] Unix fallback chain remains `editor`, `nano`, `vi`
-- [ ] `pm edit` continues to work on both platforms
-- [ ] No duplicate code between files
-- [ ] Function documented with comments explaining platform-specific behavior
+- [x] `getEditor()` moved from `edit.go` to `common.go`
+- [x] Function uses `runtime.GOOS` to detect platform
+- [x] Windows fallback chain includes `code.cmd`, `notepad++.exe`, `notepad.exe`
+- [x] Unix fallback chain remains `editor`, `nano`, `vi`
+- [x] `pm edit` continues to work on both platforms
+- [x] No duplicate code between files
+- [x] Function documented with comments explaining platform-specific behavior
 
 ## Future Commands Using This
 

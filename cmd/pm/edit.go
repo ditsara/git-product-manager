@@ -177,21 +177,6 @@ Array updates REPLACE existing values, they do not append.`,
 	},
 }
 
-func getEditor() string {
-	if editor := os.Getenv("VISUAL"); editor != "" {
-		return editor
-	}
-	if editor := os.Getenv("EDITOR"); editor != "" {
-		return editor
-	}
-	// Check for common editors in PATH
-	for _, editor := range []string{"editor", "nano", "vi"} {
-		if path, err := exec.LookPath(editor); err == nil {
-			return path
-		}
-	}
-	return "vi" // POSIX fallback
-}
 
 func init() {
 	editCmd.Flags().StringArray("field", nil, "Update a specific field (format: field=value, may be repeated)")
