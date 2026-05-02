@@ -17,8 +17,11 @@ type ProgressInfo struct {
 	HasDueDate    bool
 }
 
-// TicketSummary is the minimal ticket data needed for progress calculation.
+// TicketSummary is the minimal ticket data needed for progress calculation and display.
 type TicketSummary struct {
+	ID     string
+	Title  string
+	Type   string
 	Status string
 	Points int
 }

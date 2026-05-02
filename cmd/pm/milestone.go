@@ -12,6 +12,7 @@ import (
 	"github.com/ditsara/git-product-manager/internal/config"
 	"github.com/ditsara/git-product-manager/internal/milestone"
 	"github.com/ditsara/git-product-manager/internal/ticket"
+	"github.com/ditsara/git-product-manager/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -353,6 +354,40 @@ var milestoneShowCmd = &cobra.Command{
 					}
 				}
 			}
+
+			noTickets, _ := cmd.Flags().GetBool("no-tickets")
+			if !noTickets {
+				// Sort: done/canceled tickets last, preserve relative order otherwise.
+				doneSet := make(map[string]bool, len(doneStates))
+				for _, s := range doneStates {
+					doneSet[s] = true
+				}
+				sorted := make([]milestone.TicketSummary, 0, len(summaries))
+				var doneSummaries []milestone.TicketSummary
+				for _, s := range summaries {
+					if doneSet[s.Status] {
+						doneSummaries = append(doneSummaries, s)
+					} else {
+						sorted = append(sorted, s)
+					}
+				}
+				sorted = append(sorted, doneSummaries...)
+
+				workflowPath := filepath.Join(pmPath, "config", "workflow.yaml")
+				workflow, _ := config.LoadWorkflow(workflowPath)
+				ticketCols := []TableColumn{
+					{Header: "ID", Width: 15},
+					{Header: "TITLE", Width: 50},
+					{Header: "TYPE", Width: 10},
+					{Header: "STATUS", Width: 15},
+				}
+				var ticketRows [][]string
+				for _, s := range sorted {
+					ticketRows = append(ticketRows, []string{s.ID, s.Title, s.Type, s.Status})
+				}
+				fmt.Println()
+				fmt.Println(renderTable(ticketCols, ticketRows, 3, ui.StatusStyleFunc(workflow), 2, ui.TypeStyleFunc(), 1))
+			}
 		}
 
 		if m.Body != "" {
@@ -427,6 +462,9 @@ func collectTicketSummaries(ticketsDir, milestoneID string) []milestone.TicketSu
 		for _, mid := range t.Milestones {
 			if mid == milestoneID {
 				summaries = append(summaries, milestone.TicketSummary{
+					ID:     t.ID,
+					Title:  t.Title,
+					Type:   t.Type,
 					Status: t.Status,
 					Points: t.Points,
 				})
@@ -581,6 +619,9 @@ func init() {
 
 	// Flags for close
 	milestoneCloseCmd.Flags().Bool("force", false, "Close even if tickets are not done")
+
+	// Flags for show
+	milestoneShowCmd.Flags().Bool("no-tickets", false, "Suppress the ticket table")
 
 	milestoneCmd.AddCommand(milestoneCreateCmd)
 	milestoneCmd.AddCommand(milestoneListCmd)
