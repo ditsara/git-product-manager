@@ -1,18 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/ditsara/git-product-manager/internal/ticket"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var showFlags struct {
 	noComments bool
+	noPager    bool
 }
 
 var showCmd = &cobra.Command{
@@ -37,62 +41,92 @@ var showCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("---")
-		fmt.Println(strings.TrimSpace(parts[1]))
-		fmt.Println("---")
-		fmt.Println(strings.TrimSpace(parts[2]))
+		var buf bytes.Buffer
+		fmt.Fprintln(&buf, "---")
+		fmt.Fprintln(&buf, strings.TrimSpace(parts[1]))
+		fmt.Fprintln(&buf, "---")
+		fmt.Fprintln(&buf, strings.TrimSpace(parts[2]))
 
 		// Extract actual ticket ID from path for comment directory
 		actualTicketID := strings.TrimSuffix(filepath.Base(ticketPath), ".md")
 
-		// Display comments if not suppressed
+		// Collect comments if not suppressed
 		if !showFlags.noComments {
-			displayComments(actualTicketID)
+			collectComments(actualTicketID, &buf)
 		}
 
-		// TODO: Render markdown
+		displayOutput(&buf)
 	},
 }
 
 func init() {
-	showCmd.Flags().BoolVarP(&showFlags.noComments, "no-comments", "", false, "Hide comments")
+	showCmd.Flags().BoolVar(&showFlags.noComments, "no-comments", false, "Hide comments")
+	showCmd.Flags().BoolVar(&showFlags.noPager, "no-pager", false, "Write output directly to stdout, skipping bat/less")
 	rootCmd.AddCommand(showCmd)
 }
 
-// displayComments reads and displays all comments for a ticket
-func displayComments(ticketID string) {
+// displayOutput writes buf to a pager (bat → less) when stdout is a TTY,
+// or directly to stdout otherwise.
+func displayOutput(buf *bytes.Buffer) {
+	usePager := !showFlags.noPager && term.IsTerminal(int(os.Stdout.Fd()))
+
+	if usePager {
+		if pagerPath, err := exec.LookPath("bat"); err == nil {
+			runPager(pagerPath, []string{"--language=md", "--paging=always"}, buf)
+			return
+		}
+		if pagerPath, err := exec.LookPath("less"); err == nil {
+			runPager(pagerPath, []string{"-R"}, buf)
+			return
+		}
+	}
+
+	os.Stdout.Write(buf.Bytes())
+}
+
+// runPager pipes buf through the given pager command.
+func runPager(path string, args []string, buf *bytes.Buffer) {
+	pager := exec.Command(path, args...)
+	pager.Stdin = buf
+	pager.Stdout = os.Stdout
+	pager.Stderr = os.Stderr
+	if err := pager.Run(); err != nil {
+		// Fall back to plain stdout if pager fails
+		os.Stdout.Write(buf.Bytes())
+	}
+}
+
+// collectComments writes formatted comments for ticketID into buf.
+func collectComments(ticketID string, buf *bytes.Buffer) {
 	comments, err := ticket.ListCommentsForTicket(ticketID, ".pm")
-	if err != nil {
-		// Silently skip comments on error
+	if err != nil || len(comments) == 0 {
 		return
 	}
 
-	// If no comments, don't show comments section
-	if len(comments) == 0 {
-		return
-	}
+	fmt.Fprintln(buf)
+	fmt.Fprintln(buf, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintf(buf, "Comments (%d):\n", len(comments))
+	fmt.Fprintln(buf)
 
-	// Display separator and comments header
-	fmt.Println()
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Printf("Comments (%d):\n", len(comments))
-	fmt.Println()
-
-	// Display each comment
 	for i, comment := range comments {
-		// Format created_at in readable UTC format
 		createdAt := comment.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
 		if comment.UpdatedAt.After(comment.CreatedAt) {
 			updatedAt := comment.UpdatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
-			fmt.Printf("@%s (%s, edited %s)\n", comment.Author, createdAt, updatedAt)
+			fmt.Fprintf(buf, "@%s (%s, edited %s)\n", comment.Author, createdAt, updatedAt)
 		} else {
-			fmt.Printf("@%s (%s)\n", comment.Author, createdAt)
+			fmt.Fprintf(buf, "@%s (%s)\n", comment.Author, createdAt)
 		}
-		fmt.Println(comment.Body)
+		fmt.Fprintln(buf, comment.Body)
 
-		// Add blank line between comments (but not after the last one)
 		if i < len(comments)-1 {
-			fmt.Println()
+			fmt.Fprintln(buf)
 		}
 	}
+}
+
+// displayComments is kept for backward compatibility with existing tests.
+func displayComments(ticketID string) {
+	var buf bytes.Buffer
+	collectComments(ticketID, &buf)
+	os.Stdout.Write(buf.Bytes())
 }
