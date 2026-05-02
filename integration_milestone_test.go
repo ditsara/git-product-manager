@@ -286,6 +286,227 @@ func TestMilestoneProgress(t *testing.T) {
 	})
 }
 
+// TestMilestoneAddRemove tests pm milestone add and pm milestone remove.
+func TestMilestoneAddRemove(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "TEST")
+
+	_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Sprint 1", "--id", "sprint-1")
+	if err != nil {
+		t.Fatalf("failed to create milestone: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "new", "Ticket A")
+	if err != nil {
+		t.Fatalf("failed to create Ticket A: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "new", "Ticket B")
+	if err != nil {
+		t.Fatalf("failed to create Ticket B: %v", err)
+	}
+
+	t.Run("add_assigns_milestone", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "sprint-1", "TEST-1")
+		if err != nil {
+			t.Fatalf("pm milestone add failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "TEST-1") {
+			t.Errorf("expected output to mention TEST-1, got: %s", output)
+		}
+		// Verify milestone shows ticket
+		listOut, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-1 failed: %v\nOutput: %s", err, listOut)
+		}
+		if !strings.Contains(listOut, "TEST-1") {
+			t.Errorf("expected TEST-1 in milestone list, got: %s", listOut)
+		}
+		if strings.Contains(listOut, "TEST-2") {
+			t.Errorf("TEST-2 should not be in milestone list, got: %s", listOut)
+		}
+	})
+
+	t.Run("add_is_idempotent", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "sprint-1", "TEST-1")
+		if err != nil {
+			t.Fatalf("second pm milestone add failed: %v\nOutput: %s", err, output)
+		}
+		// No tickets modified (idempotent)
+		if strings.Contains(output, "+ TEST-1") {
+			t.Errorf("expected no modification on second add, got: %s", output)
+		}
+		if !strings.Contains(output, "0 ticket") {
+			t.Errorf("expected '0 ticket(s)' for idempotent add, got: %s", output)
+		}
+	})
+
+	t.Run("add_preserves_other_milestones", func(t *testing.T) {
+		_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Sprint 2", "--id", "sprint-2")
+		if err != nil {
+			t.Fatalf("failed to create sprint-2: %v", err)
+		}
+		_, err = runPM(t, pmBinary, workspace, "milestone", "add", "sprint-2", "TEST-1")
+		if err != nil {
+			t.Fatalf("failed to add sprint-2 to TEST-1: %v", err)
+		}
+		// TEST-1 should still be in sprint-1
+		listOut, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-1 failed: %v\nOutput: %s", err, listOut)
+		}
+		if !strings.Contains(listOut, "TEST-1") {
+			t.Errorf("TEST-1 should still be in sprint-1 after adding sprint-2, got: %s", listOut)
+		}
+	})
+
+	t.Run("remove_unassigns_milestone", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "remove", "sprint-1", "TEST-1")
+		if err != nil {
+			t.Fatalf("pm milestone remove failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "TEST-1") {
+			t.Errorf("expected output to mention TEST-1, got: %s", output)
+		}
+		// Verify ticket is gone from milestone
+		listOut, _ := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		if strings.Contains(listOut, "TEST-1") {
+			t.Errorf("TEST-1 should not be in sprint-1 after remove, got: %s", listOut)
+		}
+		// But still in sprint-2
+		listOut2, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-2")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-2 failed: %v\nOutput: %s", err, listOut2)
+		}
+		if !strings.Contains(listOut2, "TEST-1") {
+			t.Errorf("TEST-1 should still be in sprint-2, got: %s", listOut2)
+		}
+	})
+
+	t.Run("remove_is_idempotent", func(t *testing.T) {
+		// TEST-1 is already removed from sprint-1
+		output, err := runPM(t, pmBinary, workspace, "milestone", "remove", "sprint-1", "TEST-1")
+		if err != nil {
+			t.Fatalf("second pm milestone remove failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "0 ticket") {
+			t.Errorf("expected '0 ticket(s)' for idempotent remove, got: %s", output)
+		}
+	})
+
+	t.Run("invalid_milestone_errors", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "no-such-milestone", "TEST-1")
+		if err == nil {
+			t.Fatalf("expected error for invalid milestone, got success\nOutput: %s", output)
+		}
+		if !strings.Contains(output, "not found") {
+			t.Errorf("expected 'not found' in error, got: %s", output)
+		}
+	})
+
+	t.Run("invalid_ticket_errors", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "sprint-1", "TEST-9999")
+		if err == nil {
+			t.Fatalf("expected error for invalid ticket, got success\nOutput: %s", output)
+		}
+		if !strings.Contains(output, "not found") {
+			t.Errorf("expected 'not found' in error, got: %s", output)
+		}
+	})
+}
+
+// TestMilestoneAddRemoveCascade tests --cascade flag on add and remove.
+func TestMilestoneAddRemoveCascade(t *testing.T) {
+	pmBinary := buildPMBinary(t)
+	workspace := t.TempDir()
+	initGitRepo(t, workspace)
+	initWorkspace(t, pmBinary, workspace, "TEST")
+
+	_, err := runPM(t, pmBinary, workspace, "milestone", "create", "Sprint 1", "--id", "sprint-1")
+	if err != nil {
+		t.Fatalf("failed to create milestone: %v", err)
+	}
+
+	// Create parent (epic) and two children
+	_, err = runPM(t, pmBinary, workspace, "new", "Parent Epic", "--type", "epic")
+	if err != nil {
+		t.Fatalf("failed to create parent: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "new", "Child A", "--parent", "TEST-1")
+	if err != nil {
+		t.Fatalf("failed to create child A: %v", err)
+	}
+	_, err = runPM(t, pmBinary, workspace, "new", "Child B", "--parent", "TEST-1")
+	if err != nil {
+		t.Fatalf("failed to create child B: %v", err)
+	}
+	// Grandchild under Child A
+	_, err = runPM(t, pmBinary, workspace, "new", "Grandchild", "--parent", "TEST-2")
+	if err != nil {
+		t.Fatalf("failed to create grandchild: %v", err)
+	}
+
+	t.Run("cascade_add_includes_all_descendants", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "sprint-1", "TEST-1", "--cascade")
+		if err != nil {
+			t.Fatalf("pm milestone add --cascade failed: %v\nOutput: %s", err, output)
+		}
+		// All 4 tickets should be added
+		for _, id := range []string{"TEST-1", "TEST-2", "TEST-3", "TEST-4"} {
+			if !strings.Contains(output, id) {
+				t.Errorf("expected %s in cascade add output, got: %s", id, output)
+			}
+		}
+		if !strings.Contains(output, "4 ticket") {
+			t.Errorf("expected '4 ticket(s)' in output, got: %s", output)
+		}
+		// Verify via list
+		listOut, err := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		if err != nil {
+			t.Fatalf("pm list --milestone sprint-1 failed: %v\nOutput: %s", err, listOut)
+		}
+		for _, id := range []string{"TEST-1", "TEST-2", "TEST-3", "TEST-4"} {
+			if !strings.Contains(listOut, id) {
+				t.Errorf("expected %s in milestone list after cascade add, got: %s", id, listOut)
+			}
+		}
+	})
+
+	t.Run("cascade_remove_removes_all_descendants", func(t *testing.T) {
+		output, err := runPM(t, pmBinary, workspace, "milestone", "remove", "sprint-1", "TEST-1", "--cascade")
+		if err != nil {
+			t.Fatalf("pm milestone remove --cascade failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "4 ticket") {
+			t.Errorf("expected '4 ticket(s)' in remove cascade output, got: %s", output)
+		}
+		// Verify milestone is empty
+		listOut, _ := runPM(t, pmBinary, workspace, "list", "--milestone", "sprint-1")
+		for _, id := range []string{"TEST-1", "TEST-2", "TEST-3", "TEST-4"} {
+			if strings.Contains(listOut, id) {
+				t.Errorf("%s should not be in sprint-1 after cascade remove, got: %s", id, listOut)
+			}
+		}
+	})
+
+	t.Run("cascade_add_non_root_ticket", func(t *testing.T) {
+		// Add from Child A (TEST-2) — should include TEST-2 and TEST-4 (grandchild), not TEST-3
+		output, err := runPM(t, pmBinary, workspace, "milestone", "add", "sprint-1", "TEST-2", "--cascade")
+		if err != nil {
+			t.Fatalf("pm milestone add --cascade TEST-2 failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(output, "TEST-2") {
+			t.Errorf("expected TEST-2 in output, got: %s", output)
+		}
+		if !strings.Contains(output, "TEST-4") {
+			t.Errorf("expected TEST-4 (grandchild) in output, got: %s", output)
+		}
+		if strings.Contains(output, "TEST-3") {
+			t.Errorf("TEST-3 should not be included (different branch), got: %s", output)
+		}
+	})
+}
+
 // TestMilestoneCloseAllDone tests that close succeeds without --force when all tickets are done.
 func TestMilestoneCloseAllDone(t *testing.T) {
 	pmBinary := buildPMBinary(t)

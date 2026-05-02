@@ -1,14 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/ditsara/git-product-manager/internal/cache"
 	"github.com/ditsara/git-product-manager/internal/config"
 	"github.com/ditsara/git-product-manager/internal/milestone"
 	"github.com/ditsara/git-product-manager/internal/ticket"
@@ -91,11 +92,6 @@ Examples:
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-
-		// Git stage the file
-		gitAdd := exec.Command("git", "add", destPath)
-		gitAdd.Dir = "."
-		_ = gitAdd.Run() // non-fatal if not in a git repo
 
 		fmt.Printf("✓ Created milestone: %s\n", id)
 	},
@@ -592,18 +588,205 @@ var milestoneCloseCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		commitMsg := fmt.Sprintf("chore(pm): Close milestone %s", m.ID)
-		gitAdd := exec.Command("git", "add", destPath)
-		gitAdd.Dir = "."
-		_ = gitAdd.Run()
-
-		gitCommit := exec.Command("git", "commit", "-m", commitMsg)
-		gitCommit.Dir = "."
-		_ = gitCommit.Run()
-
 		fmt.Printf("✓ Closed milestone: %s\n", m.ID)
 		fmt.Printf("  %d/%d tickets done\n", info.DoneTickets, info.TotalTickets)
 	},
+}
+
+// milestoneAddCmd assigns a ticket (and optionally its descendants) to a milestone.
+var milestoneAddCmd = &cobra.Command{
+	Use:   "add <milestone-id> <ticket-id>",
+	Short: "Add a ticket to a milestone",
+	Long: `Append a milestone to a ticket's milestones field.
+
+Unlike 'pm edit --field milestones=...', this command uses append semantics —
+other milestones already on the ticket are not affected. Running it twice is a no-op.
+
+Use --cascade to also add the milestone to all descendant tickets (children,
+grandchildren, etc.) of the given ticket.
+
+Examples:
+  pm milestone add sprint-1 GPM-5
+  pm milestone add sprint-1 GPM-5 --cascade`,
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: completeMilestoneThenTicket,
+	Run: func(cmd *cobra.Command, args []string) {
+		milestoneID, ticketArg := args[0], args[1]
+		cascade, _ := cmd.Flags().GetBool("cascade")
+		pmPath := ".pm"
+
+		// Validate milestone exists.
+		milestonesDir := filepath.Join(pmPath, "milestones")
+		if _, err := findMilestone(milestonesDir, milestoneID); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\nRun `pm milestone list` to see available milestones.\n", err)
+			os.Exit(1)
+		}
+
+		ticketsDir := filepath.Join(pmPath, "tickets")
+		ticketID := resolveTicketID(ticketArg)
+		if ticketID == "" {
+			fmt.Fprintf(os.Stderr, "Error: ticket '%s' not found.\n", ticketArg)
+			os.Exit(1)
+		}
+
+		ids := []string{ticketID}
+		if cascade {
+			ids = collectDescendants(pmPath, ticketID)
+		}
+
+		modified := milestoneModifyTickets(ticketsDir, ids, milestoneID, true)
+		for _, id := range modified {
+			fmt.Printf("  + %s\n", id)
+		}
+		fmt.Printf("✓ Added %d ticket(s) to milestone '%s'\n", len(modified), milestoneID)
+	},
+}
+
+// milestoneRemoveCmd removes a ticket (and optionally its descendants) from a milestone.
+var milestoneRemoveCmd = &cobra.Command{
+	Use:   "remove <milestone-id> <ticket-id>",
+	Short: "Remove a ticket from a milestone",
+	Long: `Remove a milestone from a ticket's milestones field.
+
+Other milestones on the ticket are not affected. Running it on a ticket that is
+not in the milestone is a no-op.
+
+Use --cascade to also remove the milestone from all descendant tickets.
+
+Examples:
+  pm milestone remove sprint-1 GPM-5
+  pm milestone remove sprint-1 GPM-5 --cascade`,
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: completeMilestoneThenTicket,
+	Run: func(cmd *cobra.Command, args []string) {
+		milestoneID, ticketArg := args[0], args[1]
+		cascade, _ := cmd.Flags().GetBool("cascade")
+		pmPath := ".pm"
+
+		// Validate milestone exists.
+		milestonesDir := filepath.Join(pmPath, "milestones")
+		if _, err := findMilestone(milestonesDir, milestoneID); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\nRun `pm milestone list` to see available milestones.\n", err)
+			os.Exit(1)
+		}
+
+		ticketsDir := filepath.Join(pmPath, "tickets")
+		ticketID := resolveTicketID(ticketArg)
+		if ticketID == "" {
+			fmt.Fprintf(os.Stderr, "Error: ticket '%s' not found.\n", ticketArg)
+			os.Exit(1)
+		}
+
+		ids := []string{ticketID}
+		if cascade {
+			ids = collectDescendants(pmPath, ticketID)
+		}
+
+		modified := milestoneModifyTickets(ticketsDir, ids, milestoneID, false)
+		for _, id := range modified {
+			fmt.Printf("  - %s\n", id)
+		}
+		fmt.Printf("✓ Removed %d ticket(s) from milestone '%s'\n", len(modified), milestoneID)
+	},
+}
+
+// collectDescendants returns ticketID itself plus all recursive descendants,
+// queried from the cache via materialized path for efficiency.
+// Falls back to the ticket root ID alone if the cache is unavailable.
+func collectDescendants(pmPath, rootID string) []string {
+	if err := cache.EnsureCacheReady(pmPath); err != nil {
+		return []string{rootID}
+	}
+	if shouldSync, err := cache.ShouldSync(pmPath); err == nil && shouldSync {
+		_ = cache.SyncCache(pmPath)
+	}
+
+	dbPath := filepath.Join(pmPath, ".cache.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return []string{rootID}
+	}
+	defer db.Close()
+
+	// Root ticket itself
+	ids := []string{rootID}
+
+	// All descendants via materialized path
+	descendants, err := cache.ListTickets(db, cache.ListOptions{
+		ParentFilter: rootID,
+		Subtree:      true,
+	})
+	if err != nil {
+		return ids
+	}
+	for _, d := range descendants {
+		ids = append(ids, d.ID)
+	}
+	return ids
+}
+
+// milestoneModifyTickets adds or removes milestoneID from each ticket in ids.
+// It only writes files that actually change and stages them via git add.
+// Returns the list of ticket IDs that were actually modified.
+func milestoneModifyTickets(ticketsDir string, ids []string, milestoneID string, add bool) []string {
+	var modified []string
+	for _, id := range ids {
+		ticketPath := filepath.Join(ticketsDir, id+".md")
+		content, err := os.ReadFile(ticketPath)
+		if err != nil {
+			continue
+		}
+		t, err := ticket.Parse(content)
+		if err != nil {
+			continue
+		}
+
+		before := len(t.Milestones)
+		if add {
+			t.Milestones = appendUnique(t.Milestones, milestoneID)
+		} else {
+			t.Milestones = removeItem(t.Milestones, milestoneID)
+		}
+
+		if len(t.Milestones) == before {
+			continue // no-op
+		}
+
+		applyTicketFields(ticketPath, []fieldUpdate{{name: "milestones", value: t.Milestones}})
+
+		modified = append(modified, id)
+	}
+	return modified
+}
+
+// appendUnique appends item to slice only if not already present.
+func appendUnique(slice []string, item string) []string {
+	for _, v := range slice {
+		if v == item {
+			return slice
+		}
+	}
+	return append(slice, item)
+}
+
+// removeItem removes all occurrences of item from slice.
+func removeItem(slice []string, item string) []string {
+	result := slice[:0:0]
+	for _, v := range slice {
+		if v != item {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// completeMilestoneThenTicket provides shell completion for commands that take
+// <milestone-id> <ticket-id> as positional arguments.
+func completeMilestoneThenTicket(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		return completeMilestoneIDs(cmd, args, toComplete)
+	}
+	return completeTicketIDs(cmd, args, toComplete)
 }
 
 func init() {
@@ -623,10 +806,16 @@ func init() {
 	// Flags for show
 	milestoneShowCmd.Flags().Bool("no-tickets", false, "Suppress the ticket table")
 
+	// Flags for add / remove
+	milestoneAddCmd.Flags().Bool("cascade", false, "Also add all descendant tickets")
+	milestoneRemoveCmd.Flags().Bool("cascade", false, "Also remove from all descendant tickets")
+
 	milestoneCmd.AddCommand(milestoneCreateCmd)
 	milestoneCmd.AddCommand(milestoneListCmd)
 	milestoneCmd.AddCommand(milestoneShowCmd)
 	milestoneCmd.AddCommand(milestoneCloseCmd)
+	milestoneCmd.AddCommand(milestoneAddCmd)
+	milestoneCmd.AddCommand(milestoneRemoveCmd)
 
 	rootCmd.AddCommand(milestoneCmd)
 }
