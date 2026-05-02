@@ -9,11 +9,12 @@ parent: ""
 points: 0
 priority: medium
 related: []
-status: todo
+status: done
 title: Use shell tools to show tickets if available
 type: story
-updated_at: "2026-05-02T10:05:26Z"
+updated_at: "2026-05-02T10:09:13Z"
 ---
+
 
 
 
