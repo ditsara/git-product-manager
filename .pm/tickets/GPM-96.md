@@ -9,11 +9,12 @@ parent: ""
 points: 0
 priority: medium
 related: []
-status: backlog
+status: done
 title: List tickets within a milestone
 type: story
-updated_at: "2026-05-02T06:52:07Z"
+updated_at: "2026-05-02T07:01:43Z"
 ---
+
 
 # Description
 
